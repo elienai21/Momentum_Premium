@@ -42,8 +42,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   }
 
   if (!idToken) {
-    console.warn("[AUTH_MISSING]", {
-      message: "Missing or invalid Authorization/x-id-token header",
+    logger.warn("Auth header missing", {
       traceId: (req as any).traceId || null,
     });
     return next(
@@ -58,11 +57,11 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     // ? Deixe o Firebase Admin validar o token (inclui aud/iss internamente)
     const decoded = await admin.auth().verifyIdToken(idToken, true);
 
-    console.log("[AUTH_DECODED]", {
+    // SECURITY: Never log token contents, email, aud, or iss
+    // Only log uid and traceId for debugging
+    logger.info("Auth token validated", {
       uid: decoded.uid,
-      email: decoded.email || null,
-      aud: decoded.aud,
-      iss: decoded.iss,
+      hasTenantId: !!(decoded as any).tenantId || !!(decoded as any).tenant_id,
       traceId,
     });
 
@@ -73,8 +72,8 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       const roleData = roleDoc.exists ? roleDoc.data() : null;
       isAdmin = roleData?.role === "admin";
     } catch (roleErr) {
-      console.warn("[AUTH_ROLE_LOOKUP_FAIL]", {
-        message: String(roleErr),
+      logger.warn("Auth role lookup failed", {
+        uid: decoded.uid,
         traceId,
       });
     }
@@ -90,27 +89,23 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       req.googleAccessToken = googleAccessToken;
     }
 
-    console.log("[AUTH_OK]", {
+    // SECURITY: Never log email - only uid and safe metadata
+    logger.info("Auth completed", {
       uid: req.user.uid,
-      email: req.user.email,
-      tenantId: req.user.tenantId || null,
       isAdmin: req.user.isAdmin,
+      hasTenantId: !!req.user.tenantId,
       traceId,
     });
 
     next();
   } catch (err: any) {
-    console.error("[AUTH_EXCEPTION]", {
-      message: err?.message,
-      code: err?.code,
-      stack: err?.stack,
-      traceId,
-    });
+    // SECURITY: Never log stack traces - only error code and message
     logger.error("Auth failed validation", {
-      error: err?.message,
       code: err?.code,
+      errorType: err?.name,
       traceId,
     });
+
     return next(new ApiError(401, "Unauthorized: Invalid or expired token."));
   }
 };

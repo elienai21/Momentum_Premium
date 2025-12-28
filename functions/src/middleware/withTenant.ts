@@ -105,9 +105,10 @@ export async function withTenant(req: Request, res: Response, next: NextFunction
       (req.header("x-tenant-id") || (req.query.tenantId as string) || "").trim() || undefined;
 
     if (tenantDebug) {
+      // SECURITY: Don't log full headers/query, only tenant ID sources
       console.log("[TENANT_RESOLVE_START]", {
-        fromHeader: req.headers["x-tenant-id"] || null,
-        fromQuery: (req.query as any).tenantId || null,
+        hasHeader: !!req.headers["x-tenant-id"],
+        hasQuery: !!(req.query as any).tenantId,
         fromUser: req.user?.tenantId || null,
         uid: req.user?.uid || null,
         traceId: (req as any).traceId || null,

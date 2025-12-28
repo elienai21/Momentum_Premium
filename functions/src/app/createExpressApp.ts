@@ -24,9 +24,9 @@ export function createExpressApp(opts?: AppOptions): express.Express {
       console.log("[REQUEST_DEBUG]", {
         method: req.method,
         url: req.originalUrl,
-        hasAuthHeader: !!authHeader,
-        hasXIdToken: !!xIdToken,
-        tenantHeader: tenantHeader || null,
+        hasAuthHeader: !!authHeader, // Only log presence, not value
+        hasXIdToken: !!xIdToken,     // Only log presence, not value
+        hasTenantHeader: !!tenantHeader, // Only log presence, not value
         traceId,
       });
     }
