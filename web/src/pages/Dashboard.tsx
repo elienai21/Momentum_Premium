@@ -9,6 +9,8 @@ import { track } from "../lib/analytics";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../context/AuthContext";
 import { getFriendlyError } from "../lib/errorMessages";
+import { cn } from "../lib/utils";
+import { computeHealthFromKpis } from "../services/pulseApi";
 
 // Components
 import AdvisorDock from "../components/AdvisorDock";
@@ -80,7 +82,7 @@ export default function Dashboard() {
 
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-  const { data, loading, error } = usePulseSummary({
+  const { data, loading, error, refetch } = usePulseSummary({
     tenantId,
     periodStart: iso(periodStart),
     periodEnd: iso(periodEnd),
@@ -125,7 +127,7 @@ export default function Dashboard() {
 
   const handleImportClick = () => {
     track("import_open");
-    setImportOpen(true);
+    navigate("/imports");
   };
 
   const handleSetupClick = () => {

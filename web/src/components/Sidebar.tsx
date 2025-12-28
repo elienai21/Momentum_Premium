@@ -23,6 +23,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
 
   const menu = [
     { label: "Dashboard", path: "/" },
+    { label: "Importar Dados", path: "/imports" },
     { label: "Transações", path: "/transactions" },
     { label: "Auditoria & Limpeza", path: "/data-cleaning" },
     { label: "IA & Insights", path: "/insights" },
@@ -36,9 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
     <>
       <div
         onClick={onClose}
-        className={`fixed inset-0 bg-black/30 md:hidden transition-opacity z-40 ${
-          open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed inset-0 bg-black/30 md:hidden transition-opacity z-40 ${open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
         aria-hidden={!open}
       />
 
@@ -91,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
               key={item.path}
               to={item.path}
               onClick={onClose}
-              className={({ isActive }) =>
+              className={({ isActive }: { isActive: boolean }) =>
                 [
                   "block px-3 py-2 rounded-lg font-medium text-sm transition-all",
                   isActive
@@ -99,7 +99,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
                     : "text-[#1a1a1a] hover:text-[var(--brand-1)] hover:bg-[rgba(110,52,255,0.08)] dark:text-[#cfd3e8] dark:hover:text-white dark:hover:bg-[rgba(110,52,255,0.15)]",
                 ].join(" ")
               }
-              aria-current={({ isActive }) => (isActive ? "page" : undefined)}
             >
               {item.label}
             </NavLink>
