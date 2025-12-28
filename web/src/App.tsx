@@ -28,6 +28,7 @@ const AdminPlans = lazy(() => import("./pages/admin/AdminPlans"));
 const AdminVoice = lazy(() => import("./pages/admin/AdminVoice"));
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const AdminEmergency = lazy(() => import("./pages/admin/AdminEmergency"));
+const DesignSystem = lazy(() => import("./pages/_DesignSystem"));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -83,6 +84,10 @@ export default function App() {
             >
               <Routes>
                 <Route path="/auth" element={<AuthPage />} />
+
+                {import.meta.env.DEV && (
+                  <Route path="/_design-system" element={<DesignSystem />} />
+                )}
 
                 <Route
                   path="/"
