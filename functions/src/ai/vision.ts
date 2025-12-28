@@ -39,20 +39,23 @@ export async function analyzeReceiptImage(
   }
 
   try {
-    const gemini = getGeminiClient();
-    const model = gemini.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      safetySettings: [
-        {
-          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-        },
-      ],
-    });
+    const { retryWithBackoff } = await import("../utils/retryWithBackoff");
 
-    const base64Data = imageBuffer.toString("base64");
+    return await retryWithBackoff(async () => {
+      const gemini = getGeminiClient();
+      const model = gemini.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+        ],
+      });
 
-    const prompt = `
+      const base64Data = imageBuffer.toString("base64");
+
+      const prompt = `
 Você é um assistente financeiro. Analise a imagem de um comprovante (nota fiscal ou recibo) e extraia:
 - Nome do estabelecimento (description)
 - Valor total da transação (amount)
@@ -71,27 +74,44 @@ Responda estritamente neste formato JSON:
 }
 `;
 
-    // ✅ Corrigido: Estrutura compatível com o SDK atual
-    const result = await model.generateContent([
-      { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
-      { text: prompt },
-    ]);
+      // Add timeout wrapper (30s default for vision processing)
+      const timeoutMs = parseInt(process.env.VISION_TIMEOUT_MS || "30000", 10);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Vision API timeout")), timeoutMs);
+      });
 
-    const text = result.response.text().trim();
-    if (!text) throw new ApiError(500, "A IA não retornou dados do recibo.");
+      const resultPromise = model.generateContent([
+        { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
+        { text: prompt },
+      ]);
 
-    const jsonText = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(jsonText);
+      const result = await Promise.race([resultPromise, timeoutPromise]) as any;
 
-    logger.info("Gemini Vision parsed receipt", {
-      file: meta?.fileName,
-      uid: meta?.uid,
-      // Don't log full parsed data - may contain PII
-      hasTransaction: !!parsed.transaction,
-      hasInsights: !!parsed.insights,
+      const text = result.response.text().trim();
+      if (!text) throw new ApiError(500, "A IA não retornou dados do recibo.");
+
+      const jsonText = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(jsonText);
+
+      logger.info("Gemini Vision parsed receipt", {
+        file: meta?.fileName,
+        uid: meta?.uid,
+        // Don't log full parsed data - may contain PII
+        hasTransaction: !!parsed.transaction,
+        hasInsights: !!parsed.insights,
+      });
+
+      return parsed;
+    }, {
+      maxRetries: 2,
+      shouldRetry: (error) => {
+        // Retry on timeout or rate limiting
+        return error.message?.includes("timeout") ||
+          error.message?.includes("429") ||
+          error.status === 429 ||
+          error.status === 503;
+      },
     });
-
-    return parsed;
   } catch (error: any) {
     // Log only error type and basic info, not full stack or sensitive data
     logger.error("Erro ao processar imagem com Gemini Vision", {
@@ -100,6 +120,9 @@ Responda estritamente neste formato JSON:
     });
     if (error.message?.includes("SAFETY")) {
       throw new ApiError(400, "Imagem bloqueada por segurança.");
+    }
+    if (error.message?.includes("timeout")) {
+      throw new ApiError(504, "Timeout ao processar imagem. Tente novamente.");
     }
     throw new ApiError(503, "O serviço de visão do Gemini está indisponível.");
   }
