@@ -7,6 +7,7 @@ import { createExpressApp } from "./app/createExpressApp";
 // Exports de schedulers/triggers
 export { cfoNightly } from "./scheduler/cfoCron";
 export { pulseAggregateOnWrite } from "./triggers/pulseAggregate";
+export { cleanupExpiredLogs, cleanupExpiredLogsHttp } from "./cron/cleanupExpiredLogs";
 
 // Firebase Admin init
 try {
