@@ -155,15 +155,9 @@ export default function Dashboard() {
       </div>
 
       {/* Credits Bar */}
-      <CreditsBar credits={credits} isLoading={creditsLoading} />
+      <CreditsBar />
 
-      {/* Actions Bar (Import/Support) - Preserving original buttons if needed, or keeping them minimalist? 
-           Original had buttons below header. 
-           Deep Dive Hero Card is the new main "Action". 
-           I'll keep "Nova Importação" if pulse is not empty, integrated somewhere?
-           Maybe in SectionHeader actions? I didn't use SectionHeader component for the main header to allow custom layout (Chips).
-           I'll add Main Actions here.
-       */}
+      {/* Actions Bar */}
       {!isPulseEmpty && (
         <div className="flex justify-end gap-2">
           <button
@@ -188,7 +182,6 @@ export default function Dashboard() {
           actionLabel={friendlyError.ctaLabel}
           onActionClick={friendlyError.ctaHref ? () => window.location.href = friendlyError.ctaHref! : undefined}
           icon="⚠️"
-          variant="subtle"
         />
       ) : isPulseEmpty ? (
         <EmptyStateCard
@@ -201,9 +194,9 @@ export default function Dashboard() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard label="Saldo em Caixa" value={kpis?.cashBalance || "R$ 0,00"} icon={Wallet} variant="default" />
-          <StatsCard label="Receita (MRR)" value={kpis?.revenueMonth || "R$ 0,00"} icon={CircleDollarSign} variant="success" />
-          <StatsCard label="Despesas" value={kpis?.expenseMonth || "R$ 0,00"} icon={CreditCard} variant="danger" />
+          <StatsCard label="Saldo em Caixa" value={String(kpis?.cashBalance || "R$ 0,00")} icon={Wallet} variant="default" />
+          <StatsCard label="Receita (MRR)" value={String(kpis?.revenueMonth || "R$ 0,00")} icon={CircleDollarSign} variant="success" />
+          <StatsCard label="Despesas" value={String(kpis?.expenseMonth || "R$ 0,00")} icon={CreditCard} variant="danger" />
           <StatsCard label="Runway" value={`${kpis?.runwayMonths || 0} meses`} icon={Hourglass} variant="warn" />
         </div>
       )}
