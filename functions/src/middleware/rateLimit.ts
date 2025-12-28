@@ -50,6 +50,30 @@ function inAllowlist(ip: string, ips?: string[], cidrs?: string[]) {
   return false;
 }
 
+// In-memory fallback cache (per-instance, simple TTL-based)
+// Used when Firestore is unavailable
+const memoryCache = new Map<string, { count: number; expiresAt: number }>();
+
+function getFromMemoryCache(key: string, now: number): number {
+  const entry = memoryCache.get(key);
+  if (!entry || entry.expiresAt < now) {
+    memoryCache.delete(key);
+    return 0;
+  }
+  return entry.count;
+}
+
+function setInMemoryCache(key: string, count: number, expiresAt: number): void {
+  memoryCache.set(key, { count, expiresAt });
+  // Simple cleanup to avoid unbounded growth
+  if (memoryCache.size > 10000) {
+    const now = Date.now();
+    for (const [k, v] of memoryCache.entries()) {
+      if (v.expiresAt < now) memoryCache.delete(k);
+    }
+  }
+}
+
 export function createRateLimit(opts: RateLimitOptions = {}) {
   const {
     maxPerWindow = parseInt(process.env.RATE_LIMIT_MAX || "120", 10),
@@ -62,6 +86,16 @@ export function createRateLimit(opts: RateLimitOptions = {}) {
     secret = (opts.secret || process.env.RATE_LIMIT_SECRET || "dev-secret").trim(),
     enabled = (typeof opts.enabled === "boolean") ? opts.enabled : true,
   } = opts;
+
+  // SECURITY: Critical routes that should fail-closed on rate limit errors
+  // Updated to match actual application routes (billing, admin, imports, vision)
+  const criticalRoutes = [
+    "/api/billing",
+    "/api/admin",
+    "/api/imports",
+    "/api/vision",
+    "/api/ai/vision",
+  ];
 
   return async function rateLimit(req: Request, res: Response, next: NextFunction) {
     if (!enabled) return next();
@@ -102,7 +136,65 @@ export function createRateLimit(opts: RateLimitOptions = {}) {
       return next();
     } catch (e) {
       console.error(JSON.stringify({ level: "error", type: "rate_limit_error", err: String(e) }));
-      return next(); // fail-open em erro infra
+
+      // FALLBACK STRATEGY:
+      // Check if this is a critical route that should fail-closed
+      const isCritical = criticalRoutes.some(route => req.path.startsWith(route));
+
+      if (isCritical) {
+        // FAIL-CLOSED: Deny request on critical routes when Firestore fails
+        console.warn(JSON.stringify({
+          level: "warn",
+          type: "rate_limit_fail_closed",
+          path: req.path,
+          reason: "Firestore unavailable for critical route",
+        }));
+        return res.status(503).json({
+          error: "Service temporarily unavailable",
+          code: "RATE_LIMIT_UNAVAILABLE",
+        });
+      }
+
+      // For non-critical routes, use in-memory fallback
+      try {
+        const ip = ipFromRequest(req);
+        const now = Date.now();
+        const minute = Math.floor(now / (windowSeconds * 1000));
+        const ipHash = hmacHex(secret, ip, 40);
+        const key = `${ipHash}:${minute}`;
+
+        const count = getFromMemoryCache(key, now) + 1;
+        const expiresAt = (minute + graceWindows) * windowSeconds * 1000;
+        setInMemoryCache(key, count, expiresAt);
+
+        const remaining = Math.max(0, maxPerWindow - count);
+        res.setHeader(headerName, remaining.toString());
+
+        if (count > maxPerWindow) {
+          console.warn(JSON.stringify({
+            level: "warn",
+            type: "rate_limit_memory_fallback",
+            path: req.path,
+            remaining,
+          }));
+          return res.status(429).json({ error: "Too Many Requests" });
+        }
+
+        console.info(JSON.stringify({
+          level: "info",
+          type: "rate_limit_memory_fallback_ok",
+          path: req.path,
+        }));
+        return next();
+      } catch (memErr) {
+        // If memory fallback also fails, fail-open for non-critical routes
+        console.error(JSON.stringify({
+          level: "error",
+          type: "rate_limit_total_failure",
+          err: String(memErr),
+        }));
+        return next(); // fail-open as last resort for non-critical routes
+      }
     }
   };
 }
