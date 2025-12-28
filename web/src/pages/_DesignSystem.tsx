@@ -1,5 +1,5 @@
 
-import { Wallet, AlertTriangle, CheckCircle, AlertCircle, FileSearch } from "lucide-react";
+import { Wallet, AlertTriangle, CheckCircle, AlertCircle, FileSearch, Loader2, RotateCcw } from "lucide-react";
 import { GlassPanel } from "../components/ui/GlassPanel";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { StatsCard } from "../components/ui/StatsCard";
@@ -8,10 +8,14 @@ import { InsightCard } from "../components/ui/InsightCard";
 import { InsightList } from "../components/ui/InsightList";
 import { SkeletonPanel } from "../components/ui/SkeletonPanel";
 import { EmptyState } from "../components/ui/EmptyState";
+import { LoadingState } from "../components/ui/LoadingState";
+import { ErrorState } from "../components/ui/ErrorState";
+import { Skeleton } from "../components/ui/Skeleton";
+import { AsyncPanel } from "../components/ui/AsyncPanel";
 
 export default function DesignSystemPage() {
     return (
-        <div className="min-h-screen bg-momentum-bg p-8 space-y-12">
+        <div className="min-h-screen bg-momentum-bg p-8 space-y-12 pb-24">
             <SectionHeader
                 title="Momentum Design System"
                 subtitle="Visual Validation Playground (DEV ONLY)"
@@ -33,7 +37,7 @@ export default function DesignSystemPage() {
                 <h3 className="text-lg font-semibold text-momentum-text">Primitives</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <GlassPanel className="p-6">
-                        <p className="text-momentum-text">This is a GlassPanel content.</p>
+                        <p className="text-momentum-text font-display">This is a GlassPanel content with Font Display.</p>
                     </GlassPanel>
 
                     <div className="space-y-2">
@@ -77,8 +81,69 @@ export default function DesignSystemPage() {
             </section>
 
             <section className="space-y-4">
+                <h3 className="text-lg font-semibold text-momentum-text">Async States & Infrastructure</h3>
+                <p className="text-sm text-momentum-muted mb-4">Standardized states for loading, errors, and empty results.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold text-momentum-accent uppercase tracking-widest">Loading State</p>
+                        <GlassPanel className="p-4">
+                            <LoadingState message="Buscando transações..." />
+                        </GlassPanel>
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold text-momentum-accent uppercase tracking-widest">Error State</p>
+                        <GlassPanel className="p-0">
+                            <ErrorState
+                                message="Não foi possível conectar ao servidor. Verifique sua conexão."
+                                onRetry={() => alert('Retry clicked')}
+                                traceId="req_982341"
+                            />
+                        </GlassPanel>
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold text-momentum-accent uppercase tracking-widest">Skeleton Blocks</p>
+                        <div className="space-y-3">
+                            <Skeleton className="h-6 w-2/3" />
+                            <Skeleton className="h-20 w-full" />
+                            <div className="flex gap-2 mt-4">
+                                <Skeleton className="h-8 w-20 rounded-full" />
+                                <Skeleton className="h-8 w-20 rounded-full" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold text-momentum-accent uppercase tracking-widest">AsyncPanel Wrapper (Skeleton View)</p>
+                        <AsyncPanel
+                            isLoading={true}
+                            loadingVariant="skeleton"
+                            className="h-80"
+                        >
+                            <div>Real Content Hidden</div>
+                        </AsyncPanel>
+                    </div>
+                    <div className="space-y-4">
+                        <p className="text-xs font-bold text-momentum-accent uppercase tracking-widest">AsyncPanel (Empty View)</p>
+                        <AsyncPanel
+                            isLoading={false}
+                            isEmpty={true}
+                            emptyTitle="Nenhum plano encontrado"
+                            emptyDescription="Crie seu primeiro plano de investimento para começar."
+                            className="h-80"
+                        >
+                            <div>Real Content Hidden</div>
+                        </AsyncPanel>
+                    </div>
+                </div>
+            </section>
+
+            <section className="space-y-4">
                 <h3 className="text-lg font-semibold text-momentum-text">Insight Blocks</h3>
-                <p className="text-sm text-momentum-muted mb-4">New UI primitives for displaying analysis and empty states.</p>
+                <p className="text-sm text-momentum-muted mb-4">UI primitives for displaying analysis and automated insights.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <InsightList>
                         <InsightCard
@@ -101,11 +166,11 @@ export default function DesignSystemPage() {
 
                     <div className="space-y-4">
                         <div>
-                            <p className="text-xs text-momentum-muted mb-2">Skeleton Panel:</p>
+                            <p className="text-xs text-momentum-muted mb-2">Skeleton Panel (Classic):</p>
                             <SkeletonPanel className="h-32" />
                         </div>
                         <div>
-                            <p className="text-xs text-momentum-muted mb-2">Empty State:</p>
+                            <p className="text-xs text-momentum-muted mb-2">Empty State (Classic):</p>
                             <EmptyState
                                 icon={<FileSearch size={32} />}
                                 title="Nenhum dado encontrado"
