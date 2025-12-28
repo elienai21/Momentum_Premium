@@ -1,7 +1,12 @@
 ﻿// web/src/pages/Transactions.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { Filter, Download, Search, CheckCircle, AlertCircle } from "lucide-react";
 import api from "../services/api";
 import { useToast } from "../components/Toast";
+import { GlassPanel } from "../components/ui/GlassPanel";
+import { SectionHeader } from "../components/ui/SectionHeader";
+import { Badge } from "../components/ui/Badge";
+import { cn } from "../lib/utils";
 
 interface Tx {
   date: string;
@@ -100,54 +105,55 @@ const Transactions: React.FC = () => {
   }
 
   return (
-    <main className="p-6 space-y-6" aria-live="polite">
-      <header className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">
-            Transações
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Filtre, pesquise e exporte seu extrato completo.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={loadAll}
-            className="btn primary text-xs px-3 py-2"
-          >
-            {loading ? "Carregando..." : "Aplicar filtros"}
-          </button>
-          <button
-            onClick={exportCSV}
-            className="btn neutral text-xs px-3 py-2"
-          >
-            Exportar CSV
-          </button>
-        </div>
-      </header>
+    <div className="space-y-8 transition-colors duration-300" aria-live="polite">
+      <SectionHeader
+        title="Transações"
+        subtitle="Filtre, pesquise e exporte seu extrato completo."
+        actions={
+          <div className="flex gap-2">
+            <button
+              onClick={loadAll}
+              disabled={loading}
+              className="bg-momentum-accent hover:bg-momentum-accent/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-momentum-glow flex items-center gap-2 disabled:opacity-70"
+            >
+              {loading ? "Carregando..." : <><Filter size={16} /> Aplicar filtros</>}
+            </button>
+            <button
+              onClick={exportCSV}
+              className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-momentum-text border border-momentum-border px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2"
+            >
+              <Download size={16} /> Exportar CSV
+            </button>
+          </div>
+        }
+      />
 
-      <section className="card p-4">
-        <div className="grid gap-3 md:grid-cols-6">
-          {[
-            ["Período (de)", from, setFrom, "date"],
-            ["Período (até)", to, setTo, "date"],
-          ].map(([label, value, setFn, type], i) => (
-            <div key={i} className="flex flex-col gap-1">
-              <label className="text-sm opacity-70">{label as string}</label>
-              <input
-                value={value as string}
-                onChange={(e) => (setFn as any)(e.target.value)}
-                type={type as string}
-                className="glass border border-white/10 rounded-lg px-3 py-2"
-              />
-            </div>
-          ))}
-          <div className="flex flex-col gap-1">
-            <label className="text-sm opacity-70">Categoria</label>
+      <GlassPanel className="p-6">
+        <div className="grid gap-6 md:grid-cols-6 items-end">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-momentum-muted uppercase tracking-wider">Período (De)</label>
+            <input
+              type="date"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-full bg-momentum-bg/50 border border-momentum-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-momentum-accent outline-none transition-all text-momentum-text"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-momentum-muted uppercase tracking-wider">Período (Até)</label>
+            <input
+              type="date"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              className="w-full bg-momentum-bg/50 border border-momentum-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-momentum-accent outline-none transition-all text-momentum-text"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-momentum-muted uppercase tracking-wider">Categoria</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="glass border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-momentum-bg/50 border border-momentum-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-momentum-accent outline-none transition-all text-momentum-text"
             >
               <option value="">Todas</option>
               {meta.categories.map((c) => (
@@ -157,24 +163,24 @@ const Transactions: React.FC = () => {
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm opacity-70">Tipo</label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-momentum-muted uppercase tracking-wider">Tipo</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="glass border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-momentum-bg/50 border border-momentum-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-momentum-accent outline-none transition-all text-momentum-text"
             >
               <option value="">Todos</option>
               <option value="credit">Crédito</option>
               <option value="debit">Débito</option>
             </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm opacity-70">Cartão</label>
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-momentum-muted uppercase tracking-wider">Cartão</label>
             <select
               value={card}
               onChange={(e) => setCard(e.target.value)}
-              className="glass border border-white/10 rounded-lg px-3 py-2"
+              className="w-full bg-momentum-bg/50 border border-momentum-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-momentum-accent outline-none transition-all text-momentum-text"
             >
               <option value="">Todos</option>
               {meta.cards.map((c) => (
@@ -184,93 +190,77 @@ const Transactions: React.FC = () => {
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-1 md:col-span-2">
-            <label className="text-sm opacity-70">Busca</label>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              type="text"
-              placeholder="Descrição, categoria, cartão..."
-              className="glass border border-white/10 rounded-lg px-3 py-2"
-            />
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-momentum-muted uppercase tracking-wider">Busca</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 text-momentum-muted" size={16} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                type="text"
+                placeholder="Descrição, categoria, cartão..."
+                className="w-full pl-10 bg-momentum-bg/50 border border-momentum-border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-momentum-accent outline-none transition-all text-momentum-text"
+              />
+            </div>
           </div>
         </div>
+      </GlassPanel>
 
-        <div className="mt-3 flex flex-wrap gap-2 items-center">
-          <button
-            onClick={loadAll}
-            className="btn primary hover:-translate-y-px transition-all duration-300"
-          >
-            {loading ? "Carregando..." : "Aplicar"}
-          </button>
-          <button
-            onClick={exportCSV}
-            className="btn neutral hover:-translate-y-px transition-all duration-300"
-          >
-            Exportar CSV
-          </button>
-        </div>
-      </section>
-
-      <section className="card p-4">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <h3 className="font-semibold">Transações</h3>
-          <span className="text-xs text-[var(--text-2)]">
-            {transactions.length} registros
-          </span>
+      <GlassPanel className="p-0 overflow-hidden">
+        <div className="p-6 border-b border-momentum-border flex items-center justify-between">
+          <h3 className="font-bold text-lg text-momentum-text">Transações</h3>
+          <Badge variant="neutral">{transactions.length} registros</Badge>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full border border-white/10 rounded-xl">
-            <thead className="text-[var(--text-2)]">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-momentum-muted/5 text-momentum-muted font-semibold uppercase text-xs tracking-wider border-b border-momentum-border">
               <tr>
-                <th className="text-left px-4 py-2 border-b border-white/10">
+                <th className="px-6 py-4">
                   Data
                 </th>
-                <th className="text-left px-4 py-2 border-b border-white/10">
+                <th className="px-6 py-4">
                   Descrição
                 </th>
-                <th className="text-left px-4 py-2 border-b border-white/10">
+                <th className="px-6 py-4">
                   Categoria
                 </th>
-                <th className="text-left px-4 py-2 border-b border-white/10">
+                <th className="px-6 py-4">
                   Tipo
                 </th>
-                <th className="text-right px-4 py-2 border-b border-white/10">
+                <th className="px-6 py-4 text-right">
                   Valor
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-momentum-border">
               {transactions.map((tx, i) => (
                 <tr
                   key={i}
-                  className="transition hover:bg-[rgba(110,52,255,0.05)]"
+                  className="transition hover:bg-momentum-accent/5"
                 >
-                  <td className="px-4 py-2 border-b border-white/10">
+                  <td className="px-6 py-4 font-medium text-momentum-text">
                     {tx.date}
                   </td>
-                  <td className="px-4 py-2 border-b border-white/10">
+                  <td className="px-6 py-4 text-momentum-muted">
                     {tx.description}
                   </td>
-                  <td className="px-4 py-2 border-b border-white/10">
-                    {tx.category}
+                  <td className="px-6 py-4">
+                    <Badge variant="neutral" className="bg-momentum-bg/50 border-momentum-border">
+                      {tx.category}
+                    </Badge>
                   </td>
-                  <td className="px-4 py-2 border-b border-white/10">
-                    <span
-                      className={`px-2 py-1 rounded-full border text-xs ${
-                        tx.type === "credit"
-                          ? "border-emerald-400/40 text-emerald-300"
-                          : "border-rose-400/40 text-rose-300"
-                      }`}
-                    >
-                      {tx.type === "credit" ? "Crédito" : "Débito"}
-                    </span>
+                  <td className="px-6 py-4">
+                    <Badge variant={tx.type === 'credit' ? 'success' : 'danger'} className="gap-1.5">
+                      {tx.type === 'credit' ? <CheckCircle size={10} /> : <AlertCircle size={10} />}
+                      {tx.type === 'credit' ? "Crédito" : "Débito"}
+                    </Badge>
                   </td>
                   <td
-                    className={`px-4 py-2 border-b border-white/10 text-right ${
-                      tx.type === "credit" ? "text-emerald-400" : "text-rose-400"
-                    }`}
+                    className={cn(
+                      "px-6 py-4 text-right font-bold",
+                      tx.type === 'credit' ? "text-momentum-success" : "text-momentum-danger"
+                    )}
                   >
                     {Math.abs(tx.amount || 0).toLocaleString("pt-BR", {
                       style: "currency",
@@ -282,8 +272,8 @@ const Transactions: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </section>
-    </main>
+      </GlassPanel>
+    </div>
   );
 };
 
