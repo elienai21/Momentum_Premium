@@ -71,11 +71,29 @@ export function createExpressApp(opts?: AppOptions): express.Express {
     next();
   });
 
+  // Payload size validation (only when content-length header exists)
+  app.use((req, res, next) => {
+    const contentLength = req.headers["content-length"];
+    if (contentLength) {
+      const sizeMB = parseInt(contentLength, 10) / (1024 * 1024);
+      if (sizeMB > 5) {
+        return res.status(413).json({
+          error: "Payload too large. Maximum size is 5MB.",
+          code: "PAYLOAD_TOO_LARGE",
+          traceId: (req as any).traceId,
+        });
+      }
+    }
+    next();
+  });
+
   // Parser JSON permissivo (aceita qualquer content-type)
+  // Increased from 1mb to 5mb to support vision/import operations
+  // TODO: Migrate large uploads to Storage signed URLs for better scalability
   app.use(
     express.json({
       type: () => true,
-      limit: "1mb",
+      limit: "5mb",
     }),
   );
 
