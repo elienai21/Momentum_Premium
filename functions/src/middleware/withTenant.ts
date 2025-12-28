@@ -17,7 +17,7 @@ type TenantInfo = {
 type FeatureFlags = Record<string, any>;
 type CacheEntry<T> = { value: T; until: number };
 
-const CACHE_TTL_MS = parseInt(process.env.TENANT_CACHE_TTL_MS || "60000", 10); // 60s
+const CACHE_TTL_MS = parseInt(process.env.TENANT_CACHE_TTL_MS || "10000", 10); // 10s (reduced from 60s)
 const tenantInfoCache = new Map<string, CacheEntry<TenantInfo>>();
 const tenantFlagsCache = new Map<string, CacheEntry<FeatureFlags>>();
 
@@ -81,6 +81,19 @@ async function loadTenantFlags(tenantId: string): Promise<FeatureFlags> {
   const flags = (snap.exists ? (snap.data() as FeatureFlags) : {}) || {};
   setCached(tenantFlagsCache, tenantId, flags);
   return flags;
+}
+
+/**
+ * Invalidate tenant cache manually
+ * Call this after updating tenant plan, memberships, or features
+ * 
+ * TODO: Future improvement - trigger this automatically via:
+ * - Firestore triggers (onUpdate to tenants/{tenantId})
+ * - PubSub messages for distributed cache invalidation
+ */
+export function invalidateTenantCache(tenantId: string): void {
+  tenantInfoCache.delete(tenantId);
+  tenantFlagsCache.delete(tenantId);
 }
 
 export async function withTenant(req: Request, res: Response, next: NextFunction) {
