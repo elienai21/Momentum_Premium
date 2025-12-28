@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Wallet, TrendingUp, AlertCircle, CheckCircle, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Wallet, TrendingUp, AlertCircle, CheckCircle, ArrowDownRight, ArrowUpRight, ArrowLeft } from "lucide-react";
 import api from "../services/api";
 import { usePulseSummary } from "../hooks/usePulseSummary";
 import { useAuth } from "../context/AuthContext";
@@ -24,6 +25,7 @@ interface FilterResp {
 }
 
 export default function DeepDiveFinanceiroPage() {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const { notify } = useToast();
 
@@ -70,12 +72,15 @@ export default function DeepDiveFinanceiroPage() {
     }, [periodStart, periodEnd, notify]);
 
     const kpis = pulseData?.kpis;
+    const metricsLoading = pulseLoading; // Separate loading for KPIs vs Tx? Or combined?
+    // Combined
     const isLoading = pulseLoading || txLoading;
 
     // Calculations for "Deep Dive" insights (Generic)
     const totalIn = transactions.filter(t => t.type === 'credit').reduce((acc, t) => acc + t.amount, 0);
     const totalOut = transactions.filter(t => t.type === 'debit').reduce((acc, t) => acc + Math.abs(t.amount), 0);
     const netFlow = totalIn - totalOut;
+    const alerts = pulseData?.alerts || [];
 
     return (
         <div className="space-y-8 pb-20 fade-in" aria-live="polite">
@@ -83,14 +88,22 @@ export default function DeepDiveFinanceiroPage() {
                 title="Deep Dive Financeiro"
                 subtitle="Análise detalhada de performance, caixa e movimentações."
                 actions={
-                    <Badge variant="neutral" className="px-3 py-1">
-                        Últimos 30 dias
-                    </Badge>
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate('/')}
+                            className="text-momentum-muted hover:text-momentum-text transition-colors text-sm flex items-center gap-1"
+                        >
+                            <ArrowLeft size={16} /> Voltar ao Dashboard
+                        </button>
+                        <Badge variant="neutral" className="px-3 py-1">
+                            Últimos 30 dias
+                        </Badge>
+                    </div>
                 }
             />
 
             {/* Top KPI Grid */}
-            {isLoading ? (
+            {metricsLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {[1, 2, 3, 4].map(i => <GlassPanel key={i} className="h-36 animate-pulse bg-current/5"><div /></GlassPanel>)}
                 </div>
@@ -190,9 +203,20 @@ export default function DeepDiveFinanceiroPage() {
                             <AlertCircle size={20} />
                             <h3>Anomalias Detectadas</h3>
                         </div>
-                        <p className="text-sm text-momentum-muted">
-                            Nenhuma anomalia crítica detectada nos últimos 30 dias. O comportamento das despesas segue o padrão histórico.
-                        </p>
+                        {alerts.length > 0 ? (
+                            <div className="space-y-3">
+                                {alerts.map(a => (
+                                    <div key={a.id} className="p-3 bg-momentum-warn/5 rounded-lg border border-momentum-warn/20 text-xs text-momentum-text">
+                                        <p className="font-semibold mb-1 text-momentum-warn">{a.type}</p>
+                                        <p className="text-momentum-muted leading-relaxed">{a.message}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-momentum-muted">
+                                Nenhuma anomalia crítica detectada nos últimos 30 dias. O comportamento das despesas segue o padrão histórico.
+                            </p>
+                        )}
                     </GlassPanel>
 
                     <GlassPanel className="p-6 space-y-4">
