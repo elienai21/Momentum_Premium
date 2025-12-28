@@ -51,17 +51,29 @@ export const stripeWebhook = onRequest(
     }
 
     const eventId = event.id;
-    const existing = await db.collection("webhook_events").doc(eventId).get();
-    if (existing.exists) {
-      logger.warn(`Duplicate event ${eventId} ignored.`);
-      res.status(200).send({ received: true });
-      return;
-    }
+    const traceId = `stripe-sm-${Date.now()}`;
+    const eventDocRef = db.collection("stripe_events").doc(eventId);
+    const eventData = {
+      eventId,
+      type: event.type,
+      receivedAt: new Date().toISOString(),
+      status: "received",
+      traceId,
+      source: "subscriptionManager",
+    };
 
-    await db
-      .collection("webhook_events")
-      .doc(eventId)
-      .set({ id: eventId, type: event.type, created: new Date().toISOString() });
+    // ✅ ATOMIC IDEMPOTENCY: Use create() which fails if doc exists
+    try {
+      await eventDocRef.create(eventData);
+    } catch (createErr: any) {
+      // ALREADY_EXISTS error code is 6 in Firestore
+      if (createErr.code === 6 || createErr.code === "already-exists") {
+        logger.info(`Duplicate event ${eventId} ignored (idempotent).`);
+        res.status(200).send({ received: true, idempotent: true });
+        return;
+      }
+      throw createErr;
+    }
 
     const dataObject = event.data.object as any;
     const tenantId = dataObject.metadata?.tenantId;

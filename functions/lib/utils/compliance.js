@@ -7,8 +7,8 @@ const firebase_1 = require("../services/firebase");
 // ============================
 const express_1 = require("express");
 const requireAuth_1 = require("../middleware/requireAuth");
-const errors_1 = require("../utils/errors");
-const logger_1 = require("../utils/logger");
+const errors_1 = require("./errors");
+const logger_1 = require("./logger");
 exports.complianceRouter = (0, express_1.Router)();
 /**
  * 🔸 POST /api/compliance/consent

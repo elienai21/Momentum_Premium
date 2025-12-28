@@ -57,31 +57,40 @@ billingWebhook.post(
         webhookSecret
       );
 
-      // ✅ IDEMPOTENCY: Check if event already processed
+      // ✅ ATOMIC IDEMPOTENCY: Use create() which fails if doc exists (AlreadyExists error)
+      // This eliminates race condition between get() and set()
       const eventDocRef = db.collection("stripe_events").doc(event.id);
-      const eventDoc = await eventDocRef.get();
-
-      if (eventDoc.exists) {
-        const existingData = eventDoc.data();
-        logger.info("Stripe webhook: duplicate event (idempotent)", {
-          eventId: event.id,
-          type: event.type,
-          status: existingData?.status,
-          firstReceivedAt: existingData?.receivedAt,
-          traceId: existingData?.traceId,
-        });
-        // Return 200 immediately - already processed
-        return res.status(200).send({ ok: true, idempotent: true });
-      }
-
-      // ✅ CREATE event record BEFORE processing
-      await eventDocRef.set({
+      const eventData = {
         eventId: event.id,
         type: event.type,
         receivedAt: new Date().toISOString(),
         status: "received",
         traceId,
-      });
+        requestId: (req as any).requestId || traceId,
+      };
+
+      try {
+        // Atomic create - fails with code 6 (ALREADY_EXISTS) if document exists
+        await eventDocRef.create(eventData);
+      } catch (createErr: any) {
+        // ALREADY_EXISTS error code is 6 in Firestore
+        if (createErr.code === 6 || createErr.code === "already-exists") {
+          // Document already exists - return 200 immediately (idempotent)
+          const existingDoc = await eventDocRef.get();
+          const existingData = existingDoc.data();
+          logger.info("Stripe webhook: duplicate event (idempotent)", {
+            eventId: event.id,
+            type: event.type,
+            status: existingData?.status,
+            firstReceivedAt: existingData?.receivedAt,
+            firstTraceId: existingData?.traceId,
+            currentTraceId: traceId,
+          });
+          return res.status(200).send({ ok: true, idempotent: true });
+        }
+        // Re-throw other errors
+        throw createErr;
+      }
 
       logger.info("Stripe webhook received", {
         type: event.type,

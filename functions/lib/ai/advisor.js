@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.processChatMessage = void 0;
 exports.advisorReply = advisorReply;
 exports.runAdvisor = runAdvisor;
-const context_1 = require("../ai/context");
+const context_1 = require("./context");
 const aiClient_1 = require("../utils/aiClient");
 const logger_1 = require("../utils/logger");
 const checkPlan_1 = require("../middleware/checkPlan");

@@ -114,20 +114,26 @@ Usuário: ${message}
         }
         // 🔐 Log da conversa (opcional)
         if (tenantId) {
+            const { redactPII } = await Promise.resolve().then(() => __importStar(require("../utils/redactPII")));
+            // Calculate expiration date (30 days from now)
+            // TODO: Configure Firestore TTL policy or scheduled cleanup job
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 30);
             await db
                 .collection("tenants")
                 .doc(tenantId)
                 .collection("advisor_logs")
                 .add({
-                message,
-                reply,
+                message: redactPII(message), // Redact PII before storage
+                reply: redactPII(reply), // Redact PII from AI response
+                expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
         res.status(200).send({ reply });
     }
     catch (err) {
-        console.error("AdvisorChat Error:", err);
-        res.status(500).send({ error: err.message });
+        console.error("AdvisorChat Error:", err.message); // Log only message, not full error
+        res.status(500).send({ error: "Failed to process request" }); // Don't expose internals
     }
 });

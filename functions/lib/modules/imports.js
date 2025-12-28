@@ -13,7 +13,7 @@ const requireAuth_1 = require("../middleware/requireAuth");
 const withTenant_1 = require("../middleware/withTenant");
 const errors_1 = require("../utils/errors");
 const logger_1 = require("../utils/logger");
-const auditService_1 = require("../modules/audit/auditService");
+const auditService_1 = require("./audit/auditService");
 exports.importsRouter = (0, express_1.Router)();
 // Todas as rotas de importação exigem auth + tenant
 exports.importsRouter.use(requireAuth_1.requireAuth, withTenant_1.withTenant);

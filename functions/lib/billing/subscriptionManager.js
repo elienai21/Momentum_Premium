@@ -9,6 +9,7 @@ const https_1 = require("firebase-functions/v2/https");
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
 const logger_1 = require("../utils/logger");
+const withTenant_1 = require("../middleware/withTenant");
 const STRIPE_SECRET_KEY = (0, params_1.defineSecret)("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = (0, params_1.defineSecret)("STRIPE_WEBHOOK_SECRET");
 let stripeClient = null;
@@ -66,6 +67,7 @@ exports.stripeWebhook = (0, https_1.onRequest)({ secrets: [STRIPE_SECRET_KEY, ST
                     "billing.status": "active",
                     "billing.subscriptionId": subscription,
                 });
+                (0, withTenant_1.invalidateTenantCache)(tenantId); // Clear cache so new plan loads
                 logger_1.logger.info(`Subscription activated for tenant ${tenantId}`);
             }
             break;
@@ -78,6 +80,7 @@ exports.stripeWebhook = (0, https_1.onRequest)({ secrets: [STRIPE_SECRET_KEY, ST
                     .update({
                     "billing.status": "canceled",
                 });
+                (0, withTenant_1.invalidateTenantCache)(tenantId); // Clear cache so downgraded features load
                 logger_1.logger.info(`Subscription canceled for tenant ${tenantId}`);
             }
             break;

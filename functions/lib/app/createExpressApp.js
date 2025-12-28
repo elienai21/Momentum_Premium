@@ -10,7 +10,7 @@ const compression_1 = __importDefault(require("compression"));
 const trace_1 = require("../utils/trace");
 function createExpressApp(opts) {
     const mode = opts?.mode || "prod";
-    const isTest = mode === "test" || process.env.NODE_ENV === "test";
+    const isTest = mode === "test" || process.env.FUNCTIONS_EMULATOR === "true";
     const requestDebug = process.env.REQUEST_DEBUG === "true";
     const app = (0, express_1.default)();
     // Debug leve
@@ -68,10 +68,27 @@ function createExpressApp(opts) {
         }
         next();
     });
+    // Payload size validation (only when content-length header exists)
+    app.use((req, res, next) => {
+        const contentLength = req.headers["content-length"];
+        if (contentLength) {
+            const sizeMB = parseInt(contentLength, 10) / (1024 * 1024);
+            if (sizeMB > 5) {
+                return res.status(413).json({
+                    error: "Payload too large. Maximum size is 5MB.",
+                    code: "PAYLOAD_TOO_LARGE",
+                    traceId: req.traceId,
+                });
+            }
+        }
+        next();
+    });
     // Parser JSON permissivo (aceita qualquer content-type)
+    // Increased from 1mb to 5mb to support vision/import operations
+    // TODO: Migrate large uploads to Storage signed URLs for better scalability
     app.use(express_1.default.json({
         type: () => true,
-        limit: "1mb",
+        limit: "5mb",
     }));
     // Harness de teste: injeta auth/tenant mock se não for real
     if (isTest && process.env.TEST_REAL_AUTH !== "true") {
@@ -118,7 +135,7 @@ function createExpressApp(opts) {
     app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
     app.use("/api/public", publicRouter);
     const isDevEnv = process.env.FUNCTIONS_EMULATOR === "true" ||
-        process.env.NODE_ENV !== "production";
+        process.env.NODE_ENV === "development";
     const isVoiceFeatureForced = process.env.VOICE_FEATURE_ENABLED === "true";
     const isVoiceEnabled = true; // segue config atual
     if (isVoiceEnabled || isDevEnv || isVoiceFeatureForced) {

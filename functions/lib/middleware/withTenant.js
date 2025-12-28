@@ -35,9 +35,10 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.invalidateTenantCache = invalidateTenantCache;
 exports.withTenant = withTenant;
 const admin = __importStar(require("firebase-admin"));
-const CACHE_TTL_MS = parseInt(process.env.TENANT_CACHE_TTL_MS || "60000", 10); // 60s
+const CACHE_TTL_MS = parseInt(process.env.TENANT_CACHE_TTL_MS || "10000", 10); // 10s (reduced from 60s)
 const tenantInfoCache = new Map();
 const tenantFlagsCache = new Map();
 function now() {
@@ -96,6 +97,18 @@ async function loadTenantFlags(tenantId) {
     const flags = (snap.exists ? snap.data() : {}) || {};
     setCached(tenantFlagsCache, tenantId, flags);
     return flags;
+}
+/**
+ * Invalidate tenant cache manually
+ * Call this after updating tenant plan, memberships, or features
+ *
+ * TODO: Future improvement - trigger this automatically via:
+ * - Firestore triggers (onUpdate to tenants/{tenantId})
+ * - PubSub messages for distributed cache invalidation
+ */
+function invalidateTenantCache(tenantId) {
+    tenantInfoCache.delete(tenantId);
+    tenantFlagsCache.delete(tenantId);
 }
 async function withTenant(req, res, next) {
     try {

@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.router = exports.billingWebhook = void 0;
+const firebase_1 = require("../services/firebase");
 // ============================
 // 💳 Billing Webhook — Stripe Events Listener (v7.9.1 Clean Build)
 // ============================
@@ -27,12 +28,10 @@ function getStripeClient() {
     }
     return stripeClient;
 }
-// ============================
-// 🔔 POST /billing/webhook
-// ============================
 exports.billingWebhook.post("/webhook", 
 // Se o body já é tratado em outro lugar, esse middleware é opcional
 express_1.default.json({ type: "application/json" }), async (req, res) => {
+    const traceId = req?.traceId || `stripe-${Date.now()}`;
     try {
         const signature = req.headers["stripe-signature"];
         if (!signature) {
@@ -47,28 +46,70 @@ express_1.default.json({ type: "application/json" }), async (req, res) => {
             throw new Error("STRIPE_WEBHOOK_SECRET não configurado");
         }
         const event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
-        logger_1.logger.info("Stripe webhook recebido", {
-            type: event.type,
-            traceId: req?.traceId,
-        });
-        // ✅ Exemplo de tratamento
-        switch (event.type) {
-            case "invoice.paid":
-                logger_1.logger.info("Fatura paga com sucesso.", { id: event.id });
-                // aqui você pode atualizar Firestore se quiser, usando `db`
-                break;
-            case "invoice.payment_failed":
-                logger_1.logger.warn("Falha no pagamento da fatura.", { id: event.id });
-                break;
-            default:
-                logger_1.logger.info("Evento não tratado.", { type: event.type });
+        // ✅ IDEMPOTENCY: Check if event already processed
+        const eventDocRef = firebase_1.db.collection("stripe_events").doc(event.id);
+        const eventDoc = await eventDocRef.get();
+        if (eventDoc.exists) {
+            const existingData = eventDoc.data();
+            logger_1.logger.info("Stripe webhook: duplicate event (idempotent)", {
+                eventId: event.id,
+                type: event.type,
+                status: existingData?.status,
+                firstReceivedAt: existingData?.receivedAt,
+                traceId: existingData?.traceId,
+            });
+            // Return 200 immediately - already processed
+            return res.status(200).send({ ok: true, idempotent: true });
         }
-        res.status(200).send({ ok: true });
+        // ✅ CREATE event record BEFORE processing
+        await eventDocRef.set({
+            eventId: event.id,
+            type: event.type,
+            receivedAt: new Date().toISOString(),
+            status: "received",
+            traceId,
+        });
+        logger_1.logger.info("Stripe webhook received", {
+            type: event.type,
+            eventId: event.id,
+            traceId,
+        });
+        // ✅ Process event
+        try {
+            switch (event.type) {
+                case "invoice.paid":
+                    logger_1.logger.info("Fatura paga com sucesso.", { id: event.id, traceId });
+                    // aqui você pode atualizar Firestore se quiser
+                    break;
+                case "invoice.payment_failed":
+                    logger_1.logger.warn("Falha no pagamento da fatura.", { id: event.id, traceId });
+                    break;
+                default:
+                    logger_1.logger.info("Evento não tratado.", { type: event.type, traceId });
+            }
+            // ✅ Mark as processed
+            await eventDocRef.update({
+                status: "processed",
+                processedAt: new Date().toISOString(),
+            });
+            res.status(200).send({ ok: true });
+        }
+        catch (processingErr) {
+            // ✅ Mark as failed (without stack trace)
+            await eventDocRef.update({
+                status: "failed",
+                errorCode: processingErr.code || "PROCESSING_ERROR",
+                errorMessage: processingErr.message?.substring(0, 200),
+                failedAt: new Date().toISOString(),
+            });
+            throw processingErr;
+        }
     }
     catch (err) {
         logger_1.logger.error("Erro no webhook Stripe", {
             error: err.message,
-            traceId: req?.traceId,
+            code: err.code,
+            traceId,
         });
         const status = err instanceof errors_1.ApiError && err.status ? err.status : 400;
         res.status(status).send({ ok: false, error: err.message });
