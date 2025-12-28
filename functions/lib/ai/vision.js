@@ -91,14 +91,16 @@ Responda estritamente neste formato JSON:
 }
 `;
             // Add timeout wrapper (30s default for vision processing)
+            // Add timeout wrapper (30s default for vision processing)
             const timeoutMs = parseInt(process.env.VISION_TIMEOUT_MS || "30000", 10);
+            let timeoutHandle;
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error("Vision API timeout")), timeoutMs);
+                timeoutHandle = setTimeout(() => reject(new Error("Vision API timeout")), timeoutMs);
             });
             const resultPromise = model.generateContent([
                 { inlineData: { data: base64Data, mimeType: "image/jpeg" } },
                 { text: prompt },
-            ]);
+            ]).finally(() => clearTimeout(timeoutHandle));
             const result = await Promise.race([resultPromise, timeoutPromise]);
             const text = result.response.text().trim();
             if (!text)

@@ -79,35 +79,49 @@ function inAllowlist(ip, ips, cidrs) {
 // In-memory fallback cache (per-instance, simple TTL-based)
 // Used when Firestore is unavailable
 const memoryCache = new Map();
+const MAX_CACHE_SIZE = 10000;
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL_MS = 60000; // Cleanup at most 1x/minute
 function getFromMemoryCache(key, now) {
     const entry = memoryCache.get(key);
-    if (!entry || entry.expiresAt < now) {
+    if (!entry)
+        return 0;
+    if (entry.expiresAt < now) {
         memoryCache.delete(key);
         return 0;
     }
     return entry.count;
 }
 function setInMemoryCache(key, count, expiresAt) {
-    memoryCache.set(key, { count, expiresAt });
-    // Simple cleanup to avoid unbounded growth
-    if (memoryCache.size > 10000) {
+    // Prevent unbounded growth
+    if (memoryCache.size >= MAX_CACHE_SIZE && !memoryCache.has(key)) {
+        // If full, try to cleanup expired first
         const now = Date.now();
-        for (const [k, v] of memoryCache.entries()) {
-            if (v.expiresAt < now)
-                memoryCache.delete(k);
+        if (now - lastCleanup > CLEANUP_INTERVAL_MS) {
+            for (const [k, v] of memoryCache.entries()) {
+                if (v.expiresAt < now)
+                    memoryCache.delete(k);
+            }
+            lastCleanup = now;
         }
+        // If still full after cleanup, drop new entry (fail-open for this specific IP tracking)
+        // This is better than crashing with OOM
+        if (memoryCache.size >= MAX_CACHE_SIZE)
+            return;
     }
+    memoryCache.set(key, { count, expiresAt });
 }
 function createRateLimit(opts = {}) {
     const { maxPerWindow = parseInt(process.env.RATE_LIMIT_MAX || "120", 10), windowSeconds = parseInt(process.env.RATE_LIMIT_WINDOW || "60", 10), graceWindows = parseInt(process.env.RATE_LIMIT_GRACE_WINDOWS || "2", 10), allowlistCidrs = (process.env.RATE_LIMIT_ALLOWLIST_CIDRS || "").split(",").map(s => s.trim()).filter(Boolean), allowlistIps = (process.env.RATE_LIMIT_ALLOWLIST_IPS || "").split(",").map(s => s.trim()).filter(Boolean), headerName = opts.headerName || "X-RateLimit-Remaining", collection = opts.collection || "rate_limits", secret = (opts.secret || process.env.RATE_LIMIT_SECRET || "dev-secret").trim(), enabled = (typeof opts.enabled === "boolean") ? opts.enabled : true, } = opts;
     // SECURITY: Critical routes that should fail-closed on rate limit errors
     // Updated to match actual application routes (billing, admin, imports, vision)
     const criticalRoutes = [
-        "/api/billing",
-        "/api/admin",
-        "/api/imports",
-        "/api/vision",
-        "/api/ai/vision",
+        "/api/billing", // Payment processing
+        "/api/admin", // Administrative actions (users, marketplace)
+        "/api/imports", // Bulk data operations
+        "/api/voice", // Costly AI/Voice operations
+        "/api/ai", // General AI endpoints (Vision, Insights, Advisor)
+        "/api/realestate", // Complex data processing
     ];
     return async function rateLimit(req, res, next) {
         if (!enabled)

@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.apiV2 = exports.expressApp = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
+exports.apiV2 = exports.expressApp = exports.stripeWebhook = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
 // functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -44,6 +44,11 @@ var cfoCron_1 = require("./scheduler/cfoCron");
 Object.defineProperty(exports, "cfoNightly", { enumerable: true, get: function () { return cfoCron_1.cfoNightly; } });
 var pulseAggregate_1 = require("./triggers/pulseAggregate");
 Object.defineProperty(exports, "pulseAggregateOnWrite", { enumerable: true, get: function () { return pulseAggregate_1.pulseAggregateOnWrite; } });
+var cleanupExpiredLogs_1 = require("./cron/cleanupExpiredLogs");
+Object.defineProperty(exports, "cleanupExpiredLogs", { enumerable: true, get: function () { return cleanupExpiredLogs_1.cleanupExpiredLogs; } });
+Object.defineProperty(exports, "cleanupExpiredLogsHttp", { enumerable: true, get: function () { return cleanupExpiredLogs_1.cleanupExpiredLogsHttp; } });
+var subscriptionManager_1 = require("./billing/subscriptionManager");
+Object.defineProperty(exports, "stripeWebhook", { enumerable: true, get: function () { return subscriptionManager_1.stripeWebhook; } });
 // Firebase Admin init
 try {
     admin.app();

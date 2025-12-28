@@ -62,8 +62,7 @@ const requireAuth = async (req, res, next) => {
         idToken = authorization.slice("Bearer ".length).trim();
     }
     if (!idToken) {
-        console.warn("[AUTH_MISSING]", {
-            message: "Missing or invalid Authorization/x-id-token header",
+        logger_1.logger.warn("Auth header missing", {
             traceId: req.traceId || null,
         });
         return next(new errors_1.ApiError(401, "Unauthorized: Missing or invalid Authorization/x-id-token header."));
@@ -71,11 +70,11 @@ const requireAuth = async (req, res, next) => {
     try {
         // ? Deixe o Firebase Admin validar o token (inclui aud/iss internamente)
         const decoded = await admin.auth().verifyIdToken(idToken, true);
-        console.log("[AUTH_DECODED]", {
+        // SECURITY: Never log token contents, email, aud, or iss
+        // Only log uid and traceId for debugging
+        logger_1.logger.info("Auth token validated", {
             uid: decoded.uid,
-            email: decoded.email || null,
-            aud: decoded.aud,
-            iss: decoded.iss,
+            hasTenantId: !!decoded.tenantId || !!decoded.tenant_id,
             traceId,
         });
         // (Opcional) leitura de roles de platform_roles, se já existir no projeto
@@ -86,8 +85,8 @@ const requireAuth = async (req, res, next) => {
             isAdmin = roleData?.role === "admin";
         }
         catch (roleErr) {
-            console.warn("[AUTH_ROLE_LOOKUP_FAIL]", {
-                message: String(roleErr),
+            logger_1.logger.warn("Auth role lookup failed", {
+                uid: decoded.uid,
                 traceId,
             });
         }
@@ -100,25 +99,20 @@ const requireAuth = async (req, res, next) => {
         if (typeof googleAccessToken === "string") {
             req.googleAccessToken = googleAccessToken;
         }
-        console.log("[AUTH_OK]", {
+        // SECURITY: Never log email - only uid and safe metadata
+        logger_1.logger.info("Auth completed", {
             uid: req.user.uid,
-            email: req.user.email,
-            tenantId: req.user.tenantId || null,
             isAdmin: req.user.isAdmin,
+            hasTenantId: !!req.user.tenantId,
             traceId,
         });
         next();
     }
     catch (err) {
-        console.error("[AUTH_EXCEPTION]", {
-            message: err?.message,
-            code: err?.code,
-            stack: err?.stack,
-            traceId,
-        });
+        // SECURITY: Never log stack traces - only error code and message
         logger_1.logger.error("Auth failed validation", {
-            error: err?.message,
             code: err?.code,
+            errorType: err?.name,
             traceId,
         });
         return next(new errors_1.ApiError(401, "Unauthorized: Invalid or expired token."));

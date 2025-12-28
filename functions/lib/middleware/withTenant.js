@@ -116,9 +116,10 @@ async function withTenant(req, res, next) {
         const claimTenant = req.user?.tenantId;
         const headerTenant = (req.header("x-tenant-id") || req.query.tenantId || "").trim() || undefined;
         if (tenantDebug) {
+            // SECURITY: Don't log full headers/query, only tenant ID sources
             console.log("[TENANT_RESOLVE_START]", {
-                fromHeader: req.headers["x-tenant-id"] || null,
-                fromQuery: req.query.tenantId || null,
+                hasHeader: !!req.headers["x-tenant-id"],
+                hasQuery: !!req.query.tenantId,
                 fromUser: req.user?.tenantId || null,
                 uid: req.user?.uid || null,
                 traceId: req.traceId || null,
