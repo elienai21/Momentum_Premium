@@ -27,6 +27,12 @@ import { GlassPanel } from "../components/ui/GlassPanel";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { StatsCard } from "../components/ui/StatsCard";
 import { Badge } from "../components/ui/Badge";
+import { AsyncPanel } from "../components/ui/AsyncPanel";
+import { HeroCard } from "../components/dashboard/HeroCard";
+import { InsightCard } from "../components/ui/InsightCard";
+import { InsightList } from "../components/ui/InsightList";
+import { Skeleton } from "../components/ui/Skeleton";
+import { RefreshCw, Download, FileText, ChevronRight } from "lucide-react";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -137,117 +143,171 @@ export default function Dashboard() {
   const friendlyError = error ? getFriendlyError(error) : null;
   const kpis = data?.kpis;
 
+  // Fetch recent transactions (mirroring Transactions.tsx but compact)
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [txLoading, setTxLoading] = useState(false);
+
+  useEffect(() => {
+    async function fetchRecentTx() {
+      if (!user) return;
+      setTxLoading(true);
+      try {
+        const payload = { from: null, to: null, category: null, type: null, card: null, q: null };
+        const { data: txData } = await (import("../services/api").then(m => m.api.post("/portal/transactions/filter", payload)));
+        setRecentTransactions(txData?.transactions?.slice(0, 5) || []);
+      } catch (err) {
+        console.warn("Falha ao carregar transações recentes:", err);
+      } finally {
+        setTxLoading(false);
+      }
+    }
+    fetchRecentTx();
+  }, [user]);
+
+  const handleRefresh = () => {
+    refetch();
+    // Re-fetch transactions too
+    const payload = { from: null, to: null, category: null, type: null, card: null, q: null };
+    import("../services/api").then(m => m.api.post("/portal/transactions/filter", payload)).then(res => {
+      setRecentTransactions(res.data?.transactions?.slice(0, 5) || []);
+    });
+  };
+
+  const dashboardLoading = loading || creditsLoading;
+  const health = data?.health || computeHealthFromKpis(kpis || { cashBalance: 0, revenueMonth: 0, expenseMonth: 0, runwayMonths: 0 });
+
   return (
-    <div className="space-y-8 pb-20 fade-in" aria-live="polite">
-      {/* 1. Header */}
+    <div className="space-y-8 pb-24 fade-in" aria-live="polite">
+      {/* 1. Header Area */}
       <SectionHeader
-        title={<>Olá, <span className="text-momentum-accent">{userName}</span></>}
-        subtitle={<>Empresa: <span className="font-medium text-momentum-text/80 dark:text-momentum-text/80">{companyName}</span></>}
+        title={<>Dashboard</>}
+        subtitle={<>Bem-vindo de volta, <span className="text-momentum-accent font-semibold">{userName}</span> • {periodLabel}</>}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="neutral">{periodLabel}</Badge>
-            <Badge variant="success">Última importação: há 2 dias</Badge>
-            <Badge variant="warn">Atualizado: há poucos minutos</Badge>
+          <div className="flex gap-2">
+            <button
+              onClick={handleRefresh}
+              className="bg-momentum-bg/50 hover:bg-white text-momentum-text border border-momentum-border px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center gap-2"
+            >
+              <RefreshCw size={14} className={cn(loading && "animate-spin")} /> Atualizar
+            </button>
+            <button
+              onClick={() => navigate('/transactions')}
+              className="bg-momentum-accent hover:bg-momentum-accent/90 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-momentum-glow flex items-center gap-2"
+            >
+              <Download size={14} /> Exportar
+            </button>
           </div>
         }
       />
 
-      {/* Credits Bar */}
-      <CreditsBar />
-
-      {/* Actions Bar */}
-      {!isPulseEmpty && (
-        <div className="flex justify-end gap-2">
-          <button
-            onClick={handleImportClick}
-            className="bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-momentum-text border border-momentum-border px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm"
-          >
-            Nova importação
-          </button>
-        </div>
-      )}
-
-
-      {/* 2. Stats Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map(i => <GlassPanel key={i} className="h-32 animate-pulse bg-current/5" ><div /></GlassPanel>)}
-        </div>
-      ) : friendlyError ? (
-        <EmptyStateCard
-          title={friendlyError.title}
-          description={friendlyError.message}
-          actionLabel={friendlyError.ctaLabel}
-          onActionClick={friendlyError.ctaHref ? () => window.location.href = friendlyError.ctaHref! : undefined}
-          icon="⚠️"
+      {/* 2. Hero Component */}
+      <AsyncPanel isLoading={loading} error={error}>
+        <HeroCard
+          title={`Sua saúde financeira está ${health.status === 'green' ? 'excelente' : health.status === 'yellow' ? 'em atenção' : 'crítica'}`}
+          description={health.reasons?.[0] || "Continue monitorando seus indicadores para manter o crescimento sustentável da sua empresa."}
+          badge={
+            <Badge variant={health.status === 'green' ? 'success' : health.status === 'yellow' ? 'warn' : 'danger'} className="uppercase tracking-tighter font-bold">
+              Score: {health.status === 'green' ? '85' : health.status === 'yellow' ? '65' : '40'}
+            </Badge>
+          }
+          mainKpiLabel="Net Cash (Mensal)"
+          mainKpiValue={((kpis?.revenueMonth || 0) - (kpis?.expenseMonth || 0)).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })}
+          miniStats={[
+            { label: "Runway Estimado", value: `${kpis?.runwayMonths || 0} meses`, icon: Hourglass, variant: (kpis?.runwayMonths || 0) > 6 ? "success" : "warn" },
+            { label: "Margem Líquida", value: `${Math.round((kpis?.marginNet || 0) * 100)}%`, icon: TrendingUp, variant: (kpis?.marginNet || 0) > 0.2 ? "success" : "default" },
+          ]}
+          actions={
+            <button
+              onClick={() => navigate('/cfo/deep-dive')}
+              className="px-6 py-2.5 bg-momentum-accent text-white rounded-lg text-sm font-bold shadow-momentum-glow flex items-center gap-2"
+            >
+              Ver Detalhes <ArrowRight size={16} />
+            </button>
+          }
         />
-      ) : isPulseEmpty ? (
-        <EmptyStateCard
-          title="Seu Pulse ainda está em branco"
-          description="Ainda não temos dados financeiros suficientes para gerar seu Pulse."
-          primaryActionLabel="Importar agora"
-          onPrimaryAction={handleImportClick}
-          secondaryActionLabel="Configurar perfil"
-          onSecondaryAction={handleSetupClick}
-        />
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      </AsyncPanel>
+
+      {/* 3. KPI Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <AsyncPanel isLoading={loading} error={error} loadingVariant="skeleton">
           <StatsCard label="Saldo em Caixa" value={String(kpis?.cashBalance || "R$ 0,00")} icon={Wallet} variant="default" />
           <StatsCard label="Receita (MRR)" value={String(kpis?.revenueMonth || "R$ 0,00")} icon={CircleDollarSign} variant="success" />
           <StatsCard label="Despesas" value={String(kpis?.expenseMonth || "R$ 0,00")} icon={CreditCard} variant="danger" />
           <StatsCard label="Runway" value={`${kpis?.runwayMonths || 0} meses`} icon={Hourglass} variant="warn" />
-        </div>
-      )}
+        </AsyncPanel>
+      </div>
 
-      {/* 3. Metrics & Insights Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          {/* CFO Health Card */}
-          {showCfo && <CfoHealthCard />}
-
-          {/* 4. Deep Dive Hero Card */}
-          <section className="relative overflow-hidden rounded-xl border border-momentum-accent/20 p-8 shadow-sm group">
-            {/* Background effects */}
-            <GlassPanel className="absolute inset-0 z-0 bg-gradient-to-br from-momentum-accent/10 to-momentum-secondary/10 opacity-50" ><div /></GlassPanel>
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="flex items-start gap-5">
-                <div className="hidden sm:flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-momentum-accent to-momentum-secondary text-white shadow-momentum-glow">
-                  <TrendingUp size={28} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-momentum-text dark:text-white font-display mb-2 flex items-center gap-2">
-                    Deep Dive Financeiro
-                  </h2>
-                  <p className="text-momentum-muted max-w-2xl text-sm leading-relaxed">
-                    Acesse a nova tela dedicada para análises profundas. Visualize o fluxo de caixa, monitore transações e receba alertas de anomalias.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => navigate('/cfo/deep-dive')}
-                className="bg-momentum-accent hover:bg-momentum-accent/90 text-white px-6 py-3.5 rounded-lg text-sm font-medium transition-all shadow-momentum-glow flex items-center gap-2 whitespace-nowrap"
-              >
-                Acessar Análise <ArrowRight size={16} />
-              </button>
-            </div>
-          </section>
-        </div>
-
-        <div className="lg:col-span-1 space-y-6">
-          {showCfo && <CfoSection onImportClick={handleImportClick} tenantId={tenantId} plan={plan} />}
-
-          {/* Support / Actions */}
-          <div className="flex flex-col gap-3">
-            {showCfo && import.meta.env.DEV && <CfoVoiceButton />}
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={handleSupportOpen} className="p-3 rounded-lg border border-momentum-border bg-white/50 dark:bg-white/5 text-sm font-medium hover:bg-white dark:hover:bg-white/10 transition">
-                Abrir Suporte
-              </button>
-              <button onClick={() => { setAdvisorOpen(true); track("advisor_open"); }} className="p-3 rounded-lg border border-momentum-border bg-white/50 dark:bg-white/5 text-sm font-medium hover:bg-white dark:hover:bg-white/10 transition">
-                Abrir Advisor
-              </button>
-            </div>
+      {/* 4. Bottom Grid: Alerts & Transactions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Alerts Panel */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-momentum-text font-display">Alertas Recentes</h3>
+            <button onClick={() => navigate('/alerts')} className="text-xs text-momentum-accent font-bold uppercase flex items-center gap-1 hover:underline">
+              Ver todos <ChevronRight size={14} />
+            </button>
           </div>
+
+          <AsyncPanel isLoading={loading} error={error} isEmpty={!data?.alerts?.length} emptyTitle="Nenhum alerta" emptyDescription="Sua conta está sem pendências.">
+            <InsightList>
+              {data?.alerts?.slice(0, 3).map((alert) => (
+                <InsightCard
+                  key={alert.id}
+                  title={alert.title}
+                  description={alert.message}
+                  severity={alert.type === 'anomalia' ? 'danger' : 'warn'}
+                  className="p-4"
+                />
+              ))}
+            </InsightList>
+          </AsyncPanel>
+        </div>
+
+        {/* Transactions Panel */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-momentum-text font-display">Últimas Transações</h3>
+            <button onClick={() => navigate('/transactions')} className="text-xs text-momentum-accent font-bold uppercase flex items-center gap-1 hover:underline">
+              Abrir Extrato <ChevronRight size={14} />
+            </button>
+          </div>
+
+          <AsyncPanel isLoading={txLoading} error={null} isEmpty={recentTransactions.length === 0}>
+            <GlassPanel className="p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-momentum-muted/5 text-momentum-muted font-bold uppercase tracking-widest text-[10px] border-b border-momentum-border">
+                    <tr>
+                      <th className="px-5 py-3">Data</th>
+                      <th className="px-5 py-3">Descrição</th>
+                      <th className="px-5 py-3">Categoria</th>
+                      <th className="px-5 py-3 text-right">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-momentum-border">
+                    {recentTransactions.map((tx, i) => (
+                      <tr key={i} className="hover:bg-momentum-accent/5 transition-colors cursor-pointer" onClick={() => navigate('/transactions')}>
+                        <td className="px-5 py-3 text-momentum-text opacity-70">{tx.date}</td>
+                        <td className="px-5 py-3 font-medium text-momentum-text truncate max-w-[140px]">{tx.description}</td>
+                        <td className="px-5 py-3">
+                          <Badge variant="neutral" className="text-[9px]">{tx.category}</Badge>
+                        </td>
+                        <td className={cn(
+                          "px-5 py-3 text-right font-bold",
+                          tx.type === 'credit' ? "text-momentum-success" : "text-momentum-text"
+                        )}>
+                          {tx.type === 'debit' ? '-' : ''}{Math.abs(tx.amount || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </GlassPanel>
+          </AsyncPanel>
         </div>
       </div>
 
