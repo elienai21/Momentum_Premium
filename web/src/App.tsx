@@ -28,6 +28,7 @@ const AdminPlans = lazy(() => import("./pages/admin/AdminPlans"));
 const AdminVoice = lazy(() => import("./pages/admin/AdminVoice"));
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
 const AdminEmergency = lazy(() => import("./pages/admin/AdminEmergency"));
+const DeepDiveFinanceiro = lazy(() => import("./pages/DeepDiveFinanceiro"));
 const DesignSystem = lazy(() => import("./pages/_DesignSystem"));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -107,6 +108,7 @@ export default function App() {
                   <Route path="ai" element={<AIConsole />} />
                   <Route path="help" element={<Help />} />
                   <Route path="real-estate" element={<RealEstateDashboard />} />
+                  <Route path="cfo/deep-dive" element={<DeepDiveFinanceiro />} />
 
                   <Route path="admin" element={<AdminLayout />}>
                     <Route path="plans" element={<AdminPlans />} />
