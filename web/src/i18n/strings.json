@@ -1,0 +1,24 @@
+{
+  "pt-BR": {
+    "greeting": "Bem-vindo à Momentum",
+    "analytics": "Painel Analítico",
+    "advisor": "Assistente Financeiro",
+    "apply": "Aplicar",
+    "export": "Exportar CSV",
+    "insights": "Insights Rápidos",
+    "trend": "Tendência (6M)",
+    "byCategory": "Despesas por Categoria",
+    "transactions": "Transações"
+  },
+  "en-US": {
+    "greeting": "Welcome to Momentum",
+    "analytics": "Analytics Dashboard",
+    "advisor": "Financial Advisor",
+    "apply": "Apply",
+    "export": "Export CSV",
+    "insights": "Quick Insights",
+    "trend": "Trend (6M)",
+    "byCategory": "Expenses by Category",
+    "transactions": "Transactions"
+  }
+}

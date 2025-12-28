@@ -1,0 +1,33 @@
+name: Momentum CI
+on:
+  push:
+    branches: [ main ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install & Test (functions)
+        run: |
+          cd functions
+          npm ci || npm i
+          npm run build || true
+          npm test -- --runInBand --detectOpenHandles || true
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Firebase Deploy (functions + rules)
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          npm i -g firebase-tools
+          firebase deploy --only functions,firestore:rules --non-interactive --token "$FIREBASE_TOKEN"

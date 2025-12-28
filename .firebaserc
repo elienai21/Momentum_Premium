@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "momentum-premium",
+    "version10": "momentum-premium"
+  },
+  "targets": {},
+  "etags": {}
+}

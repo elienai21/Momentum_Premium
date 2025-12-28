@@ -1,0 +1,95 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+    
+    // Dono = usuário específico (para coisas de perfil, por exemplo)
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Pertence ao tenant (mesma ideia das suas Firestore Rules)
+    function belongsToTenant(tenantId) {
+      return isSignedIn() && request.auth.token.tenantId == tenantId;
+    }
+    
+    function isValidImageUpload() {
+      return request.resource.size < 10 * 1024 * 1024 && // 10MB max
+             request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidDocumentUpload() {
+      return request.resource.size < 20 * 1024 * 1024 && // 20MB max
+             (request.resource.contentType.matches('image/.*') ||
+              request.resource.contentType.matches('application/pdf'));
+    }
+    
+    // ============================================
+    // RECEIPTS & INVOICES (Notas fiscais/recibos)
+    // ============================================
+    
+    match /receipts/{tenantId}/{fileName} {
+      // Upload: qualquer usuário do tenant, com validação de tipo e tamanho
+      allow write: if belongsToTenant(tenantId) && isValidDocumentUpload();
+      
+      // Leitura: qualquer usuário do tenant
+      allow read: if belongsToTenant(tenantId);
+      
+      // Delete: qualquer usuário do tenant
+      allow delete: if belongsToTenant(tenantId);
+    }
+    
+    // ============================================
+    // PROFILE PICTURES (Fotos de perfil)
+    // ============================================
+    
+    match /profile_pictures/{userId}/{fileName} {
+      // Só o próprio usuário sobe/deleta a foto
+      allow write: if isOwner(userId) && isValidImageUpload();
+      allow read: if isSignedIn(); // Todos logados podem ver fotos de perfil
+      allow delete: if isOwner(userId);
+    }
+    
+    // ============================================
+    // EXPORTS (Arquivos exportados pelo sistema)
+    // ============================================
+    
+    match /exports/{tenantId}/{fileName} {
+      // Apenas backend cria exports (via Admin SDK, não passa pelas rules)
+      allow write: if false;
+      
+      // Leitura/remoção: qualquer usuário do tenant
+      allow read: if belongsToTenant(tenantId);
+      allow delete: if belongsToTenant(tenantId);
+    }
+    
+    // ============================================
+    // TEMPORARY UPLOADS (Uploads temporários)
+    // ============================================
+    
+    match /temp/{tenantId}/{fileName} {
+      // Upload temporário com limite de tamanho
+      allow write: if belongsToTenant(tenantId) &&
+                      request.resource.size < 15 * 1024 * 1024;
+      allow read: if belongsToTenant(tenantId);
+      allow delete: if belongsToTenant(tenantId);
+    }
+    
+    // ============================================
+    // BLOQUEIO PADRÃO
+    // ============================================
+    
+    // Qualquer outro path: bloqueado
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

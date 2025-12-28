@@ -1,0 +1,44 @@
+{
+  "name": "momentum-platform",
+  "private": true,
+  "version": "9.6.0",
+  "description": "Momentum Platform — SaaS de automação financeira inteligente (AI + Voice + Vision)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "serve": "vite preview",
+    "functions:build": "cd functions && npm run build",
+    "deploy": "firebase deploy --only functions,hosting",
+    "deploy:emulate": "firebase emulators:start --only hosting,functions,firestore,auth",
+    "lint": "node tools/check-no-raw-api-fetch.js",
+    "lint:api-headers": "npm --prefix web run lint:api-headers",
+    "test:all": "npm --prefix functions run test -- --runInBand --detectOpenHandles",
+    "build:all": "npm run functions:build && npm --prefix web run build",
+    "verify:functions": "cd functions && npm run lint:imports && npm test -- --runInBand --detectOpenHandles && npm run build && node ../tools/check-functions-build-aliases.js",
+    "verify:web": "cd web && npm run lint:api-headers && npm run build && npm run test:headers --if-present",
+    "verify": "npm run verify:functions && npm run verify:web",
+    "ci:functions": "npm --prefix functions ci && npm run verify:functions",
+    "ci:web": "npm --prefix web ci && npm run lint:api-headers && npm run verify:web",
+    "ci:all": "npm run ci:functions && npm run ci:web",
+    "test": "npm run test:all"
+    },
+
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "compression": "^1.7.4",
+    "firebase": "^11.0.0",
+    "axios": "^1.12.2",
+    "zod": "^3.23.8",
+    "@google-cloud/text-to-speech": "^6.4.0",
+    "@google-cloud/speech": "^7.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "@types/node": "^20.10.0",
+    "vite": "^5.4.8"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

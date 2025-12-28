@@ -1,0 +1,76 @@
+{
+  "parameters": {
+    "default_plan": {
+      "defaultValue": { "value": "PRO" }
+    }
+  },
+  "parameterGroups": {
+    "features": {
+      "parameters": {
+        "starter_feature_pulse":        { "defaultValue": { "value": "true"  } },
+        "starter_feature_cfo":          { "defaultValue": { "value": "limited" } },
+        "starter_feature_support_ai":   { "defaultValue": { "value": "basic" } },
+        "starter_feature_market":       { "defaultValue": { "value": "false" } },
+        "starter_feature_voice":        { "defaultValue": { "value": "true" } },
+
+        "pro_feature_pulse":            { "defaultValue": { "value": "true"  } },
+        "pro_feature_cfo":              { "defaultValue": { "value": "full"  } },
+        "pro_feature_support_ai":       { "defaultValue": { "value": "full"  } },
+        "pro_feature_market":           { "defaultValue": { "value": "basic" } },
+        "pro_feature_voice":            { "defaultValue": { "value": "true"  } },
+
+        "business_feature_pulse":       { "defaultValue": { "value": "true"  } },
+        "business_feature_cfo":         { "defaultValue": { "value": "full"  } },
+        "business_feature_support_ai":  { "defaultValue": { "value": "full"  } },
+        "business_feature_market":      { "defaultValue": { "value": "advanced" } },
+        "business_feature_voice":       { "defaultValue": { "value": "true"  } },
+
+        "enterprise_feature_pulse":     { "defaultValue": { "value": "true"  } },
+        "enterprise_feature_cfo":       { "defaultValue": { "value": "full"  } },
+        "enterprise_feature_support_ai":{ "defaultValue": { "value": "full"  } },
+        "enterprise_feature_market":    { "defaultValue": { "value": "advanced" } },
+        "enterprise_feature_voice":     { "defaultValue": { "value": "true"  } },
+        "enterprise_feature_whitelabel":{ "defaultValue": { "value": "true"  } }
+      }
+    },
+    "credits": {
+      "parameters": {
+        "starter_monthly_ai_credits":   { "defaultValue": { "value": "500"   } },
+        "pro_monthly_ai_credits":       { "defaultValue": { "value": "3000"  } },
+        "business_monthly_ai_credits":  { "defaultValue": { "value": "10000" } },
+        "enterprise_monthly_ai_credits":{ "defaultValue": { "value": "30000" } },
+
+        "pro_monthly_voice_premium_credits": {
+          "defaultValue": { "value": "200" }
+        },
+        "business_monthly_voice_premium_credits": {
+          "defaultValue": { "value": "600" }
+        },
+        "enterprise_monthly_voice_premium_credits": {
+          "defaultValue": { "value": "2000" }
+        }
+      }
+    },
+    "voice": {
+      "parameters": {
+        "starter_voice_default_mode":   { "defaultValue": { "value": "tts_basic" } },
+        "starter_voice_trial_enabled":  { "defaultValue": { "value": "true" } },
+        "starter_voice_trial_premium_credits": {
+          "defaultValue": { "value": "60" }
+        },
+        "pro_voice_default_mode":       { "defaultValue": { "value": "tts_premium" } },
+        "business_voice_default_mode":  { "defaultValue": { "value": "tts_premium" } },
+        "enterprise_voice_default_mode":{ "defaultValue": { "value": "tts_premium" } }
+      }
+    },
+    "limits": {
+      "parameters": {
+        "starter_max_users":    { "defaultValue": { "value": "1"  } },
+        "pro_max_users":        { "defaultValue": { "value": "3"  } },
+        "business_max_users":   { "defaultValue": { "value": "10" } },
+        "enterprise_max_users": { "defaultValue": { "value": "50" } }
+      }
+    }
+  },
+  "conditions": []
+}

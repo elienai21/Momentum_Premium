@@ -1,0 +1,22 @@
+{
+  // Desativa avisos falsos de CSS e habilita o Tailwind no VSCode
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+
+  "tailwindCSS.includeLanguages": {
+    "html": "html",
+    "javascript": "javascript",
+    "typescriptreact": "typescriptreact"
+  },
+
+  "editor.quickSuggestions": {
+    "strings": true
+  },
+
+  // Recarrega automaticamente o Tailwind quando salvar CSS
+  "editor.codeActionsOnSave": {
+    "source.fixAll": "explicit"
+  }
+}
+

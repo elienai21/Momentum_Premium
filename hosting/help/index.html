@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="theme-color" content="#6e34ff"/>
+  <title>Visão Geral & Planos — Momentum Help</title>
+  <link rel="stylesheet" href="/styles/global.css"/>
+  <link rel="stylesheet" href="/styles/personalization.css"/>
+  <link rel="stylesheet" href="/styles/mobile.css"/>
+  <link rel="stylesheet" href="/styles/animations.css"/>
+  <style>
+    .docs { display:grid; grid-template-columns: 260px 1fr; min-height:100vh; }
+    aside { padding:16px; }
+    main { padding: 16px 22px 80px; }
+    .nav a { display:block; padding:10px 12px; border: var(--border); border-radius:12px; margin:6px 0; text-decoration:none; }
+    .nav a.active { outline:2px solid var(--brand-2); outline-offset:2px; }
+    .grid-2 { display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
+    @media (max-width:980px){ .docs{ grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+<div class="docs">
+  <aside class="card scroll-y">
+    <div class="brand" style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div class="logo"></div><div>Momentum<br><small class="text-2">Central de Ajuda</small></div>
+    </div>
+    <nav class="nav" aria-label="Ajuda - Navegação">
+      <a class="active" href="/help/index.html">Visão Geral</a>
+      <a href="/help/getting-started.html">Primeiros passos</a>
+      <a href="/help/using-the-app.html">Usando o app</a>
+      <a href="/help/voice-and-ocr.html">Voz & OCR</a>
+      <a href="/help/plans-and-features.html">Planos & recursos</a>
+      <a href="/help/security-and-privacy.html">Segurança & privacidade</a>
+      <a href="/help/use-cases-and-workflows.html">Casos de uso</a>
+      <a href="/help/faq-and-troubleshooting.html">FAQ & Suporte</a>
+      <a href="/help/success-plan-30-60-90.html">Plano 30/60/90</a>
+      <a href="/help/pricing-and-limits.html">Preços & limites</a>
+    </nav>
+  </aside>
+  <main>
+    <section class="card">
+      <h1 style="margin-top:0">Visão Geral & Planos</h1>
+      <div class="text-2" style="margin:-6px 0 12px">Atualizado: <!-- hoje --></div>
+      <p>O <strong>Momentum</strong> é um assistente financeiro com IA: organiza suas finanças, gera <strong>insights</strong>, suporta <strong>captura por câmera (OCR)</strong>, <strong>comandos por voz</strong>, e oferece painéis analíticos. Para empresas, há <strong>contas a pagar/receber</strong> com <strong>dupla validação</strong> e painel <strong>CFO</strong>.</p>
+      <div class="grid-2">
+        <div class="pill">
+          <h3>Benefícios</h3>
+          <ul>
+            <li>KPIs (saldo, receitas, despesas) e tendências.</li>
+            <li>Advisor (IA) com recomendações acionáveis.</li>
+            <li>PWA instalável, voz, câmera/recibos (OCR).</li>
+            <li>Governança: dupla aprovação e trilha de auditoria (Business+).</li>
+          </ul>
+        </div>
+        <div class="pill">
+          <h3>Planos (resumo)</h3>
+          <ul>
+            <li><span class="badge">Startup</span> — pessoal/MEI.</li>
+            <li><span class="badge">Pro</span> — profissionais com relatórios.</li>
+            <li><span class="badge">Business</span> — PME com governança.</li>
+            <li><span class="badge">Enterprise</span> — escala, SSO/SLA.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

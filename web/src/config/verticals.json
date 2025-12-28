@@ -1,0 +1,25 @@
+{
+  "finance": {
+    "theme": "indigo",
+    "features": [
+      "ia",
+      "dashboards",
+      "voice"
+    ]
+  },
+  "real_estate": {
+    "theme": "teal",
+    "features": [
+      "ia",
+      "alerts",
+      "contracts"
+    ]
+  },
+  "condos": {
+    "theme": "blue",
+    "features": [
+      "dashboards",
+      "billing"
+    ]
+  }
+}

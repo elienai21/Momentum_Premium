@@ -1,0 +1,523 @@
+{
+  "starter": {
+    "name": "Starter",
+    "price": 0,
+    "limits": {
+      "requestsPerMinute": 30,
+      "monthlyTokens": 50000,
+      "monthlyCredits": 300
+    },
+    "features": ["AI básica", "Relatórios simples"]
+  },
+  "pro": {
+    "name": "Pro",
+    "price": 29,
+    "limits": {
+      "requestsPerMinute": 120,
+      "monthlyTokens": 500000,
+      "monthlyCredits": 2000
+    },
+    "features": ["AI Avançada", "Forecast", "Insights Cache", "DRE simplificado"]
+  },
+  "cfo": {
+    "name": "CFO",
+    "price": 79,
+    "limits": {
+      "requestsPerMinute": 300,
+      "monthlyTokens": 1500000,
+      "monthlyCredits": 5000
+    },
+    "features": ["Cenários projetados", "Análises comparativas", "Consultoria AI"]
+  }
+}
+``` :contentReference[oaicite:0]{index=0}  
+
+Esses `monthlyCredits` vão ser lidos depois pelo serviço de créditos.
+
+---
+
+### 3.2. `functions/src/routes/voice.ts` – Voice Pack por plano
+
+Aqui está o arquivo completo, já com:
+
+- Resolução de **plano → tier (starter/pro/cfo)**  
+- Config de voz por plano (`resolveVoiceConfigForPlan`)  
+- TTS usando voz diferente por plano  
+
+> Ainda **não** estou debitando créditos aqui (pra não misturar muita coisa de uma vez). O próximo passo é plugar o `creditsService` neste handler.
+
+```ts
+// functions/src/routes/voice.ts
+import { Request, Response, Router } from "express";
+import { synthesizeToGcs } from "../services/ttsService";
+import { transcribeFromGcs } from "../services/sttService";
+
+const voiceRouter = Router();
+
+// Tipagem básica para pegar tenant, se o withTenant já estiver preenchendo req.tenant
+type AuthedRequest = Request & {
+  tenant?: { info?: { id: string; plan?: string } };
+  user?: { uid: string };
+};
+
+// Plan tiers usados para voz
+type PlanTier = "starter" | "pro" | "cfo";
+
+type VoiceConfig = {
+  model: string;
+  lang: string;
+  voiceName: string;
+  temperature: number;
+};
+
+function resolvePlanTierFromString(planId?: string): PlanTier {
+  const raw = (planId || "").toString().toLowerCase();
+  if (raw === "pro") return "pro";
+  if (raw === "cfo" || raw === "business" || raw === "enterprise") return "cfo";
+  return "starter";
+}
+
+function resolveVoiceConfigForPlan(plan: PlanTier): VoiceConfig {
+  switch (plan) {
+    case "starter":
+      return {
+        model: "gcloud-tts-standard",
+        lang: "pt-BR",
+        voiceName: "pt-BR-Standard-A", // voz mais simples
+        temperature: 0.3,
+      };
+    case "pro":
+      return {
+        model: "gcloud-tts-neural",
+        lang: "pt-BR",
+        voiceName: "pt-BR-Neural2-A", // neural agradável
+        temperature: 0.7,
+      };
+    case "cfo":
+    default:
+      return {
+        model: "gcloud-tts-neural-premium",
+        lang: "pt-BR",
+        voiceName: "pt-BR-Neural2-D", // neural "premium"
+        temperature: 0.9,
+      };
+  }
+}
+
+// POST /api/voice/tts
+// Body: { text: string; lang?: string; voiceName?: string }
+voiceRouter.post(
+  "/voice/tts",
+  async (req: AuthedRequest, res: Response): Promise<void> => {
+    const { text, lang, voiceName } = req.body || {};
+
+    if (!text || typeof text !== "string") {
+      res.status(400).json({ error: "Campo 'text' é obrigatório." });
+      return;
+    }
+
+    const tenantId = req.tenant?.info?.id || "anon";
+    const rawPlan = req.tenant?.info?.plan || "starter";
+    const planTier = resolvePlanTierFromString(rawPlan);
+    const voiceCfg = resolveVoiceConfigForPlan(planTier);
+
+    const finalLang = (lang as string | undefined) || voiceCfg.lang;
+    const finalVoiceName = (voiceName as string | undefined) || voiceCfg.voiceName;
+
+    try {
+      const result = await synthesizeToGcs({
+        tenantId,
+        text,
+        lang: finalLang,
+        voiceName: finalVoiceName,
+      });
+
+      // result esperado: { cached: boolean; url: string }
+      res.status(200).json({
+        audioUrl: result.url,
+        cached: result.cached,
+        planTier,
+        voiceName: finalVoiceName,
+      });
+    } catch (err: any) {
+      // Caso VOICE_BUCKET não esteja configurado, o service lança VOICE_DISABLED
+      const code = err?.code || "TTS_ERROR";
+      const status = err?.status || (code === "VOICE_DISABLED" ? 503 : 500);
+
+      // eslint-disable-next-line no-console
+      console.error("Erro ao gerar TTS", err);
+
+      res.status(status).json({
+        error:
+          code === "VOICE_DISABLED"
+            ? "Funcionalidade de voz não está configurada neste ambiente."
+            : "Erro ao gerar TTS.",
+        code,
+      });
+    }
+  }
+);
+
+// POST /api/voice/stt
+// Body: { gcsUri: string; languageCode?: string }
+voiceRouter.post(
+  "/voice/stt",
+  async (req: AuthedRequest, res: Response): Promise<void> => {
+    const { gcsUri, languageCode = "pt-BR" } = (req.body || {}) as {
+      gcsUri?: string;
+      languageCode?: string;
+    };
+
+    if (!gcsUri || typeof gcsUri !== "string") {
+      res.status(400).json({ error: "Campo 'gcsUri' é obrigatório." });
+      return;
+    }
+
+    try {
+      const result = await transcribeFromGcs({
+        tenantId: req.tenant?.info?.id || "anon",
+        gcsUri,
+        languageCode,
+      });
+
+      // result esperado: { text: string }
+      res.status(200).json({ transcript: result.text });
+    } catch (err: any) {
+      const code = err?.code || "STT_ERROR";
+      const status = err?.status || (code === "VOICE_DISABLED" ? 503 : 500);
+
+      // eslint-disable-next-line no-console
+      console.error("Erro ao transcrever áudio", err);
+
+      res.status(status).json({
+        error:
+          code === "VOICE_DISABLED"
+            ? "Funcionalidade de voz não está configurada neste ambiente."
+            : "Erro ao transcrever áudio.",
+        code,
+      });
+    }
+  }
+);
+
+export { voiceRouter };
+``` :contentReference[oaicite:1]{index=1}  
+
+---
+
+### 3.3. `functions/src/routes/cfo.ts` – CFO + `/ai-report`
+
+Aqui está o **arquivo completo**, consolidando:
+
+- `memory/rebuild`
+- `actions/suggest`
+- `simulate`
+- `health`
+- `benchmarks`
+- `advisor/context`
+- `ai-report` (Tarefa 7), usando `generateCfoAiReport`  
+
+```ts
+// functions/src/routes/cfo.ts
+import { db } from "src/services/firebase";
+import { generateCfoAiReport } from "../cfo/aiReport";
+import { Router } from "express";
+import { ApiError } from "../utils/errors";
+import { buildOrUpdateMemory } from "../cfo/memoryEngine";
+import { buildActionPlan } from "../cfo/actionEngine";
+import { simulateScenario } from "../cfo/scenarioSimulator";
+import { computeHealthScore } from "../cfo/healthScore";
+import { compareToBenchmark } from "../cfo/benchmark";
+import { getAdvisorContext } from "../cfo/advisorContext";
+
+export const cfoRouter = Router();
+
+// POST /api/cfo/memory/rebuild
+cfoRouter.post("/memory/rebuild", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    const out = await buildOrUpdateMemory(req.tenant.info.id, req.user?.uid);
+    res.json({ status: "ok", profile: out });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro ao reconstruir memória",
+        req.traceId
+      )
+    );
+  }
+});
+
+// POST /api/cfo/actions/suggest
+cfoRouter.post("/actions/suggest", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    const out = await buildActionPlan(req.tenant.info.id);
+    res.json({ status: "ok", plan: out });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro nas recomendações",
+        req.traceId
+      )
+    );
+  }
+});
+
+// POST /api/cfo/simulate
+cfoRouter.post("/simulate", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+
+    const {
+      incDeltaPct = 0,
+      expDeltaPct = 0,
+      oneOffIncome = 0,
+      oneOffExpense = 0,
+    } = req.body || {};
+
+    // Usa a memória do CFO para obter receita e despesa médias
+    const mem = await buildOrUpdateMemory(req.tenant.info.id);
+
+    const baseIncome = mem.avgMonthlyIncome ?? 0;
+    const baseExpense = mem.avgMonthlyExpense ?? 0;
+
+    const out = simulateScenario(baseIncome, baseExpense, {
+      incDeltaPct,
+      expDeltaPct,
+      oneOffIncome,
+      oneOffExpense,
+    });
+
+    res.json({
+      status: "ok",
+      base: {
+        income: baseIncome,
+        expense: baseExpense,
+      },
+      result: out,
+    });
+  } catch (e: any) {
+    next(
+      new ApiError(500, e.message || "Erro na simulação", req.traceId)
+    );
+  }
+});
+
+// GET /api/cfo/health
+cfoRouter.get("/health", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    const out = await computeHealthScore(req.tenant.info.id);
+    res.json({ status: "ok", health: out });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro no health score",
+        req.traceId
+      )
+    );
+  }
+});
+
+// GET /api/cfo/benchmarks
+cfoRouter.get("/benchmarks", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    const vertical = req.query.vertical || "finance";
+    const out = await compareToBenchmark(
+      req.tenant.info.id,
+      String(vertical)
+    );
+    res.json({ status: "ok", ...out });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro no benchmark",
+        req.traceId
+      )
+    );
+  }
+});
+
+// GET /api/cfo/advisor/context
+cfoRouter.get("/advisor/context", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    const ctx = await getAdvisorContext(req.tenant.info.id);
+    res.json({ status: "ok", context: ctx });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro no contexto do advisor",
+        req.traceId
+      )
+    );
+  }
+});
+
+// POST /api/cfo/ai-report
+// Body opcional: { periodDays?: number } ou { period?: number }
+cfoRouter.post("/ai-report", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+
+    const tenantId = req.tenant.info.id;
+    const userId = req.user?.uid;
+    const planId = req.tenant.info.plan || "starter";
+    const locale = req.tenant.info.locale || "pt-BR";
+
+    const rawPeriod =
+      typeof req.body?.period === "number"
+        ? req.body.period
+        : typeof req.body?.periodDays === "number"
+        ? req.body.periodDays
+        : undefined;
+
+    const periodDays = rawPeriod && rawPeriod > 0 ? rawPeriod : 30;
+
+    const result = await generateCfoAiReport({
+      tenantId,
+      userId,
+      periodDays,
+      locale,
+      planId,
+    });
+
+    res.status(200).json({
+      status: "ok",
+      report: result.report,
+      meta: result.meta,
+    });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        502,
+        e?.message || "Erro ao gerar relatório de IA do CFO",
+        req.traceId
+      )
+    );
+  }
+});
+``` :contentReference[oaicite:2]{index=2}  
+
+---
+
+### 3.4. `functions/src/index.ts` – routers plugados
+
+Aqui o arquivo **já estava essencialmente correto**:  
+- `setGlobalOptions` com `southamerica-east1`,  
+- app Express único,
+- todos os routers montados em `/api`. :contentReference[oaicite:3]{index=3}  
+
+Vou só repetir ele aqui como “versão final” (não fiz mudança estrutural, porque não precisa nada específico para créditos/voz aqui):
+
+```ts
+// functions/src/index.ts
+import * as admin from "firebase-admin";
+import express, { Request, Response, NextFunction } from "express";
+import compression from "compression";
+import cors from "cors";
+import { onRequest, HttpsFunction } from "firebase-functions/v2/https";
+import { setGlobalOptions } from "firebase-functions/v2/options";
+
+// 🔐 Middlewares globais (ajuste os paths conforme seu projeto)
+import { securityHeaders } from "./middleware/securityHeaders";
+import { traceRequest } from "./middleware/trace"; // se não existir, remova o import/uso
+
+// Routers da API
+import { pulseRouter } from "./routes/pulse";
+import { cfoRouter } from "./routes/cfo";
+import { advisorRouter } from "./routes/advisor";
+import { aiRouter } from "./routes/ai";
+import { voiceRouter } from "./routes/voice";
+
+// Scheduler CFO (já existia)
+export { cfoNightly } from "./scheduler/cfoCron";
+
+// ============================================================
+// 🌎 Configuração global das Functions
+// ============================================================
+setGlobalOptions({
+  region: "southamerica-east1",
+  maxInstances: 10,
+  timeoutSeconds: 120,
+});
+
+// ============================================================
+// 🔥 Firebase Admin init
+// ============================================================
+try {
+  admin.app();
+} catch {
+  admin.initializeApp();
+}
+
+// ============================================================
+// 🧠 Express App singleton
+// ============================================================
+let cachedApp: express.Express | null = null;
+
+function getApp(): express.Express {
+  if (cachedApp) return cachedApp;
+
+  const app = express();
+
+  // Middlewares básicos
+  app.use(cors({ origin: true }));
+  app.use(compression());
+  app.use(express.json());
+
+  // Middlewares globais do projeto (se existirem)
+  if (securityHeaders) {
+    app.use(securityHeaders);
+  }
+  if (traceRequest) {
+    app.use(traceRequest);
+  }
+
+  // 📦 Montagem dos routers em /api
+  app.use("/api", pulseRouter);
+  app.use("/api", cfoRouter);
+  app.use("/api", advisorRouter);
+  app.use("/api", aiRouter);
+  app.use("/api", voiceRouter);
+
+  // 404 handler
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({
+      error: "Not Found",
+      path: req.path,
+    });
+  });
+
+  // Error handler genérico
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+    console.error("Unhandled error in API:", err);
+
+    const status = err.statusCode || 500;
+    res.status(status).json({
+      error: err.message || "Internal server error",
+    });
+  });
+
+  cachedApp = app;
+  return app;
+}
+
+// HTTP principal (usado nos rewrites do firebase.json)
+export const advisorChat: HttpsFunction = onRequest(
+  {
+    cors: true,
+    timeoutSeconds: 120,
+  },
+  (req, res) => {
+    return getApp()(req, res);
+  }
+);

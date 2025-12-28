@@ -1,0 +1,7 @@
+{
+  "name": "Momentum Platform - Firebase Cloud Edition",
+  "description": "A full-stack application built on Firebase, providing a portal for users to manage records stored in Google Sheets, with an admin panel for client management and analytics.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

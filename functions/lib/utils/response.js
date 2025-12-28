@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.serverError = exports.forbidden = exports.unauthorized = exports.badRequest = exports.ok = void 0;
+const ok = (res, data) => res.status(200).json({ ok: true, data });
+exports.ok = ok;
+const badRequest = (res, msg = "Bad Request") => res.status(400).json({ ok: false, error: msg });
+exports.badRequest = badRequest;
+const unauthorized = (res) => res.status(401).json({ ok: false, error: "Unauthorized" });
+exports.unauthorized = unauthorized;
+const forbidden = (res) => res.status(403).json({ ok: false, error: "Forbidden" });
+exports.forbidden = forbidden;
+const serverError = (res, traceId) => res.status(500).json({ ok: false, error: "Internal Server Error", traceId: traceId || null });
+exports.serverError = serverError;

@@ -1,0 +1,44 @@
+{
+  "name": "momentum-web-premium",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint:api-headers": "node tools/check-api-headers.cjs",
+    "preview": "vite preview",
+    "test": "vitest --pool=forks --maxWorkers=1",
+    "test:headers": "node tools/test-api-headers.cjs",
+    "test:headers:vitest": "vitest run src/services/__tests__/apiHeaders.test.ts --pool=threads --maxWorkers=1",
+    "test:run": "vitest run --maxWorkers=1",
+    "test:watch": "vitest --maxWorkers=1"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.10",
+    "chart.js": "^4.5.1",
+    "clsx": "^2.1.1",
+    "firebase": "^11.0.2",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.553.0",
+    "react": "^18.3.1",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "axios-mock-adapter": "^2.1.0",
+    "jsdom": "^27.1.0",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.8"
+  }
+}

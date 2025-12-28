@@ -1,0 +1,138 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================
+    // 🧩 FUNÇÕES AUXILIARES (DRY)
+    // =====================================================
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.roles.admin == true ||
+         request.auth.token.isAdmin == true ||
+         request.auth.token.admin == true);
+    }
+
+    function isSupportAgent() {
+      return isAuthenticated() &&
+        (request.auth.token.roles.support == true ||
+         request.auth.token.supportAgent == true);
+    }
+
+    // Calls feitas via Admin SDK / Service Account (Cloud Functions backend)
+    function isServerRequest() {
+      return request.auth != null &&
+        (
+          (
+            request.auth.token.firebase != null &&
+            request.auth.token.firebase.sign_in_provider == "service_account"
+          ) ||
+          (
+            request.auth.token.email != null &&
+            request.auth.token.email.matches(".*gserviceaccount\\.com$")
+          )
+        );
+    }
+
+    // =====================================================
+    // 🔐 TENANTS — Isolamento organizacional
+    // =====================================================
+    match /tenants/{tenantId} {
+      allow read, write: if isAuthenticated() &&
+        request.auth.token.tenantId == tenantId;
+    }
+
+    // =====================================================
+    // 💳 TRANSAÇÕES FINANCEIRAS (somente servidor/admin)
+    // =====================================================
+    match /transactions/{docId} {
+      allow read, write: if isServerRequest() || isAdmin();
+    }
+
+    // =====================================================
+    // 🧾 CONTAS / CONFIGURAÇÕES DE COBRANÇA
+    // =====================================================
+    match /tenants/{tenantId}/accounts/{docId} {
+      allow read, write: if isServerRequest() ||
+        (isAuthenticated() && request.auth.token.tenantId == tenantId && isAdmin());
+    }
+
+    // =====================================================
+    // 📊 LOGS DE USO (somente servidor/admin)
+    // =====================================================
+    match /usage_logs/{docId} {
+      allow read, write: if isServerRequest() || isAdmin();
+    }
+
+    // =====================================================
+    // ✅ PRIVACY CONSENTS (por usuário)
+    // =====================================================
+    match /privacy_consents/{uid} {
+      allow read: if isAuthenticated() && request.auth.uid == uid;
+      allow write: if isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // =====================================================
+    // 🚨 ALERTAS GERAIS
+    // =====================================================
+    match /alerts/{docId} {
+      allow read: if isAuthenticated() && isAdmin();
+      allow write: if false;
+    }
+
+    // =====================================================
+    // 🚨 ALERTAS POR TENANT
+    // =====================================================
+    match /tenants/{tenantId}/alerts/{aid} {
+      allow read, update, create: if isAuthenticated() &&
+        request.auth.token.tenantId == tenantId;
+      allow delete: if false;
+    }
+
+    // =====================================================
+    // 🧑‍💻 SUPPORT SESSIONS (por tenant + usuário)
+    // =====================================================
+    match /tenants/{tenantId}/support_sessions/{sid} {
+      allow create: if isAuthenticated() &&
+        request.auth.token.tenantId == tenantId &&
+        request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() &&
+        request.auth.token.tenantId == tenantId &&
+        resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /tenants/{tenantId}/support_feedback/{fid} {
+      allow create: if isAuthenticated() &&
+        request.auth.token.tenantId == tenantId &&
+        request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
+    // =====================================================
+    // 🏢 REAL ESTATE – VISÃO MENSAL POR IMÓVEL
+    // =====================================================
+    match /tenants/{tenantId}/realestate-monthly/{docId} {
+      // 🔐 Versão DEV: qualquer usuário autenticado pode ler
+      // (seus usuários ainda não têm tenantId/roles configurados)
+      allow read: if isAuthenticated();
+
+      // Se quiser algo mais rígido depois que tiver claims:
+      // allow read: if isAuthenticated()
+      //             && request.auth.token.tenantId == tenantId;
+
+      allow write: if false; // dashboard é só leitura
+    }
+
+    // =====================================================
+    // ❌ DEFAULT DENY (deixa SEMPRE POR ÚLTIMO)
+    // =====================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

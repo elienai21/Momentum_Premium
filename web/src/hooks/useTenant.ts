@@ -1,0 +1,27 @@
+import { useEffect, useState } from "react";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { db } from "../services/firebase";
+
+export interface TenantData {
+  name: string;
+  logoUrl?: string;
+}
+
+export function useTenant(tenantId: string) {
+  const [tenant, setTenant] = useState<TenantData | null>(null);
+
+  useEffect(() => {
+    async function fetchTenant() {
+      try {
+        const docRef = doc(db, "tenants", tenantId);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) setTenant(snap.data() as TenantData);
+      } catch (err) {
+        console.error("Erro ao carregar tenant:", err);
+      }
+    }
+    fetchTenant();
+  }, [tenantId]);
+
+  return tenant;
+}
