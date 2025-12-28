@@ -32,6 +32,7 @@ const DeepDiveFinanceiroPage = lazy(() => import("./pages/DeepDiveFinanceiroPage
 const AlertsCenter = lazy(() => import("./pages/AlertsCenter"));
 const DesignSystem = lazy(() => import("./pages/_DesignSystem"));
 const Imports = lazy(() => import("./pages/Imports"));
+const CfoSimulationPage = lazy(() => import("./pages/CfoSimulationPage"));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -39,7 +40,7 @@ function RequireAuth({ children }: { children: JSX.Element }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
         <div className="flex flex-col items-center gap-3">
           <div className="h-10 w-10 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
           <p className="text-xs text-slate-400">Carregando seu ambiente financeiro...</p>
@@ -77,7 +78,7 @@ export default function App() {
 
             <Suspense
               fallback={
-                <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
+                <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
                   <div className="flex flex-col items-center gap-3">
                     <div className="h-10 w-10 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
                     <p className="text-xs text-slate-400">Carregando Momentum...</p>
@@ -111,6 +112,8 @@ export default function App() {
                   <Route path="help" element={<Help />} />
                   <Route path="real-estate" element={<RealEstateDashboard />} />
                   <Route path="cfo/deep-dive" element={<DeepDiveFinanceiroPage />} />
+                  <Route path="advisor/deep-dive" element={<DeepDiveFinanceiroPage />} />
+                  <Route path="cfo/simulation" element={<CfoSimulationPage />} />
                   <Route path="alerts" element={<AlertsCenter />} />
                   <Route path="imports" element={<Imports />} />
 

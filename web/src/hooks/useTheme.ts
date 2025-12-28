@@ -6,15 +6,15 @@ export function useTheme() {
 
   useEffect(() => {
     // aplica atributo esperado pelo v13.7
-    document.body.setAttribute('data-theme', theme)
+    document.documentElement.setAttribute('data-theme', theme)
 
     // mantém classes legadas para compatibilidade
     if (theme === 'dark') {
-      document.body.classList.add('dark')
-      document.body.classList.remove('light')
+      document.documentElement.classList.add('dark')
+      document.documentElement.classList.remove('light')
     } else {
-      document.body.classList.add('light')
-      document.body.classList.remove('dark')
+      document.documentElement.classList.add('light')
+      document.documentElement.classList.remove('dark')
     }
 
     localStorage.setItem('theme', theme)

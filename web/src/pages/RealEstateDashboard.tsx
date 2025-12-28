@@ -1,5 +1,5 @@
 // web/src/pages/RealEstateDashboard.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   collection,
   getDocs,
@@ -10,7 +10,24 @@ import {
 } from "firebase/firestore";
 import { db } from "../services/firebase";
 import { useTenant } from "../context/TenantContext";
-import { Loader2 } from "lucide-react";
+import {
+  Building2,
+  TrendingUp,
+  Wallet,
+  CircleDollarSign,
+  Percent,
+  RefreshCw,
+  Search,
+  ChevronRight
+} from "lucide-react";
+
+// Primitives
+import { GlassPanel } from "../components/ui/GlassPanel";
+import { SectionHeader } from "../components/ui/SectionHeader";
+import { StatsCard } from "../components/ui/StatsCard";
+import { Badge } from "../components/ui/Badge";
+import { AsyncPanel } from "../components/ui/AsyncPanel";
+import { cn } from "../lib/utils";
 
 // Commercial baseline: o backend gera demonstrativos em `tenants/{tenantId}/realEstate_statements`.
 // Evite trocar o nome dessa coleção sem alinhar backend + dashboard (senão o painel fica vazio).
@@ -32,23 +49,11 @@ type RealEstateMonthDoc = {
 
 function parseMonthLabel(month: string | undefined): string {
   if (!month) return "Mês não definido";
-  // Espera algo tipo "2025-12"
   const [y, m] = month.split("-");
   const num = Number(m);
   const meses = [
-    "",
-    "Jan",
-    "Fev",
-    "Mar",
-    "Abr",
-    "Mai",
-    "Jun",
-    "Jul",
-    "Ago",
-    "Set",
-    "Out",
-    "Nov",
-    "Dez",
+    "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
   ];
   if (!isNaN(num) && num >= 1 && num <= 12) {
     return `${meses[num]}/${y}`;
@@ -70,86 +75,88 @@ export default function RealEstateDashboard() {
   const [items, setItems] = useState<RealEstateMonthDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    let active = true;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!tenantId) {
+        throw new Error("tenantId ausente");
+      }
+      const colRef = collection(
+        db,
+        "tenants",
+        tenantId,
+        REAL_ESTATE_STATEMENTS_COLLECTION,
+      );
+      const q = query(colRef, orderBy("month", "desc"));
+      const snap = await getDocs(q);
 
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        if (!tenantId) {
-          throw new Error("tenantId ausente");
-        }
-        const colRef = collection(
-          db,
-          "tenants",
-          tenantId,
-          REAL_ESTATE_STATEMENTS_COLLECTION,
-        );
-        const q = query(colRef, orderBy("month", "desc"));
-        const snap = await getDocs(q);
+      const rows: RealEstateMonthDoc[] = [];
 
-        if (!active) return;
+      snap.docs.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
+        const d = (doc.data() || {}) as any;
+        const month = String(d.month ?? doc.id);
+        const ownerId = d.ownerId ? String(d.ownerId) : undefined;
+        const ownerShareRate =
+          typeof d.ownerShareRate === "number" ? Number(d.ownerShareRate) : 1;
 
-        const rows: RealEstateMonthDoc[] = [];
+        const units = Array.isArray(d.units) ? d.units : [];
+        units.forEach((u: any, idx: number) => {
+          const grossRevenue = Number(u.grossRevenue ?? 0);
+          const cleaningFees = Number(u.cleaningFees ?? 0);
+          const platformFees = Number(u.platformFees ?? 0);
+          const otherCosts = Number(u.otherCosts ?? 0);
+          const netRevenue =
+            typeof u.netRevenue === "number"
+              ? Number(u.netRevenue)
+              : grossRevenue - (cleaningFees + platformFees + otherCosts);
 
-        snap.docs.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-          const d = (doc.data() || {}) as any;
-          const month = String(d.month ?? doc.id);
-          const ownerId = d.ownerId ? String(d.ownerId) : undefined;
-          const ownerShareRate =
-            typeof d.ownerShareRate === "number" ? Number(d.ownerShareRate) : 1;
+          const ownerPayout = netRevenue * ownerShareRate;
+          const housePayout = netRevenue - ownerPayout;
 
-          const units = Array.isArray(d.units) ? d.units : [];
-          units.forEach((u: any, idx: number) => {
-            const grossRevenue = Number(u.grossRevenue ?? 0);
-            const cleaningFees = Number(u.cleaningFees ?? 0);
-            const platformFees = Number(u.platformFees ?? 0);
-            const otherCosts = Number(u.otherCosts ?? 0);
-            const netRevenue =
-              typeof u.netRevenue === "number"
-                ? Number(u.netRevenue)
-                : grossRevenue - (cleaningFees + platformFees + otherCosts);
-
-            const ownerPayout = netRevenue * ownerShareRate;
-            const housePayout = netRevenue - ownerPayout;
-
-            rows.push({
-              id: `${doc.id}:${idx}`,
-              month,
-              unitCode: u.unitCode,
-              ownerName: ownerId,
-              ownerId,
-              grossRevenue,
-              cleaningFees,
-              platformFees,
-              otherCosts,
-              ownerPayout,
-              realEstatePayouts: housePayout,
-            });
+          rows.push({
+            id: `${doc.id}:${idx}`,
+            month,
+            unitCode: u.unitCode,
+            ownerName: ownerId,
+            ownerId,
+            grossRevenue,
+            cleaningFees,
+            platformFees,
+            otherCosts,
+            ownerPayout,
+            realEstatePayouts: housePayout,
           });
         });
+      });
 
-        setItems(rows);
-      } catch (err: any) {
-        console.error("[RealEstate] erro ao carregar dados:", err);
-        setError(
-          err?.message ||
-            "Não foi possível carregar os dados de Real Estate.",
-        );
-      } finally {
-        if (!active) return;
-        setLoading(false);
-      }
+      setItems(rows);
+    } catch (err: any) {
+      console.error("[RealEstate] erro ao carregar dados:", err);
+      setError(
+        err?.message ||
+        "Não foi possível carregar os dados de Real Estate.",
+      );
+    } finally {
+      setLoading(false);
     }
-
-    void load();
-
-    return () => {
-      active = false;
-    };
   }, [tenantId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filteredItems = useMemo(() => {
+    if (!search.trim()) return items;
+    const s = search.toLowerCase();
+    return items.filter(it =>
+      it.unitCode?.toLowerCase().includes(s) ||
+      it.ownerName?.toLowerCase().includes(s) ||
+      it.month.includes(s)
+    );
+  }, [items, search]);
 
   const summary = useMemo(() => {
     if (!items.length) {
@@ -195,135 +202,97 @@ export default function RealEstateDashboard() {
     };
   }, [items]);
 
-  const hasData = items.length > 0;
-
   return (
-    <div className="flex flex-col gap-6 p-4 md:p-6">
-      {/* Cabeçalho */}
-      <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-lg md:text-xl font-semibold text-slate-50">
-            Real Estate · Performance por Imóvel
-          </h1>
-          <p className="text-xs md:text-sm text-slate-400 max-w-xl">
-            Visão consolidada dos repasses aos proprietários, receita bruta
-            e payout da Vivare por unidade e por mês.
-          </p>
-        </div>
-      </header>
+    <div className="space-y-8 pb-24 fade-in">
+      <SectionHeader
+        title={
+          <div className="flex items-center gap-2">
+            <Building2 size={24} className="text-momentum-accent" />
+            <span>Real Estate · Performance</span>
+          </div>
+        }
+        subtitle="Consolidado de repasses, receita bruta e payout Vivare por unidade."
+        actions={
+          <div className="flex gap-2">
+            <button
+              onClick={load}
+              className="bg-momentum-bg/50 hover:bg-white text-momentum-text border border-momentum-border px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center gap-2"
+            >
+              <RefreshCw size={14} className={cn(loading && "animate-spin")} /> Atualizar
+            </button>
+          </div>
+        }
+      />
 
-      {/* Loading / erro */}
-      {loading && (
-        <div className="flex h-40 items-center justify-center rounded-2xl border border-slate-800 bg-slate-950/40">
-          <div className="flex flex-col items-center gap-2 text-slate-300">
-            <Loader2 className="h-5 w-5 animate-spin text-emerald-400" />
-            <span className="text-xs">
-              Carregando dados de Real Estate...
-            </span>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard
+          label="Receita Bruta"
+          value={currency(summary.totalGross)}
+          icon={TrendingUp}
+          variant="default"
+        />
+        <StatsCard
+          label="Repasses Proprietários"
+          value={currency(summary.totalOwner)}
+          icon={Wallet}
+          variant="default"
+        />
+        <StatsCard
+          label="Payout Vivare"
+          value={currency(summary.totalHouse)}
+          icon={CircleDollarSign}
+          variant="success"
+        />
+        <StatsCard
+          label="Margem Média"
+          value={`${(summary.avgMargin * 100).toFixed(1)}%`}
+          icon={Percent}
+          variant="default"
+        />
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h3 className="text-lg font-bold text-momentum-text font-display flex items-center gap-2">
+            Meses Consolidados
+            <Badge variant="neutral">{filteredItems.length}</Badge>
+          </h3>
+
+          <div className="relative group w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-momentum-muted group-focus-within:text-momentum-accent transition-colors" />
+            <input
+              type="text"
+              placeholder="Buscar unidade ou proprietário..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white/50 dark:bg-slate-900/50 border border-momentum-border rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-momentum-accent/20 focus:border-momentum-accent transition-all"
+            />
           </div>
         </div>
-      )}
 
-      {error && !loading && (
-        <div className="rounded-2xl border border-rose-500/40 bg-rose-950/30 p-4 text-sm text-rose-100">
-          {error}
-        </div>
-      )}
-
-      {!loading && !error && !hasData && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-950/40 p-6 text-sm text-slate-200">
-          <p className="font-medium mb-1">
-            Nenhum dado de Real Estate encontrado.
-          </p>
-          <p className="text-xs text-slate-400 max-w-xl">
-            Cadastre documentos na coleção{" "}
-            <code className="rounded bg-slate-900 px-1.5 py-0.5 text-[10px]">
-              tenants/{tenantId}/realEstate_statements
-            </code>{" "}
-            para começar a acompanhar o desempenho dos imóveis.
-          </p>
-        </div>
-      )}
-
-      {hasData && !loading && !error && (
-        <>
-          {/* Cards de resumo */}
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.16em]">
-                Receita Bruta
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-50">
-                {currency(summary.totalGross)}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Soma de todos os meses carregados.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.16em]">
-                Repasses para Proprietários
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-50">
-                {currency(summary.totalOwner)}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Total pago aos donos dos imóveis.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.16em]">
-                Payout Vivare
-              </p>
-              <p className="mt-2 text-lg font-semibold text-emerald-400">
-                {currency(summary.totalHouse)}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Receita líquida da operação de hospedagem.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.16em]">
-                Margem Média Vivare
-              </p>
-              <p className="mt-2 text-lg font-semibold text-slate-50">
-                {(summary.avgMargin * 100).toFixed(1)}%
-              </p>
-              <p className="mt-1 text-[11px] text-slate-500">
-                Payout Vivare ÷ Receita Bruta.
-              </p>
-            </div>
-          </section>
-
-          {/* Tabela dos meses */}
-          <section className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-slate-50">
-                Meses consolidados
-              </h2>
-              <p className="text-[11px] text-slate-500">
-                {items.length} registro(s) carregado(s)
-              </p>
-            </div>
-
+        <AsyncPanel
+          isLoading={loading}
+          error={error}
+          isEmpty={items.length === 0}
+          emptyTitle="Nenhum dado de Real Estate"
+          emptyDescription={`Nenhum registro encontrado em tenants/${tenantId}/realEstate_statements.`}
+        >
+          <GlassPanel className="p-0 overflow-hidden shadow-2xl">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs text-slate-300">
-                <thead className="border-b border-slate-800/80 text-[11px] uppercase tracking-[0.16em] text-slate-500">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-momentum-muted/5 text-momentum-muted font-bold uppercase tracking-widest text-[10px] border-b border-momentum-border">
                   <tr>
-                    <th className="py-2 pr-4">Mês</th>
-                    <th className="py-2 px-4">Unidade</th>
-                    <th className="py-2 px-4">Proprietário</th>
-                    <th className="py-2 px-4">Receita bruta</th>
-                    <th className="py-2 px-4">Taxas / custos</th>
-                    <th className="py-2 px-4">Repasse proprietário</th>
-                    <th className="py-2 px-4">Payout Vivare</th>
+                    <th className="px-6 py-4">Mês</th>
+                    <th className="px-6 py-4">Unidade</th>
+                    <th className="px-6 py-4">Proprietário</th>
+                    <th className="px-6 py-4 text-right">Receita Bruta</th>
+                    <th className="px-6 py-4 text-right">Taxas / Gestão</th>
+                    <th className="px-6 py-4 text-right">Repasse</th>
+                    <th className="px-6 py-4 text-right">Payout Vivare</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {items.map((it) => {
+                <tbody className="divide-y divide-momentum-border">
+                  {filteredItems.map((it) => {
                     const costs =
                       (it.cleaningFees ?? 0) +
                       (it.platformFees ?? 0) +
@@ -332,28 +301,34 @@ export default function RealEstateDashboard() {
                     return (
                       <tr
                         key={it.id}
-                        className="border-b border-slate-900/60 last:border-0"
+                        className="group hover:bg-momentum-accent/5 transition-colors cursor-default"
                       >
-                        <td className="py-2 pr-4 text-slate-100 whitespace-nowrap">
-                          {parseMonthLabel(it.month)}
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-momentum-text">{parseMonthLabel(it.month)}</div>
                         </td>
-                        <td className="py-2 px-4 whitespace-nowrap">
-                          {it.unitCode || "-"}
+                        <td className="px-6 py-4 font-medium text-momentum-text">
+                          <div className="flex items-center gap-2">
+                            <Building2 size={14} className="text-momentum-muted" />
+                            {it.unitCode || "N/A"}
+                          </div>
                         </td>
-                        <td className="py-2 px-4 whitespace-nowrap">
-                          {it.ownerName || "-"}
+                        <td className="px-6 py-4 text-momentum-muted">
+                          {it.ownerName || "Não Informado"}
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-6 py-4 text-right font-medium text-momentum-text">
                           {currency(it.grossRevenue)}
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-6 py-4 text-right text-momentum-muted">
                           {currency(costs)}
                         </td>
-                        <td className="py-2 px-4">
+                        <td className="px-6 py-4 text-right font-semibold text-momentum-text">
                           {currency(it.ownerPayout)}
                         </td>
-                        <td className="py-2 px-4 text-emerald-300">
-                          {currency(it.realEstatePayouts)}
+                        <td className="px-6 py-4 text-right font-bold text-momentum-success">
+                          <div className="flex items-center justify-end gap-1">
+                            {currency(it.realEstatePayouts)}
+                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity translate-x-1" />
+                          </div>
                         </td>
                       </tr>
                     );
@@ -361,9 +336,9 @@ export default function RealEstateDashboard() {
                 </tbody>
               </table>
             </div>
-          </section>
-        </>
-      )}
+          </GlassPanel>
+        </AsyncPanel>
+      </div>
     </div>
   );
 }

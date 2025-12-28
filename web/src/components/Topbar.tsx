@@ -12,92 +12,73 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
   return (
     <header
       className={[
-        "fixed top-0 left-0 md:left-60 right-0 h-14 flex items-center justify-between",
-        "px-4 md:px-6 z-50",
-        "backdrop-blur-xl border-b transition-all duration-300",
-        // Light – barra clara, limpa
-        "bg-white/80 border-slate-200 shadow-sm",
-        // Dark – fundo discreto, sem gradient pesado
-        "dark:bg-slate-950/90 dark:border-slate-800 dark:shadow-none",
+        "fixed top-0 right-0 z-20 h-20 px-8 flex items-center justify-between glass border-b border-slate-200 dark:border-slate-800/50 transition-all",
+        "left-0 md:left-64", // Standardize alignment to Sidebar width
       ].join(" ")}
       role="banner"
     >
-      {/* Botão de menu (mobile) */}
-      <button
-        onClick={onMenuClick}
-        aria-label="Abrir menu lateral"
-        aria-controls="app-sidebar"
-        className="md:hidden mr-3 inline-flex items-center justify-center px-3 py-2 rounded-md
-                   border border-slate-200/70 dark:border-slate-700
-                   bg-white/80 dark:bg-slate-900/70
-                   text-[color:var(--text-1)] shadow-sm hover:shadow-md transition-all duration-300"
-        title="Menu"
-      >
-        <span aria-hidden="true">☰</span>
-        <span className="sr-only">Menu</span>
-      </button>
-
-      {/* Campo de busca */}
-      <div
-        className="flex items-center gap-2 flex-1 max-w-md px-3 py-1.5 rounded-full
-                   border border-slate-200 dark:border-slate-700
-                   bg-white/80 dark:bg-slate-900/70
-                   shadow-inner backdrop-blur-xl transition-all duration-300"
-        role="search"
-        aria-label="Buscar"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4 text-[color:var(--text-2)]"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z"
-          />
-        </svg>
-        <input
-          ref={searchRef}
-          type="text"
-          placeholder="Buscar transações..."
-          aria-label="Buscar transações"
-          className="bg-transparent outline-none text-sm text-[color:var(--text-1)] w-full placeholder:[color:var(--text-2)]"
-        />
-      </div>
-
-      {/* Ações à direita */}
-      <div className="flex items-center gap-3 ml-3">
-        {/* Centro de Alertas */}
-        <AlertsBell />
-
-        {/* Alternador de tema */}
+      <div className="flex items-center gap-4 flex-1">
+        {/* Botão de menu (mobile) */}
         <button
-          onClick={toggle}
-          className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700
-                     bg-white/80 dark:bg-slate-900/80
-                     text-[color:var(--text-1)] text-xs font-medium
-                     shadow-sm hover:shadow-md transition-all duration-300"
-          aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
-          title={theme === "dark" ? "Tema claro" : "Tema escuro"}
+          onClick={onMenuClick}
+          aria-label="Abrir menu lateral"
+          className="md:hidden p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300"
         >
-          {theme === "dark" ? "☀️ Light" : "🌙 Dark"}
+          <span className="material-icons-round">menu</span>
         </button>
 
-        {/* Avatar Momentum (placeholder) */}
-        <div
-          className="w-9 h-9 rounded-full bg-gradient-to-r from-[var(--brand-1)] to-[var(--brand-2)]
-                     flex items-center justify-center text-white font-semibold shadow-lg
-                     hover:scale-105 transition-transform duration-300"
-          role="img"
-          aria-label="Perfil"
-          title="Perfil"
-        >
-          M
+        {/* Campo de busca */}
+        <div className="relative w-full max-w-[440px] hidden md:block group">
+          <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-[20px] group-focus-within:text-primary transition-colors">search</span>
+          <input
+            ref={searchRef}
+            type="text"
+            placeholder="Buscar transações, insights ou clientes..."
+            className="w-full bg-slate-100/50 dark:bg-slate-800/50 border-none rounded-full pl-11 pr-4 py-2.5 text-sm text-slate-600 dark:text-slate-200 focus:ring-2 focus:ring-primary/20 focus:bg-white dark:focus:bg-slate-900 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-5">
+        <div className="flex items-center gap-3">
+          {/* Alertas */}
+          <AlertsBell />
+
+          {/* Alternador de tema */}
+          <button
+            onClick={toggle}
+            className="flex items-center gap-2 px-4 py-2 rounded-full glass border-slate-200 dark:border-white/10 text-[11px] font-bold text-slate-700 dark:text-slate-300 transition-all hover:scale-105 active:scale-95 uppercase tracking-wider shadow-sm"
+            aria-label={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+          >
+            {theme === "dark" ? (
+              <>
+                <span className="material-icons-round text-[16px] text-primary">dark_mode</span>
+                <span>Dark</span>
+              </>
+            ) : (
+              <>
+                <span className="material-icons-round text-[16px] text-warning">light_mode</span>
+                <span>Light</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="h-8 w-px bg-slate-200 dark:bg-slate-800 mx-1"></div>
+
+        {/* Perfil */}
+        <div className="flex items-center gap-3">
+          <div className="text-right hidden sm:block leading-none">
+            <p className="text-[14px] font-bold text-slate-900 dark:text-white font-display mb-1">Elienai</p>
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 font-display">Admin</p>
+          </div>
+          <div
+            className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-blue-600 flex items-center justify-center text-white text-sm font-bold shadow-glow ring-2 ring-white dark:ring-slate-800 transition-transform hover:scale-110 cursor-pointer"
+            role="img"
+            aria-label="Perfil"
+          >
+            E
+          </div>
         </div>
       </div>
     </header>

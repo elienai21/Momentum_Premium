@@ -8,8 +8,7 @@ export function GlassPanel({ className, children, ...props }: GlassPanelProps) {
     return (
         <div
             className={cn(
-                "bg-momentum-glass backdrop-blur-xl border border-white/50 shadow-sm rounded-xl overflow-hidden",
-                "dark:bg-slate-900/60 dark:border-white/5",
+                "glass shadow-sm rounded-xl overflow-hidden",
                 className
             )}
             {...props}

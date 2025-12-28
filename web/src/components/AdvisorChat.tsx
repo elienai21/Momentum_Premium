@@ -47,32 +47,20 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sttStatus, setSttStatus] = useState<
-    "idle" | "listening" | "processing"
-  >("idle");
+  const [historyLoading] = useState(false); // Placeholder if history fetching is added later
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const {
     speak,
-    speaking,
     stop: stopSpeaking,
-  } = useTTS({
-    voiceId: resolveVoiceId(voiceProfiles, "advisor"),
-  });
+    loading: ttsLoading
+  } = useTTS();
 
-  const { start, stop, transcript } = useSTT({
-    onTranscription: (text) => {
-      if (text) {
-        setInput(text);
-      }
-    },
-    onStart: () => setSttStatus("listening"),
-    onStop: () => setSttStatus("idle"),
-  });
+  const { start, stop, transcript, recording } = useSTT();
 
   useEffect(() => {
-    if (!transcript) return;
+    if (!transcript || transcript === "\u200b") return;
     setInput(transcript);
   }, [transcript]);
 
@@ -124,7 +112,10 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       setMessages((m) => [...m, reply]);
 
       if (effectiveFeatures.voiceTTS) {
-        await speak(result.reply);
+        await speak({
+          text: result.reply,
+          voice: resolveVoiceId(voiceProfiles, "advisor")
+        });
       }
     } catch (err: any) {
       const errorMsg = err?.code === "NO_CREDITS"
@@ -154,17 +145,13 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
   const handleToggleListening = () => {
     if (!effectiveFeatures.voiceSTT) return;
 
-    if (sttStatus === "idle") {
+    if (!recording) {
       setInput("");
-      setSttStatus("listening");
       start();
     } else {
-      setSttStatus("processing");
       stop();
     }
   };
-
-  const isListening = sttStatus === "listening";
 
   const clearChat = () => {
     setMessages([
@@ -182,7 +169,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       <div className="px-6 pt-2 pb-4">
         <SectionHeader
           title="CFO Advisor"
-          subtitle="Análise inteligente de fluxo de caixa, alertas e tendências."
+          subtitle="Insights em tempo real para sua gestão financeira."
           actions={
             <div className="flex gap-2">
               <button
@@ -196,7 +183,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
               {onClose && (
                 <button
                   onClick={onClose}
-                  className="px-3 py-1.5 rounded-lg border border-momentum-border text-xs font-medium hover:bg-white transition-all"
+                  className="px-3 py-1.5 rounded-lg border border-momentum-border text-xs font-medium hover:bg-white transition-all shadow-sm"
                 >
                   Fechar
                 </button>
@@ -207,25 +194,23 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       </div>
 
       {/* B) Corpo: Lista de mensagens */}
-      <AsyncPanel
-        isLoading={false} // Não há loading inicial de histórico agora
-        isEmpty={messages.length === 0}
-        emptyConfig={{
-          title: "Sem mensagens",
-          description: "Inicie uma conversa com seu advisor.",
-          icon: Bot
-        }}
-        className="flex-1 overflow-hidden"
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto px-6 py-4 space-y-6 scroll-smooth scrollbar-none"
       >
-        <div
-          ref={containerRef}
-          className="h-full overflow-y-auto px-6 py-4 space-y-6 scroll-smooth"
+        <AsyncPanel
+          isLoading={historyLoading}
+          isEmpty={messages.length === 0}
+          emptyTitle="Sem mensagens"
+          emptyDescription="Inicie uma conversa com seu advisor."
+          emptyIcon={<Bot />}
+          className="border-none bg-transparent shadow-none p-0"
         >
           {messages.map((m, idx) => (
             <div
               key={idx}
               className={cn(
-                "flex w-full animate-in fade-in slide-in-from-bottom-2 duration-300",
+                "flex w-full mb-6 last:mb-0 animate-in fade-in slide-in-from-bottom-2 duration-300",
                 m.role === "assistant" ? "justify-start" : "justify-end"
               )}
             >
@@ -237,7 +222,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 <div className={cn(
                   "hidden sm:flex h-8 w-8 rounded-full items-center justify-center shrink-0 mt-1 shadow-sm",
                   m.role === "assistant"
-                    ? "bg-gradient-to-br from-momentum-accent to-blue-500 text-white"
+                    ? "bg-gradient-to-br from-momentum-accent to-blue-600 text-white"
                     : "bg-white border border-momentum-border text-momentum-text"
                 )}>
                   {m.role === "assistant" ? <Bot size={16} /> : <User size={16} />}
@@ -247,10 +232,10 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 <div className="flex flex-col gap-1.5">
                   <GlassPanel
                     className={cn(
-                      "px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm",
+                      "px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm border-none backdrop-blur-md",
                       m.role === "assistant"
-                        ? "bg-white/80 dark:bg-slate-900/40 rounded-tl-none border-momentum-accent/10"
-                        : "bg-momentum-accent text-white rounded-tr-none border-none shadow-momentum-glow"
+                        ? "bg-white/80 dark:bg-slate-900/40 rounded-tl-none ring-1 ring-momentum-border/30"
+                        : "bg-momentum-accent text-white rounded-tr-none shadow-momentum-glow"
                     )}
                   >
                     <p className="whitespace-pre-wrap">{m.content}</p>
@@ -258,8 +243,8 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
 
                   {m.timestamp && (
                     <span className={cn(
-                      "text-[10px] opacity-50 font-medium",
-                      m.role === "user" ? "text-right mr-1" : "ml-1"
+                      "text-[10px] opacity-40 font-semibold uppercase tracking-wider",
+                      m.role === "user" ? "text-right" : "text-left"
                     )}>
                       {m.timestamp}
                     </span>
@@ -268,79 +253,84 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
               </div>
             </div>
           ))}
+        </AsyncPanel>
 
-          {/* Typing state indicator */}
-          {loading && (
-            <div className="flex justify-start animate-pulse">
-              <div className="flex gap-3 max-w-[80%]">
-                <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
-                <GlassPanel className="px-4 py-3 rounded-2xl rounded-tl-none bg-slate-100/50 dark:bg-slate-800/30 border-none">
-                  <div className="flex gap-1 items-center h-4">
-                    <span className="w-1 h-1 bg-momentum-muted rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-1 h-1 bg-momentum-muted rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-1 h-1 bg-momentum-muted rounded-full animate-bounce" />
-                  </div>
-                </GlassPanel>
-              </div>
+        {/* Typing state indicator */}
+        {loading && (
+          <div className="flex justify-start animate-pulse">
+            <div className="flex gap-3 items-start">
+              <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0 shadow-sm" />
+              <GlassPanel className="px-5 py-3 rounded-2xl rounded-tl-none bg-slate-100/50 dark:bg-slate-800/30 border-none shadow-none">
+                <div className="flex gap-1.5 items-center h-4">
+                  <span className="w-1.5 h-1.5 bg-momentum-muted rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1.5 h-1.5 bg-momentum-muted rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-momentum-muted rounded-full animate-bounce" />
+                </div>
+              </GlassPanel>
             </div>
-          )}
+          </div>
+        )}
 
-          <div className="h-10" /> {/* Bottom spacing padding */}
-        </div>
-      </AsyncPanel>
+        <div className="h-4" /> {/* Extra padding at the bottom */}
+      </div>
 
       {/* C) Input area no rodapé */}
-      <div className="px-6 py-4 border-t border-momentum-border/50 bg-white/30 backdrop-blur-md sticky bottom-0 z-10">
-        <div className="max-w-4xl mx-auto space-y-3 pb-[env(safe-area-inset-bottom)]">
-          <div className="flex items-center gap-2">
+      <div className="px-6 py-4 border-t border-momentum-border/50 bg-white/30 backdrop-blur-xl sticky bottom-0 z-10 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+        <div className="max-w-4xl mx-auto space-y-4 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex items-center gap-3">
             <button
               onClick={handleToggleListening}
               disabled={!effectiveFeatures.voiceSTT || loading}
               className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all",
-                isListening
+                "flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
+                recording
                   ? "bg-red-500 text-white shadow-lg animate-pulse"
                   : "bg-momentum-accent/10 text-momentum-accent hover:bg-momentum-accent/20"
               )}
-              aria-label={isListening ? "Parar de ouvir" : "Falar com advisor"}
+              aria-label={recording ? "Parar de ouvir" : "Falar com advisor"}
             >
-              {isListening ? <MicOff size={14} /> : <Mic size={14} />}
-              {isListening ? "Ouvindo..." : "Falar"}
+              {recording ? <MicOff size={14} className="animate-pulse" /> : <Mic size={14} />}
+              {recording ? "Ouvindo..." : "Voz"}
             </button>
 
             {effectiveFeatures.voiceTTS && (
               <button
-                onClick={speaking ? stopSpeaking : () => speak(messages[messages.length - 1]?.content)}
-                className="p-1.5 rounded-full hover:bg-momentum-accent/10 text-momentum-muted transition-colors"
-                title={speaking ? "Parar leitura" : "Ouvir última resposta"}
+                onClick={ttsLoading ? stopSpeaking : () => speak({
+                  text: messages[messages.length - 1]?.content,
+                  voice: resolveVoiceId(voiceProfiles, "advisor")
+                })}
+                className="p-2 rounded-full hover:bg-momentum-accent/10 text-momentum-muted transition-colors"
+                title={ttsLoading ? "Parar leitura" : "Ouvir resposta"}
               >
-                {speaking ? <VolumeX size={16} className="text-red-500" /> : <Volume2 size={16} />}
+                {ttsLoading ? <VolumeX size={16} className="text-red-500 animate-pulse" /> : <Volume2 size={16} />}
               </button>
             )}
+
+            <Badge variant="neutral" className="ml-auto text-[9px] font-bold tracking-tighter bg-white/50 border-momentum-border/30">Advisor Premium v2</Badge>
           </div>
 
           <div className="relative flex items-end gap-2">
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <textarea
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Digite sua dúvida financeira..."
+                placeholder="Pergunte sobre seus saldos, categorias ou anomalias..."
                 aria-label="Mensagem para o Advisor"
                 className={cn(
-                  "w-full bg-white dark:bg-slate-900/50 border border-momentum-border rounded-2xl px-4 py-3 pr-12 text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-momentum-accent/40 focus:border-momentum-accent transition-all",
-                  "resize-none min-h-[48px] max-h-32 scrollbar-none shadow-sm"
+                  "w-full bg-white/80 dark:bg-slate-900/50 border border-momentum-border rounded-2xl px-5 py-3.5 pr-14 text-sm leading-relaxed",
+                  "focus:outline-none focus:ring-4 focus:ring-momentum-accent/10 focus:border-momentum-accent transition-all",
+                  "resize-none min-h-[52px] max-h-36 scrollbar-none shadow-inner"
                 )}
               />
               <button
                 onClick={handleSend}
                 disabled={loading || !input.trim()}
                 className={cn(
-                  "absolute right-2 bottom-2 h-9 w-9 rounded-xl flex items-center justify-center transition-all shadow-sm",
+                  "absolute right-2.5 bottom-2.5 h-9 w-9 rounded-xl flex items-center justify-center transition-all shadow-md",
                   loading || !input.trim()
-                    ? "bg-slate-100 text-slate-400 dark:bg-slate-800"
+                    ? "bg-slate-100 text-slate-400 dark:bg-slate-800 shadow-none cursor-not-allowed"
                     : "bg-momentum-accent text-white shadow-momentum-glow hover:scale-105 active:scale-95"
                 )}
                 aria-label="Enviar mensagem"
@@ -350,8 +340,8 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
             </div>
           </div>
 
-          <p className="text-[10px] text-momentum-muted text-center italic">
-            Advisor Premium: Análise em tempo real de fluxos e categorias.
+          <p className="text-[10px] text-momentum-muted text-center italic opacity-60">
+            Inteligência contextual baseada em seu histórico financeiro real.
           </p>
         </div>
       </div>

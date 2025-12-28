@@ -17,10 +17,17 @@ interface StatsCardProps {
 
 export function StatsCard({ label, value, icon: Icon, trend, variant = 'default', className }: StatsCardProps) {
     const variantStyles = {
-        default: "text-momentum-accent",
-        success: "text-momentum-success",
-        warn: "text-momentum-warn",
-        danger: "text-momentum-danger",
+        default: "text-primary",
+        success: "text-success",
+        warn: "text-warning",
+        danger: "text-error",
+    };
+
+    const bgIcons = {
+        default: "account_balance_wallet",
+        success: "payments",
+        warn: "hourglass_bottom",
+        danger: "credit_card_off",
     };
 
     const trendVariant = !trend ? 'neutral' :
@@ -28,22 +35,30 @@ export function StatsCard({ label, value, icon: Icon, trend, variant = 'default'
             trend.direction === 'down' ? 'danger' : 'neutral';
 
     return (
-        <GlassPanel className={cn("p-6 flex flex-col justify-between group hover:border-momentum-accent/50 transition-colors", className)}>
-            <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2 text-momentum-muted">
-                    <Icon size={18} />
-                    <span className="text-sm font-medium">{label}</span>
-                </div>
-                <div className={cn("p-2 rounded-lg bg-current/5 opacity-50 group-hover:opacity-100 transition-opacity", variantStyles[variant])}>
-                    <Icon size={24} className={variantStyles[variant]} />
-                </div>
+        <GlassPanel className={cn("p-6 rounded-xl group relative overflow-hidden hover:border-primary/50 transition-all shadow-sm border border-slate-100 dark:border-white/5", className)}>
+            <div className="absolute top-0 right-0 p-4 opacity-[0.03] dark:opacity-5 group-hover:opacity-10 transition-opacity">
+                <span className="material-icons-round text-6xl text-slate-800 dark:text-white leading-none">{bgIcons[variant]}</span>
             </div>
-            <div>
-                <h3 className="text-2xl font-bold text-momentum-text dark:text-white mb-1">{value}</h3>
+
+            <div className="flex items-center gap-2 mb-2 relative z-10">
+                <span className="material-icons-round text-slate-400 dark:text-slate-500 text-sm">{bgIcons[variant]}</span>
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-400 font-display uppercase tracking-wider">{label}</span>
+            </div>
+
+            <div className="relative z-10">
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 mb-1 tracking-tight font-display leading-tight">{value}</h3>
                 {trend && (
-                    <Badge variant={trendVariant}>
-                        {trend.value}
-                    </Badge>
+                    <div className={cn(
+                        "flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full w-fit transition-colors",
+                        trend.direction === 'up' ? "text-success bg-success/10" :
+                            trend.direction === 'down' ? "text-error bg-error/10" :
+                                "text-warning bg-warning/10"
+                    )}>
+                        <span className="material-icons-round text-[14px]">
+                            {trend.direction === 'up' ? 'trending_up' : trend.direction === 'down' ? 'trending_down' : 'remove'}
+                        </span>
+                        <span>{trend.direction === 'up' ? '+' : ''}{trend.value}</span>
+                    </div>
                 )}
             </div>
         </GlassPanel>

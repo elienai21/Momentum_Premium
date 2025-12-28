@@ -1,5 +1,4 @@
-﻿// web/src/pages/AnalyticsDashboard.tsx
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { AIAdvisorPanel } from "../components/AIAdvisorPanel";
 import {
   Chart,
@@ -18,6 +17,13 @@ import { useThemeWatcher } from "../hooks/useThemeWatcher";
 import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../components/Toast";
+import { SectionHeader } from "../components/ui/SectionHeader";
+import { GlassPanel } from "../components/ui/GlassPanel";
+import { StatsCard } from "../components/ui/StatsCard";
+import { AsyncPanel } from "../components/ui/AsyncPanel";
+import { InsightCard } from "../components/ui/InsightCard";
+import { Wallet, TrendingUp, TrendingDown, PieChart, LineChart as LineChartIcon, Sparkles, RefreshCw } from "lucide-react";
+import { cn } from "../lib/utils";
 
 Chart.register(
   LineElement,
@@ -49,7 +55,6 @@ type Charts = {
 };
 
 type Meta = { categories: string[]; cards: string[] };
-
 type ForecastResp = { kpis: KPI; charts: Charts; meta?: Meta };
 
 export const AnalyticsDashboard: React.FC = () => {
@@ -71,13 +76,13 @@ export const AnalyticsDashboard: React.FC = () => {
 
   const css = getComputedStyle(document.documentElement);
   const chartColors = [
-    css.getPropertyValue("--chart-1").trim(),
-    css.getPropertyValue("--chart-2").trim(),
-    css.getPropertyValue("--chart-3").trim(),
-    css.getPropertyValue("--chart-4").trim(),
-    css.getPropertyValue("--chart-5").trim(),
+    css.getPropertyValue("--chart-1").trim() || "#10b981",
+    css.getPropertyValue("--chart-2").trim() || "#f43f5e",
+    css.getPropertyValue("--chart-3").trim() || "#8b5cf6",
+    css.getPropertyValue("--chart-4").trim() || "#f59e0b",
+    css.getPropertyValue("--chart-5").trim() || "#3b82f6",
   ];
-  const labelColor = isDark ? "#e5e7eb" : "#0b0f17";
+  const labelColor = isDark ? "#94a3b8" : "#64748b";
 
   async function loadAll() {
     setLoading(true);
@@ -89,28 +94,14 @@ export const AnalyticsDashboard: React.FC = () => {
       setKpis(safeKpis);
       setMeta(forecast?.meta || { categories: [], cards: [] });
 
-      const charts: Charts =
-        forecast?.charts || {
-          months: [],
-          incomeSeries: [],
-          expenseSeries: [],
-          categories: [],
-        };
-
+      const charts: Charts = forecast?.charts || { months: [], incomeSeries: [], expenseSeries: [], categories: [] };
       renderCharts(charts);
 
-      const hasKpis =
-        (safeKpis.balance || 0) !== 0 ||
-        (safeKpis.income || 0) !== 0 ||
-        (safeKpis.expense || 0) !== 0;
-
-      const hasCharts =
-        (charts.months?.length || 0) > 0 ||
-        (charts.categories?.length || 0) > 0;
-
+      const hasKpis = (safeKpis.balance || 0) !== 0 || (safeKpis.income || 0) !== 0 || (safeKpis.expense || 0) !== 0;
+      const hasCharts = (charts.months?.length || 0) > 0 || (charts.categories?.length || 0) > 0;
       setHasData(hasKpis || hasCharts);
     } catch (e) {
-      console.error("Erro ao carregar Analytics:", e);
+      console.error("Analytics Load Error:", e);
       setHasData(false);
     } finally {
       setLoading(false);
@@ -119,18 +110,14 @@ export const AnalyticsDashboard: React.FC = () => {
 
   async function loadInsights() {
     try {
-      const { data } = await api
-        .get<string[]>("/portal/insights/cache")
-        .catch(() => ({ data: [] as string[] }));
+      const { data } = await api.get<string[]>("/portal/insights/cache").catch(() => ({ data: [] as string[] }));
       setInsights(Array.isArray(data) ? data : []);
-    } catch {
-      /* ignora erro de insights */
-    }
+    } catch { /* ignore */ }
   }
 
   function renderCharts(ch: Charts) {
-    const ctx1 = lineRef.current?.getContext("2d") as CanvasRenderingContext2D | null;
-    const ctx2 = pieRef.current?.getContext("2d") as CanvasRenderingContext2D | null;
+    const ctx1 = lineRef.current?.getContext("2d");
+    const ctx2 = pieRef.current?.getContext("2d");
     if (!ctx1 || !ctx2) return;
 
     lineChart.current?.destroy();
@@ -145,10 +132,10 @@ export const AnalyticsDashboard: React.FC = () => {
             label: "Receitas",
             data: ch.incomeSeries,
             borderColor: chartColors[0],
-            backgroundColor: "transparent",
+            backgroundColor: isDark ? "rgba(16, 185, 129, 0.1)" : "rgba(16, 185, 129, 0.05)",
             borderWidth: 2,
-            tension: 0.35,
-            pointBackgroundColor: chartColors[0],
+            tension: 0.4,
+            fill: true,
           },
           {
             label: "Despesas",
@@ -156,8 +143,7 @@ export const AnalyticsDashboard: React.FC = () => {
             borderColor: chartColors[1],
             backgroundColor: "transparent",
             borderWidth: 2,
-            tension: 0.35,
-            pointBackgroundColor: chartColors[1],
+            tension: 0.4,
           },
         ],
       },
@@ -165,22 +151,12 @@ export const AnalyticsDashboard: React.FC = () => {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            display: true,
-            labels: { color: labelColor },
-          },
+          legend: { display: true, position: 'top', align: 'end', labels: { color: labelColor, boxWidth: 10, usePointStyle: true, font: { size: 10, weight: 'bold' } } },
+          tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8 },
         },
         scales: {
-          y: {
-            grid: {
-              color: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)",
-            },
-            ticks: { color: labelColor },
-          },
-          x: {
-            grid: { display: false },
-            ticks: { color: labelColor },
-          },
+          y: { grid: { color: "rgba(226, 232, 240, 0.05)" }, ticks: { color: labelColor, font: { size: 10 } } },
+          x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 10 } } },
         },
       },
     });
@@ -189,131 +165,126 @@ export const AnalyticsDashboard: React.FC = () => {
       type: "doughnut",
       data: {
         labels: ch.categories.map((c) => c.category),
-        datasets: [
-          {
-            data: ch.categories.map((c) => c.amount),
-            backgroundColor: chartColors,
-            borderColor: "transparent",
-          },
-        ],
+        datasets: [{ data: ch.categories.map((c) => c.amount), backgroundColor: chartColors, borderColor: "transparent", hoverOffset: 4 }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: {
-            position: "bottom",
-            labels: {
-              color: labelColor,
-              usePointStyle: true,
-              pointStyle: "circle",
-            },
-          },
+          legend: { position: "bottom", labels: { color: labelColor, usePointStyle: true, pointStyle: "circle", font: { size: 10 } } },
         },
-        cutout: "62%",
+        cutout: "70%",
       },
     });
   }
 
-  useEffect(() => {
-    loadAll();
-  }, []);
-
-  useEffect(() => {
-    if (!loading) void loadInsights();
-  }, [loading]);
+  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { if (!loading) void loadInsights(); }, [loading]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-[1fr_380px] animate-fade-in">
-      <div className="space-y-4 transition-all duration-500">
-        {!loading && !hasData ? (
-          <section className="card p-6 flex flex-col gap-3 items-start">
-            <h3 className="font-semibold text-lg">Comece conectando suas finanças 🚀</h3>
-            <p className="text-sm text-[var(--text-2)] max-w-xl">
-              Ainda não encontramos dados suficientes para montar seus gráficos e indicadores. Importe um extrato bancário ou
-              conecte suas planilhas para ver o Analytics do Momentum em ação.
-            </p>
-            <div className="flex flex-wrap gap-2 mt-2">
-              <button
-                onClick={() => navigate("/imports")}
-                className="btn primary hover:-translate-y-px transition-all duration-300"
-              >
-                Importar dados
-              </button>
-              <button
-                onClick={loadAll}
-                className="btn ghost hover:-translate-y-px transition-all duration-300"
-              >
-                Atualizar
-              </button>
+    <div className="space-y-8 pb-20 fade-in">
+      <SectionHeader
+        title={
+          <div className="flex items-center gap-2">
+            <TrendingUp size={24} className="text-momentum-accent" />
+            <span>Analytics Financeiro</span>
+          </div>
+        }
+        subtitle="Visão estratégica de fluxos, categorias e saúde do negócio."
+        actions={
+          <button onClick={loadAll} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-momentum-border hover:bg-white transition-all text-xs font-bold text-momentum-muted hover:text-momentum-text">
+            <RefreshCw size={14} className={cn(loading && "animate-spin")} />
+            Sincronizar
+          </button>
+        }
+      />
+
+      <div className="grid gap-8 md:grid-cols-[1fr_360px]">
+        <div className="space-y-8">
+          <AsyncPanel isLoading={loading} isEmpty={!hasData} emptyTitle="Sem Dados" emptyDescription="Conecte suas finanças para gerar insights." onRetry={loadAll}>
+            <div className="space-y-8">
+              {/* KPIs Summary */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 font-bold">
+                <StatsCard
+                  label="Saldo Projetado"
+                  value={kpis.balance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  icon={Wallet}
+                  trend={kpis.balanceTrend ? { value: kpis.balanceTrend, direction: kpis.balanceTrend.includes("+") ? "up" : "down" } : undefined}
+                />
+                <StatsCard
+                  label="Receita Mensal"
+                  value={kpis.income.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  variant="success"
+                  icon={TrendingUp}
+                />
+                <StatsCard
+                  label="Despesa Mensal"
+                  value={kpis.expense.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                  variant="danger"
+                  icon={TrendingDown}
+                />
+              </div>
+
+              {/* Charts Grid */}
+              <div className="grid md:grid-cols-2 gap-8">
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-2 mb-6">
+                    <LineChartIcon size={18} className="text-momentum-accent" />
+                    <h3 className="text-sm font-bold text-momentum-text uppercase tracking-widest">Tendência (6 Meses)</h3>
+                  </div>
+                  <div className="h-[280px]">
+                    <canvas ref={lineRef} />
+                  </div>
+                </GlassPanel>
+
+                <GlassPanel className="p-6">
+                  <div className="flex items-center gap-2 mb-6">
+                    <PieChart size={18} className="text-momentum-accent" />
+                    <h3 className="text-sm font-bold text-momentum-text uppercase tracking-widest">Categorias</h3>
+                  </div>
+                  <div className="h-[280px]">
+                    <canvas ref={pieRef} />
+                  </div>
+                </GlassPanel>
+              </div>
+
+              {/* Insights Section */}
+              <GlassPanel className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={18} className="text-momentum-accent" />
+                    <h3 className="text-sm font-bold text-momentum-text uppercase tracking-widest">Insights Estratégicos</h3>
+                  </div>
+                  <button onClick={loadInsights} className="text-[10px] font-bold text-momentum-accent uppercase hover:underline">Atualizar IA</button>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {insights.length ? (
+                    insights.map((text, i) => (
+                      <InsightCard
+                        key={i}
+                        title="Análise Relevante"
+                        description={text}
+                        severity="info"
+                      />
+                    ))
+                  ) : (
+                    <div className="col-span-full py-8 text-center text-sm text-momentum-muted italic border-2 border-dashed border-momentum-border rounded-2xl">
+                      Nenhum insight disponível no momento.
+                    </div>
+                  )}
+                </div>
+              </GlassPanel>
             </div>
-            <p className="text-xs text-[var(--text-3)] mt-1">
-              Dica: você pode usar a aba de Importações para subir extratos em CSV ou planilhas e deixar o Momentum cuidar do resto.
-            </p>
-          </section>
-        ) : (
-          <>
-            <section className="grid md:grid-cols-2 gap-4">
-              <div className="card p-4">
-                <h3 className="font-semibold mb-3">Resumo</h3>
-                <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))" }}>
-                  <div className="glass rounded-xl p-4">
-                    <div className="text-sm opacity-70">Saldo Atual</div>
-                    <div className="text-2xl font-bold text-gradient">
-                      {kpis.balance.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </div>
-                    <div className="text-sm text-[var(--ok)] mt-1">{kpis.balanceTrend || ""}</div>
-                  </div>
-                  <div className="glass rounded-xl p-4">
-                    <div className="text-sm opacity-70">Receita Mensal</div>
-                    <div className="text-2xl font-bold text-gradient">
-                      {kpis.income.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </div>
-                    <div className="text-sm text-[var(--ok)] mt-1">{kpis.incomeTrend || ""}</div>
-                  </div>
-                  <div className="glass rounded-xl p-4">
-                    <div className="text-sm opacity-70">Despesa Mensal</div>
-                    <div className="text-2xl font-bold text-gradient">
-                      {kpis.expense.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-                    </div>
-                    <div className="text-sm text-[var(--bad)] mt-1">{kpis.expenseTrend || ""}</div>
-                  </div>
-                </div>
-              </div>
+          </AsyncPanel>
+        </div>
 
-              <div className="card p-4">
-                <h3 className="font-semibold mb-3">⚡ Insights Rápidos</h3>
-                <div className="space-y-2 min-h-[60px]">
-                  {insights.length ? insights.map((t, i) => <div key={i}>{t}</div>) : <em className="opacity-70">Sem insights no cache.</em>}
-                </div>
-                <div className="mt-2">
-                  <button onClick={loadInsights} className="btn neutral hover:-translate-y-px transition-all duration-300">
-                    Atualizar
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <section className="grid md:grid-cols-2 gap-4">
-              <div className="card p-4">
-                <h3 className="font-semibold mb-3">Tendência (6M)</h3>
-                <div className="h-[280px]">
-                  <canvas ref={lineRef} />
-                </div>
-              </div>
-              <div className="card p-4">
-                <h3 className="font-semibold mb-3">Despesas por Categoria</h3>
-                <div className="h-[280px]">
-                  <canvas ref={pieRef} />
-                </div>
-              </div>
-            </section>
-          </>
-        )}
-      </div>
-
-      <div className="hidden md:block animate-fade-in-slow">
-        <AIAdvisorPanel />
+        {/* Sidebar AI Advisor */}
+        <div className="hidden md:block">
+          <GlassPanel className="p-0 overflow-hidden sticky top-8 border-none shadow-2xl">
+            <AIAdvisorPanel />
+          </GlassPanel>
+        </div>
       </div>
     </div>
   );
