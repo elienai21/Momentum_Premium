@@ -53,10 +53,15 @@ function inAllowlist(ip: string, ips?: string[], cidrs?: string[]) {
 // In-memory fallback cache (per-instance, simple TTL-based)
 // Used when Firestore is unavailable
 const memoryCache = new Map<string, { count: number; expiresAt: number }>();
+const MAX_CACHE_SIZE = 10000;
+let lastCleanup = Date.now();
+const CLEANUP_INTERVAL_MS = 60000; // Cleanup at most 1x/minute
 
 function getFromMemoryCache(key: string, now: number): number {
   const entry = memoryCache.get(key);
-  if (!entry || entry.expiresAt < now) {
+  if (!entry) return 0;
+
+  if (entry.expiresAt < now) {
     memoryCache.delete(key);
     return 0;
   }
@@ -64,14 +69,23 @@ function getFromMemoryCache(key: string, now: number): number {
 }
 
 function setInMemoryCache(key: string, count: number, expiresAt: number): void {
-  memoryCache.set(key, { count, expiresAt });
-  // Simple cleanup to avoid unbounded growth
-  if (memoryCache.size > 10000) {
+  // Prevent unbounded growth
+  if (memoryCache.size >= MAX_CACHE_SIZE && !memoryCache.has(key)) {
+    // If full, try to cleanup expired first
     const now = Date.now();
-    for (const [k, v] of memoryCache.entries()) {
-      if (v.expiresAt < now) memoryCache.delete(k);
+    if (now - lastCleanup > CLEANUP_INTERVAL_MS) {
+      for (const [k, v] of memoryCache.entries()) {
+        if (v.expiresAt < now) memoryCache.delete(k);
+      }
+      lastCleanup = now;
     }
+
+    // If still full after cleanup, drop new entry (fail-open for this specific IP tracking)
+    // This is better than crashing with OOM
+    if (memoryCache.size >= MAX_CACHE_SIZE) return;
   }
+
+  memoryCache.set(key, { count, expiresAt });
 }
 
 export function createRateLimit(opts: RateLimitOptions = {}) {
@@ -90,11 +104,12 @@ export function createRateLimit(opts: RateLimitOptions = {}) {
   // SECURITY: Critical routes that should fail-closed on rate limit errors
   // Updated to match actual application routes (billing, admin, imports, vision)
   const criticalRoutes = [
-    "/api/billing",
-    "/api/admin",
-    "/api/imports",
-    "/api/vision",
-    "/api/ai/vision",
+    "/api/billing",    // Payment processing
+    "/api/admin",      // Administrative actions (users, marketplace)
+    "/api/imports",    // Bulk data operations
+    "/api/voice",      // Costly AI/Voice operations
+    "/api/ai",         // General AI endpoints (Vision, Insights, Advisor)
+    "/api/realestate", // Complex data processing
   ];
 
   return async function rateLimit(req: Request, res: Response, next: NextFunction) {
