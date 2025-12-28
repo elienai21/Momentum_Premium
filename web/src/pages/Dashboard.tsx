@@ -140,19 +140,17 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 pb-20 fade-in" aria-live="polite">
       {/* 1. Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-momentum-text dark:text-white font-display">
-            Olá, <span className="text-momentum-accent">{userName}</span>
-          </h2>
-          <p className="text-momentum-muted mt-1">Empresa: <span className="font-medium text-momentum-text/80 dark:text-momentum-text/80">{companyName}</span></p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="neutral">{periodLabel}</Badge>
-          <Badge variant="success">Última importação: há 2 dias</Badge>
-          <Badge variant="warn">Atualizado: há poucos minutos</Badge>
-        </div>
-      </div>
+      <SectionHeader
+        title={<>Olá, <span className="text-momentum-accent">{userName}</span></>}
+        subtitle={<>Empresa: <span className="font-medium text-momentum-text/80 dark:text-momentum-text/80">{companyName}</span></>}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="neutral">{periodLabel}</Badge>
+            <Badge variant="success">Última importação: há 2 dias</Badge>
+            <Badge variant="warn">Atualizado: há poucos minutos</Badge>
+          </div>
+        }
+      />
 
       {/* Credits Bar */}
       <CreditsBar />

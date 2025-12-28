@@ -1,8 +1,8 @@
 import { cn } from "../../lib/utils";
 
 interface SectionHeaderProps {
-    title: string;
-    subtitle?: string;
+    title: string | React.ReactNode;
+    subtitle?: string | React.ReactNode;
     actions?: React.ReactNode;
     className?: string;
 }
