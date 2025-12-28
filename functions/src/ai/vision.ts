@@ -86,12 +86,18 @@ Responda estritamente neste formato JSON:
     logger.info("Gemini Vision parsed receipt", {
       file: meta?.fileName,
       uid: meta?.uid,
-      keys: Object.keys(parsed),
+      // Don't log full parsed data - may contain PII
+      hasTransaction: !!parsed.transaction,
+      hasInsights: !!parsed.insights,
     });
 
     return parsed;
   } catch (error: any) {
-    logger.error("Erro ao processar imagem com Gemini Vision", { error: error.message });
+    // Log only error type and basic info, not full stack or sensitive data
+    logger.error("Erro ao processar imagem com Gemini Vision", {
+      errorType: error.name,
+      errorMessage: error.message?.substring(0, 100), // Limit message length
+    });
     if (error.message?.includes("SAFETY")) {
       throw new ApiError(400, "Imagem bloqueada por segurança.");
     }
