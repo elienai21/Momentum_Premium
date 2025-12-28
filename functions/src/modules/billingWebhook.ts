@@ -27,14 +27,13 @@ function getStripeClient(): Stripe {
   return stripeClient;
 }
 
-// ============================
-// 🔔 POST /billing/webhook
-// ============================
 billingWebhook.post(
   "/webhook",
   // Se o body já é tratado em outro lugar, esse middleware é opcional
   express.json({ type: "application/json" }),
   async (req: Request, res: Response) => {
+    const traceId = (req as any)?.traceId || `stripe-${Date.now()}`;
+
     try {
       const signature = req.headers["stripe-signature"];
       if (!signature) {
@@ -58,29 +57,74 @@ billingWebhook.post(
         webhookSecret
       );
 
-      logger.info("Stripe webhook recebido", {
-        type: event.type,
-        traceId: (req as any)?.traceId,
-      });
+      // ✅ IDEMPOTENCY: Check if event already processed
+      const eventDocRef = db.collection("stripe_events").doc(event.id);
+      const eventDoc = await eventDocRef.get();
 
-      // ✅ Exemplo de tratamento
-      switch (event.type) {
-        case "invoice.paid":
-          logger.info("Fatura paga com sucesso.", { id: event.id });
-          // aqui você pode atualizar Firestore se quiser, usando `db`
-          break;
-        case "invoice.payment_failed":
-          logger.warn("Falha no pagamento da fatura.", { id: event.id });
-          break;
-        default:
-          logger.info("Evento não tratado.", { type: event.type });
+      if (eventDoc.exists) {
+        const existingData = eventDoc.data();
+        logger.info("Stripe webhook: duplicate event (idempotent)", {
+          eventId: event.id,
+          type: event.type,
+          status: existingData?.status,
+          firstReceivedAt: existingData?.receivedAt,
+          traceId: existingData?.traceId,
+        });
+        // Return 200 immediately - already processed
+        return res.status(200).send({ ok: true, idempotent: true });
       }
 
-      res.status(200).send({ ok: true });
+      // ✅ CREATE event record BEFORE processing
+      await eventDocRef.set({
+        eventId: event.id,
+        type: event.type,
+        receivedAt: new Date().toISOString(),
+        status: "received",
+        traceId,
+      });
+
+      logger.info("Stripe webhook received", {
+        type: event.type,
+        eventId: event.id,
+        traceId,
+      });
+
+      // ✅ Process event
+      try {
+        switch (event.type) {
+          case "invoice.paid":
+            logger.info("Fatura paga com sucesso.", { id: event.id, traceId });
+            // aqui você pode atualizar Firestore se quiser
+            break;
+          case "invoice.payment_failed":
+            logger.warn("Falha no pagamento da fatura.", { id: event.id, traceId });
+            break;
+          default:
+            logger.info("Evento não tratado.", { type: event.type, traceId });
+        }
+
+        // ✅ Mark as processed
+        await eventDocRef.update({
+          status: "processed",
+          processedAt: new Date().toISOString(),
+        });
+
+        res.status(200).send({ ok: true });
+      } catch (processingErr: any) {
+        // ✅ Mark as failed (without stack trace)
+        await eventDocRef.update({
+          status: "failed",
+          errorCode: processingErr.code || "PROCESSING_ERROR",
+          errorMessage: processingErr.message?.substring(0, 200),
+          failedAt: new Date().toISOString(),
+        });
+        throw processingErr;
+      }
     } catch (err: any) {
       logger.error("Erro no webhook Stripe", {
         error: err.message,
-        traceId: (req as any)?.traceId,
+        code: err.code,
+        traceId,
       });
       const status =
         err instanceof ApiError && (err as any).status ? (err as any).status : 400;
