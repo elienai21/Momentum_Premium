@@ -8,6 +8,7 @@ import { createExpressApp } from "./app/createExpressApp";
 export { cfoNightly } from "./scheduler/cfoCron";
 export { pulseAggregateOnWrite } from "./triggers/pulseAggregate";
 export { cleanupExpiredLogs, cleanupExpiredLogsHttp } from "./cron/cleanupExpiredLogs";
+export { stripeWebhook } from "./billing/subscriptionManager";
 
 // Firebase Admin init
 try {

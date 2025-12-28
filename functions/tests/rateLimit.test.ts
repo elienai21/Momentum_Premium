@@ -32,7 +32,7 @@ describe("Rate Limit Middleware (Memory Fallback)", () => {
         res = {
             status: jest.fn().mockReturnThis() as any,
             json: jest.fn().mockReturnThis() as any,
-            setHeader: jest.fn(),
+            setHeader: jest.fn() as any,
         };
         next = jest.fn();
 
@@ -54,7 +54,7 @@ describe("Rate Limit Middleware (Memory Fallback)", () => {
         admin.firestore().runTransaction.mockRejectedValue(new Error("Firestore unavailable"));
 
         const limiter = createRateLimit({ enabled: true });
-        req.path = "/api/billing/charge"; // Critical route
+        (req as any).path = "/api/billing/charge"; // Critical route
 
         await limiter(req as Request, res as Response, next);
 
@@ -71,7 +71,7 @@ describe("Rate Limit Middleware (Memory Fallback)", () => {
         admin.firestore().runTransaction.mockRejectedValue(new Error("Firestore unavailable"));
 
         const limiter = createRateLimit({ enabled: true });
-        req.path = "/api/public/status"; // Non-critical route
+        (req as any).path = "/api/public/status"; // Non-critical route
 
         await limiter(req as Request, res as Response, next);
 
