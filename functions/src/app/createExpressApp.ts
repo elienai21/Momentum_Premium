@@ -8,7 +8,7 @@ type AppOptions = { mode?: AppMode };
 
 export function createExpressApp(opts?: AppOptions): express.Express {
   const mode: AppMode = opts?.mode || "prod";
-  const isTest = mode === "test" || process.env.NODE_ENV === "test";
+  const isTest = mode === "test" || process.env.FUNCTIONS_EMULATOR === "true";
   const requestDebug = process.env.REQUEST_DEBUG === "true";
   const app = express();
 
@@ -128,7 +128,7 @@ export function createExpressApp(opts?: AppOptions): express.Express {
 
   const isDevEnv =
     process.env.FUNCTIONS_EMULATOR === "true" ||
-    process.env.NODE_ENV !== "production";
+    process.env.NODE_ENV === "development";
   const isVoiceFeatureForced = process.env.VOICE_FEATURE_ENABLED === "true";
   const isVoiceEnabled = true; // segue config atual
   if (isVoiceEnabled || isDevEnv || isVoiceFeatureForced) {

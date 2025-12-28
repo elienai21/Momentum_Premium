@@ -10,9 +10,13 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   ensureTraceId(req);
   const traceId = (req as any).traceId || null;
 
-  // Em modo de teste, o createExpressApp injeta `req.user` mockado.
-  // Não exigir token nesses cenários evita que os testes dependam de Firebase Auth real.
-  if (process.env.NODE_ENV === "test" && (req as any).user?.uid) {
+  // SECURITY: Only bypass auth in emulator or explicit test mode
+  // Never rely on NODE_ENV alone - can be accidentally set in production
+  const allowBypass =
+    process.env.FUNCTIONS_EMULATOR === "true" ||
+    process.env.ALLOW_AUTH_BYPASS_FOR_TESTS === "true";
+
+  if (allowBypass && (req as any).user?.uid) {
     return next();
   }
 
