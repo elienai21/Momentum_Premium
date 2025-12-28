@@ -1,9 +1,13 @@
 
-import { Wallet, AlertTriangle, CheckCircle } from "lucide-react";
+import { Wallet, AlertTriangle, CheckCircle, AlertCircle, FileSearch } from "lucide-react";
 import { GlassPanel } from "../components/ui/GlassPanel";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { StatsCard } from "../components/ui/StatsCard";
 import { Badge } from "../components/ui/Badge";
+import { InsightCard } from "../components/ui/InsightCard";
+import { InsightList } from "../components/ui/InsightList";
+import { SkeletonPanel } from "../components/ui/SkeletonPanel";
+import { EmptyState } from "../components/ui/EmptyState";
 
 export default function DesignSystemPage() {
     return (
@@ -69,6 +73,47 @@ export default function DesignSystemPage() {
                         trend={{ value: "Stable", direction: "neutral" }}
                         variant="success"
                     />
+                </div>
+            </section>
+
+            <section className="space-y-4">
+                <h3 className="text-lg font-semibold text-momentum-text">Insight Blocks</h3>
+                <p className="text-sm text-momentum-muted mb-4">New UI primitives for displaying analysis and empty states.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <InsightList>
+                        <InsightCard
+                            title="Despesas Elevadas"
+                            description="Sua categoria 'Marketing' está 20% acima da média histórica."
+                            severity="warn"
+                        />
+                        <InsightCard
+                            title="Oportunidade de Receita"
+                            description="Clientes inativos há 60 dias podem ser reativados com campanha de e-mail."
+                            severity="info"
+                            actions={<button className="text-xs text-momentum-accent font-medium hover:underline">Ver Clientes Inativos</button>}
+                        />
+                        <InsightCard
+                            title="Saúde Financeira"
+                            description="Seu runway está em níveis ótimos (> 12 meses)."
+                            severity="success"
+                        />
+                    </InsightList>
+
+                    <div className="space-y-4">
+                        <div>
+                            <p className="text-xs text-momentum-muted mb-2">Skeleton Panel:</p>
+                            <SkeletonPanel className="h-32" />
+                        </div>
+                        <div>
+                            <p className="text-xs text-momentum-muted mb-2">Empty State:</p>
+                            <EmptyState
+                                icon={<FileSearch size={32} />}
+                                title="Nenhum dado encontrado"
+                                description="Experimente ajustar os filtros ou selecionar outro período."
+                                action={<button className="px-4 py-2 bg-momentum-accent text-white rounded-lg text-xs font-medium">Limpar Filtros</button>}
+                            />
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>
