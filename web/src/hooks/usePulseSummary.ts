@@ -32,11 +32,21 @@ function isEmptyPulse(result: PulseSummary | null): boolean {
   );
 }
 
+function getHttpStatus(err: any): number | undefined {
+  return (
+    err?.response?.status ??
+    err?.status ??
+    err?.cause?.status ??
+    err?.cause?.response?.status ??
+    undefined
+  );
+}
+
 function logPulseErrorDev(error: unknown) {
   if (!import.meta.env.DEV) return;
 
   const anyErr: any = error;
-  const status = anyErr?.response?.status ?? anyErr?.status;
+  const status = getHttpStatus(anyErr);
   const data = anyErr?.response?.data ?? anyErr?.data;
 
   // eslint-disable-next-line no-console
@@ -75,9 +85,12 @@ export function usePulseSummary(
     let active = true;
 
     async function fetchData() {
+      // 1. Reset explicit no início (evita "sticky state")
       setLoading(true);
       setError(null);
       setEmpty(false);
+      // setData(null); // Opcional: manter o dado anterior enquanto carrega ou limpar? 
+      // User sugeriu reset explícito, vamos seguir o padrão seguro.
 
       try {
         const result = await getPulseSummary({
@@ -88,7 +101,6 @@ export function usePulseSummary(
 
         if (!active) return;
 
-        // getPulseSummary já retorna null quando o backend diz "hasData: false"
         if (!result || isEmptyPulse(result)) {
           setData(null);
           setEmpty(true);
@@ -99,26 +111,22 @@ export function usePulseSummary(
       } catch (err: any) {
         if (!active) return;
 
-        const status =
-          err?.response?.status ??
-          err?.status ??
-          err?.cause?.status ??
-          undefined;
+        const status = getHttpStatus(err);
 
-        // 404 → tratamos como "sem dados", se algum dia o backend usar isso
-        if (status === 404) {
+        // 403 ou 404 → tratamos como "sem dados" com observabilidade em DEV
+        if (status === 403 || status === 404) {
           setData(null);
-          setError(null);
+          setError(null); // Não propagamos erro para UI nesses casos
           setEmpty(true);
 
           if (import.meta.env.DEV) {
             // eslint-disable-next-line no-console
-            console.warn("[Pulse] 404 → tratado como EMPTY");
+            console.warn(`[PulseSummary] ${status} tratado como EMPTY para o tenant: ${tenantId}. Certifique-se que o backend está configurado.`);
           }
-
           return;
         }
 
+        // Outros erros (500, timeout, etc)
         setError(err);
         setData(null);
         setEmpty(false);

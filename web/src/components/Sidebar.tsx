@@ -1,5 +1,5 @@
 ﻿// web/src/components/Sidebar.tsx
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import { NavLink } from "react-router-dom";
 
 type SidebarProps = {
@@ -8,14 +8,6 @@ type SidebarProps = {
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
-  const asideRef = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (open) {
-      setTimeout(() => asideRef.current?.focus(), 0);
-    }
-  }, [open]);
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (e.key === "Escape") {
       onClose?.();
@@ -27,7 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
     { label: "Transações", path: "/transactions", icon: "receipt_long" },
     { label: "Auditoria & Limpeza", path: "/data-cleaning", icon: "verified_user" },
     { label: "IA & Insights", path: "/insights", icon: "psychology", badge: "NEW" },
-    { label: "Deep Dive Financeiro", path: "/analytics", icon: "finance_mode" },
+    { label: "Deep Dive Financeiro", path: "/cfo/deep-dive", icon: "finance_mode" },
   ];
 
   const menuGerenciamento = [
@@ -74,7 +66,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
       />
 
       <aside
-        ref={(el) => (asideRef.current = el)}
         id="app-sidebar"
         tabIndex={-1}
         onKeyDown={handleKeyDown}

@@ -3,25 +3,18 @@ import { db } from "src/services/firebase";
 import { ApiError } from "../utils/errors";
 import { CreditsState, TenantCredits, PlanTier } from "./creditsTypes";
 import { CREDIT_COSTS, CreditFeatureKey } from "../config/credits";
+import { normalizePlan } from "./planNormalize";
 
-// Se você já tiver um helper de planos, pode usar.
-// Aqui vou assumir que o plano e quota vêm do próprio tenant.
 function resolveMonthlyCreditsForPlan(plan: PlanTier): number {
-  const p = (plan || "").toString().toLowerCase();
-  if (p === "pro") return 2000;
-  if (p === "cfo" || p === "business") return 5000;
+  const normalized = normalizePlan(plan);
+  if (normalized === "pro") return 2000;
+  if (normalized === "premium_lite") return 1000;
+  if (normalized === "business") return 5000;
   return 300; // starter/default
 }
 
 function nowISO() {
   return new Date().toISOString();
-}
-
-function diffInDays(aISO: string | null, bISO: string): number {
-  if (!aISO) return Number.POSITIVE_INFINITY;
-  const a = new Date(aISO).getTime();
-  const b = new Date(bISO).getTime();
-  return (b - a) / (1000 * 60 * 60 * 24);
 }
 
 /**
@@ -47,6 +40,7 @@ async function initCreditsIfNeeded(
         available: monthlyQuota,
         monthlyQuota,
         lastResetAt: nowISO(),
+        updatedAt: nowISO(),
       };
       tx.set(ref, { credits: created }, { merge: true });
       result = created;
@@ -62,6 +56,7 @@ async function initCreditsIfNeeded(
           ? existing.monthlyQuota
           : monthlyQuota,
       lastResetAt: existing.lastResetAt ?? nowISO(),
+      updatedAt: existing.updatedAt ?? nowISO(),
     };
 
     // garante que monthlyQuota bate com o plano atual
@@ -81,7 +76,8 @@ async function initCreditsIfNeeded(
 
 /**
  * Verifica se é hora de resetar créditos mensais.
- * Critério simples: se passaram ≥ 30 dias desde lastResetAt.
+ * Prioriza o ciclo do Stripe (tenant.billing.currentPeriodEnd).
+ * Fallback: 30 dias desde lastResetAt.
  */
 export async function maybeResetMonthlyCredits(
   tenantId: string,
@@ -97,38 +93,43 @@ export async function maybeResetMonthlyCredits(
     const snap = await tx.get(ref);
     const data = (snap.data() as any) || {};
     const existing: TenantCredits | undefined = data.credits;
+    const billing = data.billing || {};
 
-    // Se nunca teve créditos, inicializa
-    if (!existing) {
-      const created: TenantCredits = {
-        available: monthlyQuota,
-        monthlyQuota,
-        lastResetAt: now,
-      };
-      tx.set(ref, { credits: created }, { merge: true });
-      out = created;
-      return;
+    // 1. Determina a data de renovação (renewsAt)
+    const stripeEnd = billing.currentPeriodEnd;
+    let renewsAt: string;
+
+    if (stripeEnd) {
+      renewsAt = stripeEnd;
+    } else {
+      const lastReset = existing?.lastResetAt ?? now;
+      const d = new Date(lastReset);
+      d.setDate(d.getDate() + 30);
+      renewsAt = d.toISOString();
     }
 
-    const lastResetAt = existing.lastResetAt ?? now;
-    const daysDiff = diffInDays(lastResetAt, now);
+    const isExpired = new Date(now) >= new Date(renewsAt);
+    const quotaChanged = existing && existing.monthlyQuota !== monthlyQuota;
 
-    if (daysDiff >= 30 || existing.monthlyQuota !== monthlyQuota) {
+    if (!existing || isExpired || quotaChanged) {
+      // Se era por expiração do Stripe, o novo lastResetAt deve ser o currentPeriodStart se disponível
+      const newLastReset = (isExpired && billing.currentPeriodStart) ? billing.currentPeriodStart : now;
+
       const reset: TenantCredits = {
         available: monthlyQuota,
         monthlyQuota,
-        lastResetAt: now,
+        lastResetAt: newLastReset,
+        updatedAt: now,
       };
+
       tx.set(ref, { credits: reset }, { merge: true });
       out = reset;
     } else {
       out = {
         available: typeof existing.available === "number" ? existing.available : 0,
-        monthlyQuota:
-          typeof existing.monthlyQuota === "number"
-            ? existing.monthlyQuota
-            : monthlyQuota,
-        lastResetAt,
+        monthlyQuota: existing?.monthlyQuota ?? monthlyQuota,
+        lastResetAt: existing?.lastResetAt ?? now,
+        updatedAt: existing?.updatedAt,
       };
     }
   });
@@ -150,25 +151,40 @@ export async function getCredits(
   const snap = await ref.get();
   const data = (snap.data() as any) || {};
   const existing: TenantCredits | undefined = data.credits;
+  const billing = data.billing || {};
 
   const base: TenantCredits = existing ?? {
     available: monthlyQuota,
     monthlyQuota,
     lastResetAt: now,
+    updatedAt: now,
   };
 
   const available =
     typeof base.available === "number" ? base.available : monthlyQuota;
 
   const used = Math.max(0, monthlyQuota - available);
-  const renewsAt = base.lastResetAt ?? now;
+
+  let renewsAt = base.lastResetAt ?? now;
+  let periodSource: "stripe" | "fallback" = "fallback";
+
+  if (billing.currentPeriodEnd) {
+    renewsAt = billing.currentPeriodEnd;
+    periodSource = "stripe";
+  } else {
+    const d = new Date(renewsAt);
+    d.setDate(d.getDate() + 30);
+    renewsAt = d.toISOString();
+  }
 
   return {
+    ...base,
     available,
     monthlyQuota,
-    lastResetAt: base.lastResetAt,
     used,
     renewsAt,
+    planNormalized: normalizePlan(plan),
+    periodSource,
   };
 }
 
@@ -178,17 +194,24 @@ export async function getCredits(
 export async function consumeCredits(
   tenantId: string,
   amount: number,
-  meta?: { type: string; source?: string }
+  meta?: { type: string; source?: string; usageLogId?: string }
 ): Promise<void> {
   if (amount <= 0) return;
 
   const tenantRef = db.collection("tenants").doc(tenantId);
-  const usageRef = tenantRef.collection("usageLogs").doc();
 
   await db.runTransaction(async (tx: any) => {
     const snap = await tx.get(tenantRef);
     const data = (snap.data() as any) || {};
     const credits: TenantCredits | undefined = data.credits;
+
+    if (meta?.usageLogId) {
+      const logSnap = await tx.get(tenantRef.collection("usageLogs").doc(meta.usageLogId));
+      if (logSnap.exists) {
+        // Idempotency: Já consumiu
+        return;
+      }
+    }
 
     const available =
       credits && typeof credits.available === "number"
@@ -196,13 +219,11 @@ export async function consumeCredits(
         : 0;
 
     if (available < amount) {
-      throw new ApiError(
-        402,
-        "NO_CREDITS" // código interno, handler pode mapear mensagem amigável
-      );
+      throw new ApiError(402, "NO_CREDITS");
     }
 
     const newAvailable = available - amount;
+    const now = nowISO();
 
     tx.set(
       tenantRef,
@@ -210,16 +231,21 @@ export async function consumeCredits(
         credits: {
           ...(credits || {}),
           available: newAvailable,
+          updatedAt: now,
         },
       },
       { merge: true }
     );
 
+    const usageRef = meta?.usageLogId
+      ? tenantRef.collection("usageLogs").doc(meta.usageLogId)
+      : tenantRef.collection("usageLogs").doc();
+
     tx.set(usageRef, {
       type: meta?.type ?? "generic",
       source: meta?.source ?? "api",
       creditsConsumed: amount,
-      createdAt: nowISO(),
+      createdAt: now,
     });
   });
 }
@@ -247,10 +273,6 @@ export async function ensureCreditsOrThrow(
       : 0;
 
   if (available < amount) {
-    throw new ApiError(
-      402,
-      "NO_CREDITS" // o handler HTTP transforma em { code, message }
-    );
+    throw new ApiError(402, "NO_CREDITS");
   }
 }
-

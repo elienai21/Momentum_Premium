@@ -5,13 +5,13 @@
  *
  * Enterprise/white-label fica reservado para uma fase futura.
  */
-export type PlanId = "starter" | "pro" | "business";
+export type PlanId = "starter" | "pro" | "premium_lite" | "business";
 
 /**
  * Tier de plano usada em alguns serviços legados.
  * Preferir usar PlanId sempre que possível.
  */
-export type PlanTier = PlanId | "cfo" | string;
+export type PlanTier = PlanId | "cfo" | "premium_pro" | string;
 
 export interface TenantCredits {
   /**
@@ -39,6 +39,11 @@ export interface TenantCredits {
    * Cota mensal de créditos de voz premium/neural.
    */
   voicePremiumMonthlyQuota?: number;
+
+  /**
+   * Última atualização do registro (ISO string).
+   */
+  updatedAt?: string;
 }
 
 export interface CreditsState extends TenantCredits {
@@ -56,4 +61,14 @@ export interface CreditsState extends TenantCredits {
    * Créditos de voz premium já utilizados no ciclo atual.
    */
   voicePremiumUsed?: number;
+
+  /**
+   * Plano normalizado (ex.: starter, pro, etc.)
+   */
+  planNormalized: string;
+
+  /**
+   * Origem do período de renovação (stripe ou fallback)
+   */
+  periodSource: "stripe" | "fallback";
 }

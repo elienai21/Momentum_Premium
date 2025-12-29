@@ -13,7 +13,9 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { usePulseSummary } from "../hooks/usePulseSummary";
+import { getFriendlyError } from "../lib/errorMessages";
 import { useAuth } from "../context/AuthContext";
+import { useTenant } from "../context/TenantContext";
 import { useToast } from "../components/Toast";
 import { GlassPanel } from "../components/ui/GlassPanel";
 import { SectionHeader } from "../components/ui/SectionHeader";
@@ -39,6 +41,7 @@ export default function DeepDiveFinanceiroPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const { tenantId } = useTenant();
     const { notify } = useToast();
 
     // Search state
@@ -54,9 +57,15 @@ export default function DeepDiveFinanceiroPage() {
 
     const iso = (d: Date) => d.toISOString().slice(0, 10);
 
+    // Resolved Tenant ID (Auth Context primarily, Dev fallback)
+    const resolvedTenantId = useMemo(() => {
+        if (tenantId) return tenantId;
+        return import.meta.env.DEV ? (import.meta.env.VITE_DEFAULT_TENANT_ID || "demo-tenant-001") : "";
+    }, [tenantId]);
+
     // 1. KPI Data (Pulse)
-    const { data: pulseData, loading: pulseLoading, error: pulseError, refetch: refetchPulse } = usePulseSummary({
-        tenantId: import.meta.env.VITE_DEFAULT_TENANT_ID || "demo-tenant-001",
+    const { data: pulseData, loading: pulseLoading, error: pulseError, empty: pulseEmpty, refetch: refetchPulse } = usePulseSummary({
+        tenantId: resolvedTenantId,
         periodStart: iso(periodStart),
         periodEnd: iso(periodEnd),
     });
@@ -143,7 +152,10 @@ export default function DeepDiveFinanceiroPage() {
             {/* Top KPI Grid */}
             <AsyncPanel
                 isLoading={pulseLoading || txLoading}
-                error={pulseError || txError}
+                error={pulseError || txError ? getFriendlyError(pulseError || txError) : null}
+                isEmpty={!pulseLoading && !txLoading && (pulseEmpty || transactions.length === 0)}
+                emptyTitle="Sem dados"
+                emptyDescription="Não encontramos dados financeiros suficientes para gerar o Deep Dive. Importe/conecte transações e tente novamente."
                 onRetry={() => { refetchPulse(); loadTx(); }}
                 className="border-none bg-transparent shadow-none"
                 loadingVariant="skeleton"
