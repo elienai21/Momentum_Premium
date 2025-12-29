@@ -15,18 +15,18 @@ export async function tts({ text, voice, profile }: TTSRequest): Promise<Blob> {
   return r.blob(); // ex.: audio/mpeg
 }
 
-export async function sttStart(): Promise<{ sessionId: string }> {
-  const r = await authorizedFetch("/api/voice/stt/start", {
-    method: "POST",
-  });
-  if (!r.ok) throw new Error(`/api/voice/stt/start -> ${r.status}`);
-  return r.json();
-}
+export async function uploadAudio(audioBlob: Blob): Promise<{ text: string }> {
+  const formData = new FormData();
+  formData.append("file", audioBlob, "recording.webm");
 
-export async function sttStop(sessionId: string): Promise<{ text: string }> {
-  const r = await authorizedFetch(`/api/voice/stt/stop?sessionId=${encodeURIComponent(sessionId)}`, {
+  const r = await authorizedFetch("/api/ai/voice/stt", {
     method: "POST",
+    body: formData,
   });
-  if (!r.ok) throw new Error(`/api/voice/stt/stop -> ${r.status}`);
+
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.message || `/api/ai/voice/stt -> ${r.status}`);
+  }
   return r.json();
 }

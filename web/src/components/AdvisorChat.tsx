@@ -114,7 +114,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       if (effectiveFeatures.voiceTTS) {
         await speak({
           text: result.reply,
-          voice: resolveVoiceId(voiceProfiles, "advisor")
+          voice: resolveVoiceId("neural", voiceProfiles, "advisor")
         });
       }
     } catch (err: any) {
@@ -230,16 +230,23 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
 
                 {/* Message Bubble */}
                 <div className="flex flex-col gap-1.5">
-                  <GlassPanel
-                    className={cn(
+                  {m.role === "assistant" ? (
+                    <GlassPanel
+                      className={cn(
+                        "px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm border-none backdrop-blur-md",
+                        "bg-white/80 dark:bg-slate-900/40 rounded-tl-none ring-1 ring-momentum-border/30"
+                      )}
+                    >
+                      <p className="whitespace-pre-wrap text-slate-800 dark:text-slate-200">{m.content}</p>
+                    </GlassPanel>
+                  ) : (
+                    <div className={cn(
                       "px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm border-none backdrop-blur-md",
-                      m.role === "assistant"
-                        ? "bg-white/80 dark:bg-slate-900/40 rounded-tl-none ring-1 ring-momentum-border/30"
-                        : "bg-momentum-accent text-white rounded-tr-none shadow-momentum-glow"
-                    )}
-                  >
-                    <p className="whitespace-pre-wrap">{m.content}</p>
-                  </GlassPanel>
+                      "bg-primary text-white rounded-tr-none shadow-momentum-glow"
+                    )}>
+                      <p className="whitespace-pre-wrap">{m.content}</p>
+                    </div>
+                  )}
 
                   {m.timestamp && (
                     <span className={cn(
@@ -275,7 +282,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       </div>
 
       {/* C) Input area no rodapé */}
-      <div className="px-6 py-4 border-t border-momentum-border/50 bg-white/30 backdrop-blur-xl sticky bottom-0 z-10 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+      <div className="px-6 py-4 border-t border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl sticky bottom-0 z-10 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.5)]">
         <div className="max-w-4xl mx-auto space-y-4 pb-[env(safe-area-inset-bottom)]">
           <div className="flex items-center gap-3">
             <button
@@ -285,7 +292,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 "flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
                 recording
                   ? "bg-red-500 text-white shadow-lg animate-pulse"
-                  : "bg-momentum-accent/10 text-momentum-accent hover:bg-momentum-accent/20"
+                  : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
               )}
               aria-label={recording ? "Parar de ouvir" : "Falar com advisor"}
             >
@@ -297,16 +304,16 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
               <button
                 onClick={ttsLoading ? stopSpeaking : () => speak({
                   text: messages[messages.length - 1]?.content,
-                  voice: resolveVoiceId(voiceProfiles, "advisor")
+                  voice: resolveVoiceId("neural", voiceProfiles, "advisor")
                 })}
-                className="p-2 rounded-full hover:bg-momentum-accent/10 text-momentum-muted transition-colors"
+                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
                 title={ttsLoading ? "Parar leitura" : "Ouvir resposta"}
               >
                 {ttsLoading ? <VolumeX size={16} className="text-red-500 animate-pulse" /> : <Volume2 size={16} />}
               </button>
             )}
 
-            <Badge variant="neutral" className="ml-auto text-[9px] font-bold tracking-tighter bg-white/50 border-momentum-border/30">Advisor Premium v2</Badge>
+            <Badge variant="neutral" className="ml-auto text-[9px] font-bold tracking-tighter bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400">Advisor Premium v2</Badge>
           </div>
 
           <div className="relative flex items-end gap-2">
@@ -319,8 +326,8 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 placeholder="Pergunte sobre seus saldos, categorias ou anomalias..."
                 aria-label="Mensagem para o Advisor"
                 className={cn(
-                  "w-full bg-white/80 dark:bg-slate-900/50 border border-momentum-border rounded-2xl px-5 py-3.5 pr-14 text-sm leading-relaxed",
-                  "focus:outline-none focus:ring-4 focus:ring-momentum-accent/10 focus:border-momentum-accent transition-all",
+                  "w-full bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-2xl px-5 py-3.5 pr-14 text-sm leading-relaxed text-slate-900 dark:text-slate-100 placeholder:text-slate-500",
+                  "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all",
                   "resize-none min-h-[52px] max-h-36 scrollbar-none shadow-inner"
                 )}
               />
@@ -330,8 +337,8 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 className={cn(
                   "absolute right-2.5 bottom-2.5 h-9 w-9 rounded-xl flex items-center justify-center transition-all shadow-md",
                   loading || !input.trim()
-                    ? "bg-slate-100 text-slate-400 dark:bg-slate-800 shadow-none cursor-not-allowed"
-                    : "bg-momentum-accent text-white shadow-momentum-glow hover:scale-105 active:scale-95"
+                    ? "bg-slate-800 text-slate-600 shadow-none cursor-not-allowed"
+                    : "bg-primary text-white shadow-glow hover:scale-105 active:scale-95"
                 )}
                 aria-label="Enviar mensagem"
               >

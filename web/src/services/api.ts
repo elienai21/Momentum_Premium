@@ -68,13 +68,15 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Interceptor de resposta: normaliza erro e loga 401/403
+// Interceptor de resposta: normaliza erro e loga 401/403/402
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
+    const code = error?.response?.data?.code;
     const msg =
       error?.response?.data?.error ||
+      error?.response?.data?.message ||
       error?.message ||
       "Falha de rede. Tente novamente.";
 
@@ -83,11 +85,23 @@ api.interceptors.response.use(
         url: error?.config?.url,
       });
     }
+
+    // 402 NO_CREDITS: Dispatch global event for modal
+    if (status === 402 || code === "NO_CREDITS") {
+      console.warn("[API] 402 No Credits — créditos insuficientes", {
+        url: error?.config?.url,
+      });
+      // Dispatch custom event for BuyCreditsModal
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("no-credits", { detail: { url: error?.config?.url } }));
+      }
+    }
+
     if (status === 403 && error?.response?.data?.feature) {
       console.warn("[API] 403 Upgrade required", error?.response?.data);
     }
 
-    return Promise.reject({ status, message: msg, raw: error?.response?.data });
+    return Promise.reject({ status, message: msg, code, raw: error?.response?.data });
   },
 );
 

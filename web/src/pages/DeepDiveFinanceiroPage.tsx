@@ -130,7 +130,7 @@ export default function DeepDiveFinanceiroPage() {
     };
 
     return (
-        <div className="space-y-8 pb-20 fade-in" aria-live="polite">
+        <div className="pt-24 space-y-8 pb-20 fade-in" aria-live="polite">
             <SectionHeader
                 title="Deep Dive Financeiro"
                 subtitle="Análise detalhada de performance, caixa e movimentações."
@@ -138,11 +138,11 @@ export default function DeepDiveFinanceiroPage() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleBack}
-                            className="bg-white border border-momentum-border text-momentum-muted hover:text-momentum-text px-4 py-2 rounded-xl transition-all text-sm font-medium flex items-center gap-2 shadow-sm"
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white px-4 py-2 rounded-xl transition-all text-sm font-medium flex items-center gap-2 shadow-sm font-display"
                         >
                             <ArrowLeft size={16} /> Voltar
                         </button>
-                        <Badge variant="neutral" className="px-3 py-1 bg-white/50">
+                        <Badge variant="neutral" className="px-3 py-1 bg-white/50 dark:bg-slate-800/50">
                             Últimos 30 dias
                         </Badge>
                     </div>
@@ -196,11 +196,11 @@ export default function DeepDiveFinanceiroPage() {
                 {/* Main Content: Detailed Table or Chart */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Visual Placeholder for a Chart */}
-                    <GlassPanel className="min-h-[320px] flex items-center justify-center relative overflow-hidden border-none shadow-xl bg-gradient-to-br from-white/40 to-white/10">
-                        <div className="absolute inset-0 bg-gradient-to-br from-momentum-accent/5 to-transparent z-0" />
+                    <GlassPanel className="min-h-[320px] flex items-center justify-center relative overflow-hidden border border-slate-200/50 dark:border-white/5 shadow-xl bg-white/50 dark:bg-slate-900/80 backdrop-blur-xl">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent z-0" />
                         <div className="text-center z-10 p-6">
-                            <h3 className="text-lg font-bold text-momentum-text mb-2">Fluxo de Caixa Diário</h3>
-                            <p className="text-sm text-momentum-muted mb-4 max-w-xs mx-auto">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2 font-display">Fluxo de Caixa Diário</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-xs mx-auto font-display">
                                 Visualização gráfica interativa em processamento. Disponível em breve para análise de tendência.
                             </p>
                             <Badge variant="neutral" className="animate-pulse">Aguardando IA</Badge>
@@ -208,21 +208,21 @@ export default function DeepDiveFinanceiroPage() {
                     </GlassPanel>
 
                     {/* Transaction List with Search */}
-                    <GlassPanel className="p-0 overflow-hidden border-none shadow-xl bg-white/50 backdrop-blur-xl">
-                        <div className="p-6 border-b border-momentum-border/50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/20">
+                    <GlassPanel className="p-0 overflow-hidden border border-slate-200/50 dark:border-white/5 shadow-xl bg-white/50 dark:bg-slate-900/80 backdrop-blur-xl">
+                        <div className="p-6 border-b border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/50">
                             <div>
-                                <h3 className="font-bold text-lg text-momentum-text">Movimentações Detalhadas</h3>
-                                <p className="text-xs text-momentum-muted">Cruzamento de dados bancários e categorias</p>
+                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 font-display">Movimentações Detalhadas</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-display">Cruzamento de dados bancários e categorias</p>
                             </div>
 
                             <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-momentum-muted" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="text"
                                     placeholder="Buscar transações..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full bg-white/50 border border-momentum-border rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-momentum-accent/20 focus:border-momentum-accent transition-all"
+                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-display"
                                 />
                             </div>
                         </div>
@@ -237,29 +237,29 @@ export default function DeepDiveFinanceiroPage() {
                         >
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50/50 text-momentum-muted font-bold uppercase text-[10px] tracking-widest border-b border-momentum-border/50">
+                                    <thead className="bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest border-b border-slate-200/50 dark:border-white/5">
                                         <tr>
-                                            <th className="px-6 py-4">Data</th>
-                                            <th className="px-6 py-4">Descrição</th>
-                                            <th className="px-6 py-4">Categoria</th>
-                                            <th className="px-6 py-4 text-right">Valor</th>
+                                            <th className="px-6 py-4 font-display">Data</th>
+                                            <th className="px-6 py-4 font-display">Descrição</th>
+                                            <th className="px-6 py-4 font-display">Categoria</th>
+                                            <th className="px-6 py-4 text-right font-display">Valor</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-momentum-border/30">
+                                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                                         {filteredTransactions.map((tx, i) => (
-                                            <tr key={i} className="hover:bg-momentum-accent/5 transition-colors group">
-                                                <td className="px-6 py-4 text-momentum-muted whitespace-nowrap">{tx.date}</td>
-                                                <td className="px-6 py-4 font-medium text-momentum-text group-hover:text-momentum-accent transition-colors">
+                                            <tr key={i} className="hover:bg-primary/5 transition-colors group">
+                                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap font-display">{tx.date}</td>
+                                                <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors font-display">
                                                     {tx.description}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <Badge variant="neutral" className="bg-white/50 border-momentum-border/50 text-[10px]">
+                                                    <Badge variant="neutral" className="bg-slate-100 dark:bg-slate-800 border-slate-200/50 dark:border-white/5 text-[10px]">
                                                         {tx.category}
                                                     </Badge>
                                                 </td>
                                                 <td className={cn(
-                                                    "px-6 py-4 text-right font-bold",
-                                                    tx.type === 'credit' ? "text-momentum-success" : "text-momentum-text"
+                                                    "px-6 py-4 text-right font-bold font-display",
+                                                    tx.type === 'credit' ? "text-success" : "text-slate-800 dark:text-slate-200"
                                                 )}>
                                                     {tx.type === 'debit' ? "-" : ""}{Math.abs(tx.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
@@ -276,33 +276,33 @@ export default function DeepDiveFinanceiroPage() {
                 <div className="lg:col-span-1 space-y-8">
                     <CfoHealthCard />
 
-                    <GlassPanel className="p-6 space-y-6 border-none shadow-lg bg-white/50">
+                    <GlassPanel className="p-6 space-y-6 border border-slate-200/50 dark:border-white/5 shadow-lg bg-white/50 dark:bg-slate-900/80">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-momentum-warn/10 text-momentum-warn">
+                            <div className="p-2 rounded-lg bg-warning/10 text-warning">
                                 <AlertCircle size={20} />
                             </div>
-                            <h3 className="font-bold text-momentum-text">Anomalias de Fluxo</h3>
+                            <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Anomalias de Fluxo</h3>
                         </div>
 
                         <AsyncPanel isLoading={pulseLoading} error={pulseError} loadingVariant="skeleton" className="border-none bg-transparent p-0 shadow-none">
                             {alerts.length > 0 ? (
                                 <div className="space-y-4">
                                     {alerts.map(a => (
-                                        <div key={a.id} className="p-4 bg-momentum-warn/5 rounded-xl border border-momentum-warn/10 text-sm">
+                                        <div key={a.id} className="p-4 bg-warning/5 rounded-xl border border-warning/10 text-sm">
                                             <div className="flex justify-between items-start mb-2">
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-momentum-warn">{a.type}</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-warning font-display">{a.type}</span>
                                                 <Badge variant="warn" className="scale-75 origin-right">Pendente</Badge>
                                             </div>
-                                            <p className="text-momentum-text font-medium leading-relaxed">{a.message}</p>
+                                            <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed font-display">{a.message}</p>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="text-center py-6">
-                                    <div className="w-12 h-12 rounded-full bg-momentum-success/10 flex items-center justify-center mx-auto mb-3">
-                                        <CheckCircle className="w-6 h-6 text-momentum-success" />
+                                    <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3">
+                                        <CheckCircle className="w-6 h-6 text-success" />
                                     </div>
-                                    <p className="text-sm text-momentum-muted">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-display">
                                         Nenhuma anomalia crítica detectada nos últimos 30 dias.
                                     </p>
                                 </div>
@@ -310,13 +310,13 @@ export default function DeepDiveFinanceiroPage() {
                         </AsyncPanel>
                     </GlassPanel>
 
-                    <GlassPanel className="p-6 space-y-4 border-none shadow-lg bg-momentum-accent/5 border-l-4 border-l-momentum-accent">
-                        <h3 className="text-sm font-bold text-momentum-accent uppercase tracking-widest">Saúde Operacional</h3>
-                        <p className="text-sm text-momentum-text leading-relaxed">
+                    <GlassPanel className="p-6 space-y-4 border border-slate-200/50 dark:border-white/5 shadow-lg bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary">
+                        <h3 className="text-sm font-bold text-primary uppercase tracking-widest font-display">Saúde Operacional</h3>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-display">
                             Seu runway atual de <span className="font-bold">{pulseData?.kpis.runwayMonths || 0} meses</span> está dentro da meta saudável e seguro (mais de 6 meses).
                         </p>
                         <div className="pt-2">
-                            <button className="text-[10px] font-bold text-momentum-accent hover:underline uppercase tracking-wider">Ver plano de expansão</button>
+                            <button className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider font-display">Ver plano de expansão</button>
                         </div>
                     </GlassPanel>
                 </div>

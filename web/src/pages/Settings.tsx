@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useCredits } from "@/hooks/useCredits";
 import { useUsageLogs } from "@/hooks/useUsageLogs";
 import { useTenant as useTenantCtx } from "@/context/TenantContext";
 import { useTenant as useTenantData } from "@/hooks/useTenant";
-import Topbar from "@/components/Topbar";
 import { GlassPanel } from "@/components/ui/GlassPanel";
-import { Shield, CreditCard, Sparkles, RefreshCw, Zap, ExternalLink, History, Building2 } from "lucide-react";
+import { AsyncPanel } from "@/components/ui/AsyncPanel";
+import { Shield, CreditCard, Sparkles, RefreshCw, Zap, ExternalLink, History, Building2, User, Settings as SettingsIcon } from "lucide-react";
+import { api } from "@/services/api";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("pt-BR").format(value);
@@ -15,144 +17,239 @@ function formatDate(iso: string | undefined) {
   if (!iso) return "N/A";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "N/A";
-  return d.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+type TabId = "profile" | "billing";
+
+import { useToast } from "@/components/Toast";
+
 const Settings: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { notify } = useToast();
+  const initialTab = (searchParams.get("tab") as TabId) || "billing";
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+
   const { credits, isLoading: loadingCredits, refetch } = useCredits();
   const { logs, isLoading: loadingLogs } = useUsageLogs(10);
   const { tenantId } = useTenantCtx();
   const tenant = useTenantData(tenantId);
 
+  // Profile form state
+  const [profileName, setProfileName] = useState("");
+  const [profileRole, setProfileRole] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (tenant) {
+      setProfileName((tenant as any)?.name || "");
+    }
+  }, [tenant]);
+
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      // Stub: In production, call API to update profile
+      await new Promise((r) => setTimeout(r, 500));
+      console.log("Profile saved:", { profileName, profileRole });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleOpenBillingPortal = async () => {
+    try {
+      const response = await api.get<{ url: string; code?: string; error?: string }>("/billing/portal");
+
+      if (response.data.code === "requires_setup" || (response.data.error && !response.data.url)) {
+        notify({
+          type: "info",
+          message: "Sua conta ainda não possui faturas geradas. Entre em contato com o suporte."
+        });
+        return;
+      }
+
+      if (response.data.url) {
+        window.open(response.data.url, "_blank");
+      }
+    } catch (err: any) {
+      console.warn("Billing portal error:", err);
+      if (err?.response?.data?.code === "NO_STRIPE_CUSTOMER") {
+        notify({
+          type: "info",
+          message: "Sua conta ainda não possui faturas geradas."
+        });
+      }
+    }
+  };
+
   const quota = credits?.monthlyQuota || 0;
   const available = credits?.available || 0;
   const percent = quota > 0 ? Math.min(100, Math.max(0, (available / quota) * 100)) : 0;
-
   const planName = (credits?.planNormalized || (tenant as any)?.plan || "Starter").toUpperCase();
   const renewsAt = formatDate(credits?.renewsAt);
   const periodSource = credits?.periodSource === "stripe" ? "Ciclo de Faturamento" : "Ciclo de 30 dias";
 
+  const tabs = [
+    { id: "profile" as TabId, label: "Perfil", icon: User },
+    { id: "billing" as TabId, label: "Plano & Créditos", icon: CreditCard },
+  ];
+
   return (
     <div className="pt-24 space-y-8 pb-24 fade-in" aria-live="polite">
-      {/* Header Section */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200 font-display">
-            Preferências da Conta
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200 font-display flex items-center gap-2">
+            <SettingsIcon size={24} className="text-primary" />
+            Configurações
           </h2>
           <p className="text-slate-500 dark:text-slate-400 font-display text-sm">
-            Gerencie seu plano, faturamento e créditos de IA do Momentum.
+            Gerencie seu perfil, plano e créditos de IA.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <StatusBadge label={planName} color="success" />
-          {credits?.periodSource === "stripe" && (
-            <StatusBadge label="Stripe Ativo" color="blue" dot />
-          )}
         </div>
       </div>
 
-      {/* Plan & Organization Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Main Plan Card */}
-        <div className="md:col-span-2 glass rounded-xl p-8 relative overflow-hidden border border-primary/20 group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px] -mr-16 -mt-16 pointer-events-none transition-opacity group-hover:opacity-100 opacity-60"></div>
+      {/* Tabs Navigation */}
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-bold transition-all font-display ${activeTab === tab.id
+              ? "bg-white dark:bg-slate-800 text-primary border-b-2 border-primary shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+              }`}
+          >
+            <tab.icon size={16} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-          <div className="relative z-10 space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-primary/20 text-primary shadow-glow">
-                <Shield size={24} />
+      {/* Profile Tab */}
+      {activeTab === "profile" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-300">
+          <GlassPanel className="p-6 border border-slate-200/50 dark:border-white/5">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-lg font-bold shadow-glow">
+                {profileName?.charAt(0)?.toUpperCase() || "U"}
               </div>
               <div>
-                <h3 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-display">Seu Plano Atual</h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl font-bold text-slate-800 dark:text-slate-200 font-display">{planName}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-bold uppercase font-display">Ativo</span>
-                </div>
+                <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Dados do Perfil</h3>
+                <p className="text-xs text-slate-400 font-display">Atualize suas informações pessoais</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-white dark:bg-slate-800/40 border border-slate-200/50 dark:border-white/5 shadow-sm space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-display">Próxima renovação</span>
-                <p className="font-semibold text-slate-700 dark:text-slate-200 font-display">{renewsAt}</p>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest font-display">Nome Completo</label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-display focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  placeholder="Seu nome"
+                />
               </div>
-              <div className="p-4 rounded-xl bg-white dark:bg-slate-800/40 border border-slate-200/50 dark:border-white/5 shadow-sm space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-display">Método de faturamento</span>
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
-                  <CreditCard size={14} className="text-slate-400" />
-                  <p className="font-semibold text-sm font-display">Cartão final **** 4242</p>
-                </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest font-display">Cargo</label>
+                <input
+                  type="text"
+                  value={profileRole}
+                  onChange={(e) => setProfileRole(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-display focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  placeholder="Ex: Diretor Financeiro"
+                />
               </div>
-            </div>
-
-            <div className="pt-4 flex flex-wrap gap-3">
-              <button className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-glow flex items-center gap-2 group/btn font-display">
-                Alterar Plano
-                <RefreshCw size={16} className="group-hover/btn:rotate-180 transition-transform duration-500" />
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="w-full py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm transition-all shadow-glow disabled:opacity-50 font-display"
+              >
+                {savingProfile ? "Salvando..." : "Salvar Alterações"}
               </button>
-              <button className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm flex items-center gap-2 font-display">
-                Gerenciar Faturamento
+            </div>
+          </GlassPanel>
+
+          <GlassPanel className="p-6 border border-slate-200/50 dark:border-white/5">
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 size={18} className="text-primary" />
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Dados da Organização</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest font-display">Nome do Tenant</label>
+                <p className="text-slate-700 dark:text-slate-200 font-bold text-sm font-display">{tenant?.name || "Minha Empresa"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest font-display">Workspace ID</label>
+                <code className="text-[11px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400 font-mono block truncate">{tenantId || "---"}</code>
+              </div>
+            </div>
+          </GlassPanel>
+        </div>
+      )}
+
+      {/* Billing Tab */}
+      {activeTab === "billing" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Plan Card */}
+          <div className="glass rounded-xl p-8 relative overflow-hidden border border-primary/20 group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px] -mr-16 -mt-16 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-primary/20 text-primary shadow-glow">
+                  <Shield size={24} />
+                </div>
+                <div>
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-display">Seu Plano</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold text-slate-800 dark:text-slate-200 font-display">{planName}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-bold uppercase">Ativo</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 font-display">Renova em: {renewsAt}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleOpenBillingPortal}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm flex items-center gap-2 font-display"
+              >
+                Gerenciar Assinatura
                 <ExternalLink size={16} />
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Organization Info Card */}
-        <GlassPanel className="p-6 border border-slate-200/50 dark:border-white/5 shadow-sm">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 size={18} className="text-primary" />
-            <h3 className="font-bold text-slate-800 dark:text-slate-200 tracking-tight font-display">Dados da Organização</h3>
-          </div>
+          {/* Credits Section */}
           <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest font-display">Nome do Tenant</label>
-              <p className="text-slate-700 dark:text-slate-200 font-bold text-sm font-display">{tenant?.name || "Minha Empresa"}</p>
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/20 text-primary shadow-glow">
+                <Sparkles size={14} />
+              </span>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 font-display">Créditos de IA</h3>
             </div>
-            <div className="space-y-1">
-              <label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest font-display">Workspace ID</label>
-              <code className="text-[11px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400 font-mono block truncate">{tenantId || "---"}</code>
-            </div>
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-              <button className="text-xs text-primary hover:text-primary/80 font-bold uppercase tracking-wider font-display">Editar Perfil Empresa</button>
-            </div>
-          </div>
-        </GlassPanel>
-      </div>
 
-      {/* Credits Section */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/20 text-primary shadow-glow">
-            <Sparkles size={14} />
-          </span>
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 font-display">Créditos de IA &amp; Automação</h3>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Usage Visualization */}
-          <GlassPanel className="lg:col-span-2 p-6 flex flex-col md:flex-row gap-8 border border-slate-200/50 dark:border-white/5 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex-1 space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <p className="text-sm text-slate-600 dark:text-slate-300 font-bold tracking-tight font-display">Uso no Período Atual</p>
-                  <p className="text-[11px] text-slate-400 italic font-display">Baseado no {periodSource}</p>
+            <GlassPanel className="p-6 border border-slate-200/50 dark:border-white/5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 font-bold font-display">Uso no Período</p>
+                  <p className="text-[11px] text-slate-400 italic font-display">{periodSource}</p>
                 </div>
-                <button
-                  onClick={() => refetch()}
-                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors"
-                  title="Recarregar"
-                >
+                <button onClick={() => refetch()} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors">
                   <RefreshCw size={16} className={loadingCredits ? "animate-spin" : ""} />
                 </button>
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-end justify-between">
                   <span className="text-4xl font-black text-slate-800 dark:text-slate-200 tracking-tighter font-display">
                     {formatNumber(available)}
@@ -162,119 +259,64 @@ const Settings: React.FC = () => {
                     Cota: {formatNumber(quota)}
                   </span>
                 </div>
-                <div className="h-4 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden p-1 shadow-inner">
+                <div className="h-5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden p-1 shadow-inner">
                   <div
-                    className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${percent > 40 ? "bg-gradient-to-r from-primary to-secondary" :
-                        percent > 15 ? "bg-warning" : "bg-error"
+                    className={`h-full rounded-full transition-all duration-1000 ease-out ${percent > 40 ? "bg-gradient-to-r from-primary to-secondary" :
+                      percent > 15 ? "bg-warning" : "bg-error"
                       }`}
                     style={{ width: `${percent}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 tracking-widest pt-1 px-1 font-display">
-                  <span>Início: {formatDate(credits?.lastResetAt)}</span>
-                  <span>Renova em: {renewsAt}</span>
-                </div>
               </div>
+            </GlassPanel>
+          </div>
+
+          {/* Usage History */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <History size={16} className="text-slate-500" />
+              <h3 className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest font-display">Histórico de Uso</h3>
             </div>
 
-            <div className="w-full md:w-56 p-5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex flex-col justify-center gap-3">
-              <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-bold text-sm font-display">
-                <Zap size={16} className="fill-cyan-500/30" />
-                <span>Dica Momentum</span>
-              </div>
-              <p className="text-[11px] text-cyan-700 dark:text-cyan-300 leading-relaxed font-medium font-display">
-                Relatórios avançados consomem 20 créditos. O Health Score diário utiliza apenas 5.
-              </p>
-              <button className="text-[11px] font-bold text-cyan-600 dark:text-cyan-400 mt-2 hover:bg-cyan-500/10 px-2 py-1 rounded transition-colors w-fit border border-cyan-500/30 font-display uppercase tracking-wider">
-                Ver Tabela de Custos
-              </button>
-            </div>
-          </GlassPanel>
-
-          {/* Upgrade CTA */}
-          <div className="glass rounded-xl p-6 relative overflow-hidden border border-primary/30 group flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/40 to-secondary/40 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity"></div>
-            <div className="relative z-10 space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-glow">
-                <Sparkles size={20} className="text-white" />
-              </div>
-              <h3 className="font-bold text-xl leading-tight tracking-tight text-slate-800 dark:text-slate-200 font-display">Precisa de mais Inteligência?</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-[13px] leading-relaxed font-display">Adicione pacotes extras de 1.000 créditos ou migre para o Plano Business.</p>
-            </div>
-            <button className="relative z-10 mt-6 w-full py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold transition-all shadow-glow active:scale-95 text-sm uppercase tracking-wider font-display">
-              Ver Opções de Upgrade
-            </button>
+            <AsyncPanel isLoading={loadingLogs} error={null} isEmpty={logs.length === 0} emptyTitle="Sem registros" emptyDescription="Nenhum consumo de créditos registrado ainda.">
+              <GlassPanel className="p-0 overflow-hidden border border-slate-200/50 dark:border-white/5">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/5">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Tipo</th>
+                      <th className="px-4 py-3 text-left text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Fonte</th>
+                      <th className="px-4 py-3 text-right text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Créditos</th>
+                      <th className="px-4 py-3 text-right text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Data</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                    {logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-primary/5 transition-colors">
+                        <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200 font-display">{log.type}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-display">{log.source}</td>
+                        <td className="px-4 py-3 text-right font-black text-error font-display">-{log.creditsConsumed}</td>
+                        <td className="px-4 py-3 text-right text-slate-400 font-display">{formatDate(log.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </GlassPanel>
+            </AsyncPanel>
           </div>
         </div>
-      </div>
-
-      {/* Usage History Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 font-display uppercase tracking-widest text-[10px] opacity-70 flex items-center gap-2">
-            <History size={14} /> Histórico de Uso
-          </h3>
-        </div>
-
-        <GlassPanel className="p-0 overflow-hidden border border-slate-200/50 dark:border-white/5 shadow-sm">
-          {loadingLogs ? (
-            <div className="p-6 text-center text-slate-400 font-display">Carregando...</div>
-          ) : logs.length === 0 ? (
-            <div className="p-6 text-center text-slate-400 italic font-display">Nenhum registro de uso encontrado.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
-                <thead className="bg-slate-50 dark:bg-white/5 text-slate-400 font-bold uppercase tracking-widest text-[9px] border-b border-slate-200 dark:border-white/5">
-                  <tr>
-                    <th className="px-6 py-4 font-display">Tipo</th>
-                    <th className="px-6 py-4 font-display">Fonte</th>
-                    <th className="px-6 py-4 text-right font-display">Créditos</th>
-                    <th className="px-6 py-4 text-right font-display">Data</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                  {logs.map((log) => (
-                    <tr key={log.id} className="hover:bg-primary/5 transition-colors">
-                      <td className="px-6 py-4 font-bold text-slate-900 dark:text-slate-100 font-display">{log.type}</td>
-                      <td className="px-6 py-4 text-slate-500 dark:text-slate-400 font-display">{log.source}</td>
-                      <td className="px-6 py-4 text-right font-black text-error tracking-tight font-display">-{log.creditsConsumed}</td>
-                      <td className="px-6 py-4 text-right text-slate-400 text-xs font-display">{formatDate(log.createdAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </GlassPanel>
-      </div>
-
-      {/* Footer Support Buttons */}
-      <div className="flex gap-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-        <button className="px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm font-display">
-          Abrir Suporte
-        </button>
-        <button className="px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-[11px] font-bold uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm font-display">
-          Falar com Advisor
-        </button>
-      </div>
+      )}
     </div>
   );
 };
 
-const StatusBadge: React.FC<{ label: string; color?: string; dot?: boolean }> = ({ label, color = "slate", dot = false }) => {
+const StatusBadge: React.FC<{ label: string; color?: string }> = ({ label, color = "slate" }) => {
   const styles: Record<string, string> = {
     slate: "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400",
     success: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400",
-    blue: "bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400",
-  };
-  const dotColors: Record<string, string> = {
-    slate: "bg-slate-400",
-    success: "bg-emerald-500",
-    blue: "bg-blue-500",
   };
   return (
     <div className={`px-3 py-1 rounded-full border text-[11px] font-bold flex items-center gap-2 shadow-sm font-display ${styles[color]}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${dotColors[color]} ${dot ? "animate-pulse" : ""}`}></span>
+      <span className={`w-1.5 h-1.5 rounded-full ${color === "success" ? "bg-emerald-500" : "bg-slate-400"}`}></span>
       {label}
     </div>
   );

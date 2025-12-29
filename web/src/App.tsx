@@ -6,6 +6,7 @@ import Layout from "./components/Layout";
 import { AuthDevHelper } from "./components/AuthDevHelper";
 import { FeatureGateProvider } from "./context/FeatureGateContext";
 import { ToastProvider } from "./components/Toast";
+import { NoCreditsProvider } from "./components/NoCreditsProvider";
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 
@@ -74,60 +75,62 @@ export default function App() {
       <ToastProvider>
         <FeatureGateProvider>
           <AuthProvider>
-            {import.meta.env.DEV && <AuthDevHelper />}
+            <NoCreditsProvider>
+              {import.meta.env.DEV && <AuthDevHelper />}
 
-            <Suspense
-              fallback={
-                <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="h-10 w-10 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-                    <p className="text-xs text-slate-400">Carregando Momentum...</p>
+              <Suspense
+                fallback={
+                  <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-10 w-10 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+                      <p className="text-xs text-slate-400">Carregando Momentum...</p>
+                    </div>
                   </div>
-                </div>
-              }
-            >
-              <Routes>
-                <Route path="/auth" element={<AuthPage />} />
+                }
+              >
+                <Routes>
+                  <Route path="/auth" element={<AuthPage />} />
 
-                {import.meta.env.DEV && (
-                  <Route path="/_design-system" element={<DesignSystem />} />
-                )}
+                  {import.meta.env.DEV && (
+                    <Route path="/_design-system" element={<DesignSystem />} />
+                  )}
 
-                <Route
-                  path="/"
-                  element={
-                    <RequireAuth>
-                      <Layout />
-                    </RequireAuth>
-                  }
-                >
-                  <Route index element={<Dashboard />} />
-                  <Route path="insights" element={<Insights />} />
-                  <Route path="clients" element={<Clients />} />
-                  <Route path="settings" element={<Settings />} />
-                  <Route path="transactions" element={<Transactions />} />
-                  <Route path="data-cleaning" element={<DataCleaning />} />
-                  <Route path="analytics" element={<AnalyticsDashboard />} />
-                  <Route path="ai" element={<AIConsole />} />
-                  <Route path="help" element={<Help />} />
-                  <Route path="real-estate" element={<RealEstateDashboard />} />
-                  <Route path="cfo/deep-dive" element={<DeepDiveFinanceiroPage />} />
-                  <Route path="advisor/deep-dive" element={<DeepDiveFinanceiroPage />} />
-                  <Route path="cfo/simulation" element={<CfoSimulationPage />} />
-                  <Route path="alerts" element={<AlertsCenter />} />
-                  <Route path="imports" element={<Imports />} />
+                  <Route
+                    path="/"
+                    element={
+                      <RequireAuth>
+                        <Layout />
+                      </RequireAuth>
+                    }
+                  >
+                    <Route index element={<Dashboard />} />
+                    <Route path="insights" element={<Insights />} />
+                    <Route path="clients" element={<Clients />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="transactions" element={<Transactions />} />
+                    <Route path="data-cleaning" element={<DataCleaning />} />
+                    <Route path="analytics" element={<AnalyticsDashboard />} />
+                    <Route path="ai" element={<AIConsole />} />
+                    <Route path="help" element={<Help />} />
+                    <Route path="real-estate" element={<RealEstateDashboard />} />
+                    <Route path="cfo/deep-dive" element={<DeepDiveFinanceiroPage />} />
+                    <Route path="advisor/deep-dive" element={<DeepDiveFinanceiroPage />} />
+                    <Route path="cfo/simulation" element={<CfoSimulationPage />} />
+                    <Route path="alerts" element={<AlertsCenter />} />
+                    <Route path="imports" element={<Imports />} />
 
-                  <Route path="admin" element={<AdminLayout />}>
-                    <Route path="plans" element={<AdminPlans />} />
-                    <Route path="voice" element={<AdminVoice />} />
-                    <Route path="support" element={<AdminSupport />} />
-                    <Route path="emergency" element={<AdminEmergency />} />
+                    <Route path="admin" element={<AdminLayout />}>
+                      <Route path="plans" element={<AdminPlans />} />
+                      <Route path="voice" element={<AdminVoice />} />
+                      <Route path="support" element={<AdminSupport />} />
+                      <Route path="emergency" element={<AdminEmergency />} />
+                    </Route>
+
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
-
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </Suspense>
+                </Routes>
+              </Suspense>
+            </NoCreditsProvider>
           </AuthProvider>
         </FeatureGateProvider>
       </ToastProvider>

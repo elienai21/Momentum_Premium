@@ -326,6 +326,7 @@ functions/src/core/logic/installments.ts
 functions/src/core/outbox.ts
 functions/src/core/syncManager.ts
 functions/src/core/tenants.ts
+functions/src/cron/calculateRealEstateFees.ts
 functions/src/cron/cleanupExpiredLogs.ts
 functions/src/cron/monitorAlerts.ts
 functions/src/cron/reconcileBilling.ts
@@ -546,6 +547,7 @@ web/src/components/AlertsBell.tsx
 web/src/components/AlertsPanel.tsx
 web/src/components/AudioBadge.tsx
 web/src/components/AuthDevHelper.tsx
+web/src/components/BuyCreditsModal.tsx
 web/src/components/Card.tsx
 web/src/components/CfoHealthCard.tsx
 web/src/components/CfoInsightsCard.tsx
@@ -554,6 +556,7 @@ web/src/components/CfoMaturityCard.tsx
 web/src/components/CfoVoiceButton.tsx
 web/src/components/ConsentBanner.tsx
 web/src/components/CreditsBar.tsx
+web/src/components/CreditsPill.tsx
 web/src/components/dashboard/HeroCard.tsx
 web/src/components/DashboardHeaderInfo.tsx
 web/src/components/DuplicateTransactionsPanel.tsx
@@ -566,7 +569,10 @@ web/src/components/KpiCard.tsx
 web/src/components/Layout.tsx
 web/src/components/MarketAdviceCard.tsx
 web/src/components/MomentumPulse.tsx
+web/src/components/NoCreditsProvider.tsx
 web/src/components/PulseSkeleton.tsx
+web/src/components/realEstate/NewBuildingModal.tsx
+web/src/components/realEstate/NewOwnerModal.tsx
 web/src/components/realEstate/NewPropertyModal.tsx
 web/src/components/RecordButton.tsx
 web/src/components/ScenarioPreview.tsx
@@ -621,6 +627,7 @@ web/src/hooks/useTenant.ts
 web/src/hooks/useTheme.ts
 web/src/hooks/useThemeWatcher.ts
 web/src/hooks/useTTS.ts
+web/src/hooks/useUsageLogs.ts
 web/src/hooks/useVoiceCFO.ts
 web/src/i18n/strings.json
 web/src/index.css
@@ -686,6 +693,620 @@ web/vitest.config.ts
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="functions/src/cron/calculateRealEstateFees.ts">
+// functions/src/cron/calculateRealEstateFees.ts
+/**
+ * Scheduled function that runs daily to calculate Real Estate management fees
+ * for tenants with hybridBilling enabled.
+ * 
+ * Calculates:
+ * - Active units count
+ * - Active owners count
+ * - Excess beyond included quota (e.g. 10 free)
+ * - Logs usage to billing_usage collection for future invoicing
+ */
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { db } from "../services/firebase";
+
+const INCLUDED_UNITS = 10; // Franquia inclusa
+const UNIT_FEE = 2; // R$ por unidade excedente
+const OWNER_FEE = 10; // R$ por proprietário
+
+interface TenantBillingInfo {
+    tenantId: string;
+    activeUnits: number;
+    activeOwners: number;
+    excessUnits: number;
+    estimatedFee: number;
+}
+
+export const calculateRealEstateFees = onSchedule(
+    {
+        schedule: "0 3 * * *", // Daily at 3 AM
+        timeZone: "America/Sao_Paulo",
+        memory: "256MiB",
+    },
+    async () => {
+        console.log("[CRON] Starting Real Estate fees calculation...");
+
+        const tenantsSnap = await db
+            .collection("tenants")
+            .where("features.realEstate", "==", true)
+            .get();
+
+        const results: TenantBillingInfo[] = [];
+
+        for (const tenantDoc of tenantsSnap.docs) {
+            const tenantId = tenantDoc.id;
+            const tenantData = tenantDoc.data();
+
+            // Only process tenants with hybridBilling flag
+            if (!tenantData.billing?.hybridBilling) {
+                continue;
+            }
+
+            try {
+                // Count active units
+                const unitsSnap = await db
+                    .collection("tenants")
+                    .doc(tenantId)
+                    .collection("realEstate_units")
+                    .where("active", "==", true)
+                    .get();
+
+                // Count active owners
+                const ownersSnap = await db
+                    .collection("tenants")
+                    .doc(tenantId)
+                    .collection("realEstate_owners")
+                    .get();
+
+                const activeUnits = unitsSnap.size;
+                const activeOwners = ownersSnap.size;
+                const excessUnits = Math.max(0, activeUnits - INCLUDED_UNITS);
+                const estimatedFee = excessUnits * UNIT_FEE + activeOwners * OWNER_FEE;
+
+                // Log usage for billing
+                await db
+                    .collection("tenants")
+                    .doc(tenantId)
+                    .collection("billing_usage")
+                    .add({
+                        type: "real_estate_management",
+                        period: new Date().toISOString().slice(0, 10),
+                        activeUnits,
+                        activeOwners,
+                        excessUnits,
+                        includedQuota: INCLUDED_UNITS,
+                        unitFee: UNIT_FEE,
+                        ownerFee: OWNER_FEE,
+                        estimatedFee,
+                        createdAt: new Date().toISOString(),
+                    });
+
+                results.push({
+                    tenantId,
+                    activeUnits,
+                    activeOwners,
+                    excessUnits,
+                    estimatedFee,
+                });
+
+                console.log(
+                    `[CRON] Tenant ${tenantId}: ${activeUnits} units, ${activeOwners} owners, fee: R$ ${estimatedFee}`
+                );
+            } catch (err) {
+                console.error(`[CRON] Error processing tenant ${tenantId}:`, err);
+            }
+        }
+
+        console.log(
+            `[CRON] Real Estate fees calculation complete. Processed ${results.length} tenants.`
+        );
+    }
+);
+</file>
+
+<file path="web/src/components/BuyCreditsModal.tsx">
+// web/src/components/BuyCreditsModal.tsx
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles, X, Zap, ArrowRight } from "lucide-react";
+
+interface BuyCreditsModalProps {
+    open: boolean;
+    onClose: () => void;
+}
+
+/**
+ * Modal displayed when user runs out of credits (402 NO_CREDITS).
+ * Offers upgrade options and navigation to billing.
+ */
+export const BuyCreditsModal: React.FC<BuyCreditsModalProps> = ({ open, onClose }) => {
+    const navigate = useNavigate();
+
+    if (!open) return null;
+
+    const handleUpgrade = () => {
+        onClose();
+        navigate("/settings?tab=billing");
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+                {/* Header */}
+                <div className="relative bg-gradient-to-br from-primary via-primary/90 to-secondary p-6 text-white">
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center shadow-glow">
+                            <Sparkles size={28} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold font-display">Créditos Esgotados</h2>
+                            <p className="text-white/80 text-sm font-display">Seus créditos de IA acabaram</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div className="p-6 space-y-6">
+                    <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed font-display">
+                        Você utilizou todos os seus créditos de IA deste ciclo. Para continuar usando
+                        recursos como análises, relatórios e assistente virtual, escolha uma opção abaixo:
+                    </p>
+
+                    {/* Options */}
+                    <div className="space-y-3">
+                        <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 hover:border-primary/50 transition-colors cursor-pointer group"
+                            onClick={handleUpgrade}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                        <Zap size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Pacote Extra</h3>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-display">+1.000 créditos avulsos</p>
+                                    </div>
+                                </div>
+                                <span className="text-primary font-bold font-display">R$ 29</span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 to-secondary/5 border-2 border-primary/30 hover:border-primary transition-colors cursor-pointer group"
+                            onClick={handleUpgrade}>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white shadow-glow">
+                                        <Sparkles size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Upgrade Pro</h3>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 font-display">2.000 créditos/mês + recursos premium</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-primary font-bold font-display">R$ 97/mês</span>
+                                    <p className="text-[10px] text-success font-bold uppercase">Recomendado</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-6 pt-0 flex gap-3">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-display"
+                    >
+                        Fechar
+                    </button>
+                    <button
+                        onClick={handleUpgrade}
+                        className="flex-[2] py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm shadow-glow transition-all flex items-center justify-center gap-2 font-display"
+                    >
+                        Ver Opções
+                        <ArrowRight size={16} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default BuyCreditsModal;
+</file>
+
+<file path="web/src/components/CreditsPill.tsx">
+// web/src/components/CreditsPill.tsx
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { useCredits } from "@/hooks/useCredits";
+import { Zap } from "lucide-react";
+
+/**
+ * Pill component that displays available AI credits in the Topbar.
+ * Clicking navigates to Settings billing tab.
+ */
+export const CreditsPill: React.FC = () => {
+    const navigate = useNavigate();
+    const { credits, isLoading, noCredits } = useCredits();
+
+    const available = credits?.available ?? 0;
+
+    const handleClick = () => {
+        navigate("/settings?tab=billing");
+    };
+
+    // Determine color based on credit level
+    const getColorClasses = () => {
+        if (noCredits || available <= 0) {
+            return "bg-error/10 text-error border-error/20";
+        }
+        if (available < 50) {
+            return "bg-warning/10 text-warning border-warning/20";
+        }
+        return "bg-primary/10 text-primary border-primary/20";
+    };
+
+    return (
+        <button
+            onClick={handleClick}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-bold transition-all hover:scale-105 active:scale-95 shadow-sm font-display ${getColorClasses()}`}
+            title="Créditos de IA disponíveis"
+        >
+            <Zap size={14} className={noCredits ? "fill-error/30" : "fill-primary/30"} />
+            {isLoading ? (
+                <span className="animate-pulse">...</span>
+            ) : (
+                <span>{available.toLocaleString("pt-BR")} créditos</span>
+            )}
+        </button>
+    );
+};
+
+export default CreditsPill;
+</file>
+
+<file path="web/src/components/NoCreditsProvider.tsx">
+// web/src/components/NoCreditsProvider.tsx
+import React, { useState, useEffect, createContext, useContext } from "react";
+import { BuyCreditsModal } from "./BuyCreditsModal";
+
+interface NoCreditsContextValue {
+    openModal: () => void;
+    closeModal: () => void;
+}
+
+const NoCreditsContext = createContext<NoCreditsContextValue>({
+    openModal: () => { },
+    closeModal: () => { },
+});
+
+export const useNoCredits = () => useContext(NoCreditsContext);
+
+/**
+ * Provider that listens for 'no-credits' events (dispatched by API interceptor)
+ * and shows the BuyCreditsModal.
+ */
+export const NoCreditsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+        const handleNoCredits = () => {
+            setIsOpen(true);
+        };
+
+        window.addEventListener("no-credits", handleNoCredits);
+        return () => window.removeEventListener("no-credits", handleNoCredits);
+    }, []);
+
+    const openModal = () => setIsOpen(true);
+    const closeModal = () => setIsOpen(false);
+
+    return (
+        <NoCreditsContext.Provider value={{ openModal, closeModal }}>
+            {children}
+            <BuyCreditsModal open={isOpen} onClose={closeModal} />
+        </NoCreditsContext.Provider>
+    );
+};
+
+export default NoCreditsProvider;
+</file>
+
+<file path="web/src/components/realEstate/NewBuildingModal.tsx">
+// web/src/components/realEstate/NewBuildingModal.tsx
+import React, { useState } from "react";
+import { X, Building2, MapPin, Save, Loader2 } from "lucide-react";
+import { createBuilding } from "../../services/realEstateApi";
+
+interface NewBuildingModalProps {
+    onClose: () => void;
+    onSuccess: () => void;
+}
+
+export function NewBuildingModal({ onClose, onSuccess }: NewBuildingModalProps) {
+    const [saving, setSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        name: "",
+        address: "",
+        city: "",
+        zipCode: "",
+    });
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.name.trim()) return;
+
+        setSaving(true);
+        try {
+            await createBuilding({
+                name: formData.name.trim(),
+                address: formData.address.trim() || undefined,
+                city: formData.city.trim() || undefined,
+                zipCode: formData.zipCode.trim() || undefined,
+                active: true,
+            });
+            onSuccess();
+            onClose();
+        } catch (err) {
+            console.error("Erro ao salvar edifício:", err);
+            alert("Erro ao salvar edifício. Verifique os dados.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+                {/* Header */}
+                <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 p-6 text-white">
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-primary/30 flex items-center justify-center shadow-glow">
+                            <Building2 size={24} className="text-primary" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold font-display">Novo Edifício</h2>
+                            <p className="text-white/80 text-sm font-display">Cadastre um condomínio ou prédio</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                    {/* Nome */}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5 font-display">
+                            <Building2 size={12} /> Nome do Edifício *
+                        </label>
+                        <input
+                            required
+                            type="text"
+                            placeholder="Ex: Condomínio Brera"
+                            value={formData.name}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-display"
+                        />
+                    </div>
+
+                    {/* Address */}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5 font-display">
+                            <MapPin size={12} /> Endereço
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Ex: Rua dos Imóveis, 123"
+                            value={formData.address}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-display"
+                        />
+                    </div>
+
+                    {/* City and CEP */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest font-display">
+                                Cidade
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Ex: São Paulo"
+                                value={formData.city}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, city: e.target.value }))}
+                                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-display"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest font-display">
+                                CEP
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="Ex: 01310-100"
+                                value={formData.zipCode}
+                                onChange={(e) => setFormData((prev) => ({ ...prev, zipCode: e.target.value }))}
+                                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-display"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-display"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving || !formData.name.trim()}
+                            className="flex-[2] py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm shadow-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-display"
+                        >
+                            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                            Salvar Edifício
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+export default NewBuildingModal;
+</file>
+
+<file path="web/src/components/realEstate/NewOwnerModal.tsx">
+// web/src/components/realEstate/NewOwnerModal.tsx
+import React, { useState } from "react";
+import { X, User, Mail, Phone, Save, Loader2 } from "lucide-react";
+import { createOwner } from "../../services/realEstateApi";
+
+interface NewOwnerModalProps {
+    onClose: () => void;
+    onSuccess: () => void;
+}
+
+export function NewOwnerModal({ onClose, onSuccess }: NewOwnerModalProps) {
+    const [saving, setSaving] = useState(false);
+    const [formData, setFormData] = useState({
+        name: "",
+        email: "",
+        phone: "",
+    });
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!formData.name.trim()) return;
+
+        setSaving(true);
+        try {
+            await createOwner({
+                name: formData.name.trim(),
+                email: formData.email.trim() || undefined,
+                phone: formData.phone.trim() || undefined,
+            });
+            onSuccess();
+            onClose();
+        } catch (err) {
+            console.error("Erro ao salvar proprietário:", err);
+            alert("Erro ao salvar proprietário. Verifique os dados.");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+                {/* Header */}
+                <div className="relative bg-gradient-to-br from-primary via-primary/90 to-secondary p-6 text-white">
+                    <button
+                        onClick={onClose}
+                        className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                    >
+                        <X size={16} />
+                    </button>
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shadow-glow">
+                            <User size={24} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold font-display">Novo Proprietário</h2>
+                            <p className="text-white/80 text-sm font-display">Cadastre um novo proprietário de imóveis</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <form onSubmit={handleSubmit} className="p-6 space-y-5">
+                    {/* Nome */}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5 font-display">
+                            <User size={12} /> Nome Completo *
+                        </label>
+                        <input
+                            required
+                            type="text"
+                            placeholder="Ex: João da Silva"
+                            value={formData.name}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-display"
+                        />
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5 font-display">
+                            <Mail size={12} /> Email
+                        </label>
+                        <input
+                            type="email"
+                            placeholder="Ex: joao@email.com"
+                            value={formData.email}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-display"
+                        />
+                    </div>
+
+                    {/* Phone */}
+                    <div className="space-y-1.5">
+                        <label className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-widest flex items-center gap-1.5 font-display">
+                            <Phone size={12} /> Telefone
+                        </label>
+                        <input
+                            type="tel"
+                            placeholder="Ex: (11) 99999-9999"
+                            value={formData.phone}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                            className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-display"
+                        />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="pt-2 flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-display"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving || !formData.name.trim()}
+                            className="flex-[2] py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm shadow-glow transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-display"
+                        >
+                            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                            Salvar Proprietário
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+export default NewOwnerModal;
+</file>
 
 <file path=".firebaserc">
 {
@@ -11621,84 +12242,6 @@ router.post("/", requireAuth, withTenant, runAdvisor);
 export default router;
 </file>
 
-<file path="functions/src/routes/billing.ts">
-// functions/src/routes/billing.ts
-import { Router } from "express";
-import { ApiError } from "../utils/errors";
-import { getCredits } from "../billing/creditsService";
-import { PlanTier } from "../billing/creditsTypes";
-import { z } from "zod";
-import { reportUsageToStripe } from "src/utils/usageTracker";
-
-export const billingRouter = Router();
-
-// POST /api/billing/report (Stripe usage)
-const handleReportUsage = async (req: any, res: any, next: any) => {
-  try {
-    const schema = z.union([
-      z.object({
-        subscriptionItemId: z.string().min(1),
-        amountCents: z.number().int().positive(),
-      }),
-      z.object({
-        subscriptionItemId: z.string().min(1),
-        tokens: z.number().int().nonnegative(),
-      }),
-    ]);
-
-    const parsed = schema.safeParse(req.body || {});
-    if (!parsed.success) {
-      return res
-        .status(400)
-        .json({ ok: false, error: parsed.error.toString(), code: "BAD_REQUEST" });
-    }
-
-    const subscriptionItemId = parsed.data.subscriptionItemId;
-    const amountCents =
-      "amountCents" in parsed.data ? parsed.data.amountCents : parsed.data.tokens;
-
-    await reportUsageToStripe(subscriptionItemId, amountCents);
-    return res.status(200).json({ status: "ok" });
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Aliases para compatibilidade
-billingRouter.post("/report-usage", handleReportUsage);
-billingRouter.post("/report", handleReportUsage);
-
-// GET /api/billing/credits
-billingRouter.get("/credits", async (req: any, res, next) => {
-  try {
-    if (!req.tenant) throw new ApiError(400, "Tenant context required");
-
-    const tenantId = req.tenant.info.id;
-    const planId = (req.tenant.info.plan || "starter") as PlanTier;
-
-    const state = await getCredits(tenantId, planId);
-
-    res.json({
-      status: "ok",
-      credits: {
-        available: state.available,
-        monthlyQuota: state.monthlyQuota,
-        used: state.used,
-        renewsAt: state.renewsAt,
-      },
-    });
-  } catch (e: any) {
-    next(
-      new ApiError(
-        500,
-        e.message || "Erro ao carregar créditos de IA",
-        req.traceId
-      )
-    );
-  }
-});
-</file>
-
 <file path="functions/src/routes/dedup.ts">
 // functions/src/routes/dedup.ts
 import { Router, Request, Response } from "express";
@@ -22218,8 +22761,8 @@ export default function PulseSkeleton() {
 
 <file path="web/src/components/realEstate/NewPropertyModal.tsx">
 // web/src/components/realEstate/NewPropertyModal.tsx
-import React, { useState, useEffect } from "react";
-import { X, Building2, Home, User, Save, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { X, Building2, Home, User, Save, Loader2, Plus } from "lucide-react";
 import {
     listBuildings,
     listOwners,
@@ -22228,6 +22771,8 @@ import {
     Owner
 } from "../../services/realEstateApi";
 import { Badge } from "../ui/Badge";
+import { NewOwnerModal } from "./NewOwnerModal";
+import { NewBuildingModal } from "./NewBuildingModal";
 
 interface NewPropertyModalProps {
     onClose: () => void;
@@ -22240,6 +22785,10 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
+    // Quick Add Modals
+    const [showOwnerModal, setShowOwnerModal] = useState(false);
+    const [showBuildingModal, setShowBuildingModal] = useState(false);
+
     const [formData, setFormData] = useState({
         code: "",
         name: "",
@@ -22247,21 +22796,23 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
         ownerId: "",
     });
 
-    useEffect(() => {
-        async function load() {
-            setLoading(true);
-            try {
-                const [b, o] = await Promise.all([listBuildings(), listOwners()]);
-                setBuildings(b);
-                setOwners(o);
-            } catch (err) {
-                console.error("Erro ao carregar selects:", err);
-            } finally {
-                setLoading(false);
-            }
+    const loadSelects = useCallback(async () => {
+        // Only show loading on initial load if empty
+        if (buildings.length === 0 && owners.length === 0) setLoading(true);
+        try {
+            const [b, o] = await Promise.all([listBuildings(), listOwners()]);
+            setBuildings(b);
+            setOwners(o);
+        } catch (err) {
+            console.error("Erro ao carregar selects:", err);
+        } finally {
+            setLoading(false);
         }
-        load();
     }, []);
+
+    useEffect(() => {
+        loadSelects();
+    }, [loadSelects]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22287,14 +22838,14 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[50] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
 
                 {/* Header */}
                 <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-                            <PlusIcon size={20} />
+                            <Plus size={20} />
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-slate-900 tracking-tight">Nova Propriedade</h2>
@@ -22345,20 +22896,30 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
                             <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1.5">
                                 <Building2 size={12} /> Edifício (Opcional)
                             </label>
-                            {loading ? (
-                                <div className="h-12 bg-slate-100 animate-pulse rounded-xl" />
-                            ) : (
-                                <select
-                                    value={formData.buildingId}
-                                    onChange={e => setFormData(prev => ({ ...prev, buildingId: e.target.value }))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                            <div className="flex gap-2">
+                                {loading ? (
+                                    <div className="h-12 w-full bg-slate-100 animate-pulse rounded-xl" />
+                                ) : (
+                                    <select
+                                        value={formData.buildingId}
+                                        onChange={e => setFormData(prev => ({ ...prev, buildingId: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Nenhum (Propriedade Avulsa)</option>
+                                        {buildings.map(b => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBuildingModal(true)}
+                                    className="p-3 bg-slate-100 border border-slate-200 rounded-xl hover:bg-white hover:border-slate-300 transition-all text-slate-500 hover:text-blue-600 shadow-sm"
+                                    title="Novo Edifício"
                                 >
-                                    <option value="">Nenhum (Propriedade Avulsa)</option>
-                                    {buildings.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                            )}
+                                    <Plus size={18} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Proprietário Select */}
@@ -22366,23 +22927,32 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
                             <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1.5">
                                 <User size={12} /> Proprietário
                             </label>
-                            {loading ? (
-                                <div className="h-12 bg-slate-100 animate-pulse rounded-xl" />
-                            ) : (
-                                <select
-                                    required
-                                    value={formData.ownerId}
-                                    onChange={e => setFormData(prev => ({ ...prev, ownerId: e.target.value }))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                            <div className="flex gap-2">
+                                {loading ? (
+                                    <div className="h-12 w-full bg-slate-100 animate-pulse rounded-xl" />
+                                ) : (
+                                    <select
+                                        required
+                                        value={formData.ownerId}
+                                        onChange={e => setFormData(prev => ({ ...prev, ownerId: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {owners.map(o => (
+                                            <option key={o.id} value={o.id}>{o.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOwnerModal(true)}
+                                    className="p-3 bg-slate-100 border border-slate-200 rounded-xl hover:bg-white hover:border-slate-300 transition-all text-slate-500 hover:text-blue-600 shadow-sm"
+                                    title="Novo Proprietário"
                                 >
-                                    <option value="" disabled>Selecione um proprietário...</option>
-                                    {owners.map(o => (
-                                        <option key={o.id} value={o.id}>{o.name}</option>
-                                    ))}
-                                </select>
-                            )}
+                                    <Plus size={18} />
+                                </button>
+                            </div>
                         </div>
-
                     </div>
 
                     {/* Footer / Action */}
@@ -22405,6 +22975,20 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
                     </div>
                 </form>
             </div>
+
+            {/* Sub Modals */}
+            {showOwnerModal && (
+                <NewOwnerModal
+                    onClose={() => setShowOwnerModal(false)}
+                    onSuccess={loadSelects}
+                />
+            )}
+            {showBuildingModal && (
+                <NewBuildingModal
+                    onClose={() => setShowBuildingModal(false)}
+                    onSuccess={loadSelects}
+                />
+            )}
         </div>
     );
 }
@@ -25945,6 +26529,64 @@ export function useTTS() {
 }
 </file>
 
+<file path="web/src/hooks/useUsageLogs.ts">
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../services/api";
+import { useAuthToken } from "./useAuthToken";
+
+export interface UsageLog {
+    id: string;
+    type: string;
+    source: string;
+    creditsConsumed: number;
+    createdAt: string;
+}
+
+interface UseUsageLogsResult {
+    logs: UsageLog[];
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => void;
+}
+
+/**
+ * Hook para buscar logs de uso de créditos de IA.
+ */
+export function useUsageLogs(limit = 10): UseUsageLogsResult {
+    const auth = useAuthToken() as { token?: string | null } | null;
+    const token = auth?.token ?? null;
+
+    const [logs, setLogs] = useState<UsageLog[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<Error | null>(null);
+
+    const fetchLogs = useCallback(async () => {
+        if (!token) return;
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await api.get<{ logs: UsageLog[] }>(`/billing/usage-logs?limit=${limit}`);
+            setLogs(response.data.logs || []);
+        } catch (err: any) {
+            if (import.meta.env.DEV) {
+                console.warn("[useUsageLogs] erro ao carregar logs", err);
+            }
+            setError(err instanceof Error ? err : new Error("Erro ao carregar logs"));
+        } finally {
+            setIsLoading(false);
+        }
+    }, [token, limit]);
+
+    useEffect(() => {
+        fetchLogs();
+    }, [fetchLogs]);
+
+    return { logs, isLoading, error, refetch: fetchLogs };
+}
+</file>
+
 <file path="web/src/hooks/useVoiceCFO.ts">
 // web/src/hooks/useVoiceCFO.ts
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29394,13 +30036,15 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Interceptor de resposta: normaliza erro e loga 401/403
+// Interceptor de resposta: normaliza erro e loga 401/403/402
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
+    const code = error?.response?.data?.code;
     const msg =
       error?.response?.data?.error ||
+      error?.response?.data?.message ||
       error?.message ||
       "Falha de rede. Tente novamente.";
 
@@ -29409,11 +30053,23 @@ api.interceptors.response.use(
         url: error?.config?.url,
       });
     }
+
+    // 402 NO_CREDITS: Dispatch global event for modal
+    if (status === 402 || code === "NO_CREDITS") {
+      console.warn("[API] 402 No Credits — créditos insuficientes", {
+        url: error?.config?.url,
+      });
+      // Dispatch custom event for BuyCreditsModal
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("no-credits", { detail: { url: error?.config?.url } }));
+      }
+    }
+
     if (status === 403 && error?.response?.data?.feature) {
       console.warn("[API] 403 Upgrade required", error?.response?.data);
     }
 
-    return Promise.reject({ status, message: msg, raw: error?.response?.data });
+    return Promise.reject({ status, message: msg, code, raw: error?.response?.data });
   },
 );
 
@@ -32075,6 +32731,151 @@ supportRouter.post(
 export const router = supportRouter;
 </file>
 
+<file path="functions/src/routes/billing.ts">
+// functions/src/routes/billing.ts
+import { Router } from "express";
+import { ApiError } from "../utils/errors";
+import { getCredits } from "../billing/creditsService";
+import { PlanTier } from "../billing/creditsTypes";
+import { z } from "zod";
+import { reportUsageToStripe } from "src/utils/usageTracker";
+import { db } from "src/services/firebase";
+
+export const billingRouter = Router();
+
+// POST /api/billing/report (Stripe usage)
+const handleReportUsage = async (req: any, res: any, next: any) => {
+  try {
+    const schema = z.union([
+      z.object({
+        subscriptionItemId: z.string().min(1),
+        amountCents: z.number().int().positive(),
+      }),
+      z.object({
+        subscriptionItemId: z.string().min(1),
+        tokens: z.number().int().nonnegative(),
+      }),
+    ]);
+
+    const parsed = schema.safeParse(req.body || {});
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ ok: false, error: parsed.error.toString(), code: "BAD_REQUEST" });
+    }
+
+    const subscriptionItemId = parsed.data.subscriptionItemId;
+    const amountCents =
+      "amountCents" in parsed.data ? parsed.data.amountCents : parsed.data.tokens;
+
+    await reportUsageToStripe(subscriptionItemId, amountCents);
+    return res.status(200).json({ status: "ok" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Aliases para compatibilidade
+billingRouter.post("/report-usage", handleReportUsage);
+billingRouter.post("/report", handleReportUsage);
+
+// GET /api/billing/credits
+billingRouter.get("/credits", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+
+    const tenantId = req.tenant.info.id;
+    const planId = (req.tenant.info.plan || "starter") as PlanTier;
+
+    const state = await getCredits(tenantId, planId);
+
+    // Retorna objeto flat para compatibilidade com useCredits.ts
+    res.json({
+      available: state.available,
+      monthlyQuota: state.monthlyQuota,
+      used: state.used,
+      renewsAt: state.renewsAt,
+      lastResetAt: state.lastResetAt,
+      planNormalized: state.planNormalized,
+      periodSource: state.periodSource,
+    });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro ao carregar créditos de IA",
+        req.traceId
+      )
+    );
+  }
+});
+
+// GET /api/billing/usage-logs - Lista logs de uso para exibição no Settings
+billingRouter.get("/usage-logs", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+
+    const tenantId = req.tenant.info.id;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+
+    const logsSnap = await db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("usageLogs")
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
+
+    const logs = logsSnap.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.json({ logs });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro ao carregar logs de uso",
+        req.traceId
+      )
+    );
+  }
+});
+
+// GET /api/billing/portal - Redirect to Stripe Customer Portal
+billingRouter.get("/portal", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+
+    const tenantId = req.tenant.info.id;
+    const tenantDoc = await db.collection("tenants").doc(tenantId).get();
+    const billing = tenantDoc.data()?.billing || {};
+
+    if (!billing.stripeCustomerId) {
+      // Return a friendly response instead of error for frontend to handle
+      return res.json({
+        url: null,
+        error: "Conta de faturamento ainda não configurada.",
+        code: "requires_setup",
+        action: "setup_billing",
+      });
+    }
+
+    // Note: In production, you would use Stripe API to create a portal session
+    // For now, return a stub response
+    res.json({
+      url: `https://billing.stripe.com/p/login/test_${billing.stripeCustomerId}`,
+      message: "Portal URL generated (stub - integrate with Stripe in production)",
+    });
+  } catch (e: any) {
+    next(
+      new ApiError(500, e.message || "Erro ao gerar portal de faturamento", req.traceId)
+    );
+  }
+});
+</file>
+
 <file path="functions/src/routes/realEstate.ts">
 // functions/src/routes/realEstate.ts
 import { Router } from "express";
@@ -32085,7 +32886,9 @@ import {
   archiveBuilding,
   getPortfolioSummary,
   listOwners,
-  listUnits
+  createOwner,
+  listUnits,
+  createUnit
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
@@ -32138,17 +32941,48 @@ realEstateRouter.get("/portfolio-summary", async (req: any, res) => {
   res.json({ ok: true, summary });
 });
 
-// Listing units and owners (already existing in service, exposing here for completeness if needed)
+// Owners
+const ownerSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+});
+
 realEstateRouter.get("/owners", async (req: any, res) => {
   const tenantId = req.tenant.info.id;
   const owners = await listOwners(tenantId);
   res.json({ ok: true, owners });
 });
 
+realEstateRouter.post("/owners", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = ownerSchema.parse(req.body);
+  const owner = await createOwner(tenantId, data);
+  res.json({ ok: true, owner });
+});
+
+// Units
+const unitSchema = z.object({
+  code: z.string().min(1),
+  ownerId: z.string().min(1),
+  buildingId: z.string().optional(),
+  name: z.string().optional(),
+  bedrooms: z.number().optional(),
+  bathrooms: z.number().optional(),
+  nightlyRate: z.number().optional(),
+});
+
 realEstateRouter.get("/units", async (req: any, res) => {
   const tenantId = req.tenant.info.id;
   const units = await listUnits(tenantId);
   res.json({ ok: true, units });
+});
+
+realEstateRouter.post("/units", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = unitSchema.parse(req.body);
+  const unit = await createUnit(tenantId, data);
+  res.json({ ok: true, unit });
 });
 
 export default realEstateRouter;
@@ -34344,6 +35178,7 @@ export const AlertsPanel: React.FC<AlertsPanelProps> = ({
 import React, { useRef } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { AlertsBell } from "./AlertsBell";
+import { CreditsPill } from "./CreditsPill";
 
 type TopbarProps = { onMenuClick?: () => void };
 
@@ -34383,6 +35218,9 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
 
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-3">
+          {/* Créditos de IA */}
+          <CreditsPill />
+
           {/* Alertas */}
           <AlertsBell />
 
@@ -34797,112 +35635,6 @@ export function useTheme() {
   }, [theme])
 
   return { theme, toggle: () => setTheme(t => t === 'light' ? 'dark' : 'light') }
-}
-</file>
-
-<file path="web/src/index.css">
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* =========================================================
-   Momentum Premium Refined Styles
-   ========================================================= */
-
-:root,
-[data-theme="light"] {
-  --primary: #6e34ff;
-  --secondary: #00c6ff;
-  --background: #f8fafc;
-  --surface: #ffffff;
-  --text-primary: #0f172a;
-  /* slate-900 para contraste máximo */
-  --text-secondary: #040c16;
-  /* slate-600 para leitura confortável */
-  --success: #0bbd78b9;
-  --warning: #f59e0b;
-  --error: #f43f5e;
-  --border: rgba(15, 23, 42, 0.06);
-
-  /* Glass reference: p-0.7 opacity e white border 0.5 */
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --glass-border: rgba(15, 23, 42, 0.05);
-  /* Borda mais sutil no Light */
-}
-
-.dark,
-[data-theme="dark"] {
-  --primary: #6e34ff;
-  --secondary: #00c6ff;
-  --background: #020516;
-  --surface: #0f172a;
-  --text-primary: #e2e8f0;
-  /* slate-200 */
-  --text-secondary: #879fc0;
-  --success: #10b981;
-  --warning: #ffd901;
-  --error: #f43f5e;
-  --border: rgba(255, 255, 255, 0.05);
-
-  --glass-bg: rgba(15, 23, 42, 0.6);
-  --glass-border: rgba(255, 255, 255, 0);
-}
-
-body {
-  background-color: var(--background);
-  color: var(--text-primary);
-  transition: background-color 0.3s ease, color 0.3s ease;
-  font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
-}
-
-@layer components {
-  .shadow-glow {
-    box-shadow: 0 0 20px rgba(110, 52, 255, 0.15);
-  }
-
-  .shadow-glow-cyan {
-    box-shadow: 0 0 20px rgba(0, 198, 255, 0.15);
-  }
-
-  .glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--glass-border);
-  }
-
-  .text-gradient {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-}
-
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #b4cce9;
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
 }
 </file>
 
@@ -35783,212 +36515,6 @@ const Insights: React.FC = () => {
 export default Insights;
 </file>
 
-<file path="web/src/pages/Settings.tsx">
-import React from "react";
-import { useCredits } from "@/hooks/useCredits";
-import { useTenant as useTenantCtx } from "@/context/TenantContext";
-import { useTenant as useTenantData } from "@/hooks/useTenant";
-import { Card } from "@/components/Card";
-import Topbar from "@/components/Topbar";
-import { Shield, CreditCard, Sparkles, RefreshCw, Zap, ExternalLink } from "lucide-react";
-
-function formatNumber(value: number) {
-  return new Intl.NumberFormat("pt-BR").format(value);
-}
-
-function formatDate(iso: string | undefined) {
-  if (!iso) return "N/A";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "N/A";
-  return d.toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-const Settings: React.FC = () => {
-  const { credits, isLoading: loadingCredits, refetch } = useCredits();
-  const { tenantId } = useTenantCtx();
-  const tenant = useTenantData(tenantId);
-
-  const quota = credits?.monthlyQuota || 0;
-  const available = credits?.available || 0;
-  const used = credits?.used || 0;
-  const percent = quota > 0 ? Math.min(100, Math.max(0, (available / quota) * 100)) : 0;
-
-  const planName = (credits?.planNormalized || (tenant as any)?.plan || "Starter").toUpperCase();
-  const renewsAt = formatDate(credits?.renewsAt);
-  const periodSource = credits?.periodSource === "stripe" ? "Ciclo de Faturamento" : "Ciclo de 30 dias";
-
-  return (
-    <div className="min-h-screen bg-slate-50/50">
-      <Topbar />
-
-      <main className="p-6 md:ml-64 pt-24 max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-        {/* Header Seção */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Preferências da Conta</h1>
-            <p className="text-slate-500 text-sm">Gerencie seu plano, faturamento e créditos de IA do Momentum.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-          {/* Card Principal de Plano */}
-          <Card className="md:col-span-2 overflow-hidden border-none shadow-xl shadow-blue-500/5 bg-gradient-to-br from-white to-slate-50">
-            <div className="p-6 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-2xl bg-blue-50 text-blue-600">
-                  <Shield size={24} />
-                </div>
-                <div>
-                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Seu Plano Atual</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl font-bold text-slate-900">{planName}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase">Ativo</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div className="p-4 rounded-xl bg-white border border-slate-100 shadow-sm space-y-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Próxima renovação</span>
-                  <p className="font-semibold text-slate-700">{renewsAt}</p>
-                </div>
-                <div className="p-4 rounded-xl bg-white border border-slate-100 shadow-sm space-y-1">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Método de faturamento</span>
-                  <div className="flex items-center gap-2 text-slate-700">
-                    <CreditCard size={14} className="text-slate-400" />
-                    <p className="font-semibold text-sm italic">Cartão final **** 4242</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 flex flex-wrap gap-3">
-                <button className="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all shadow-md active:scale-95 flex items-center gap-2">
-                  Alterar Plano
-                  <RefreshCw size={16} />
-                </button>
-                <button className="px-5 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-all flex items-center gap-2">
-                  Gerenciar Faturamento
-                  <ExternalLink size={16} />
-                </button>
-              </div>
-            </div>
-          </Card>
-
-          {/* Mini Card de Info do Tenant */}
-          <Card className="p-6 border-slate-200/60 bg-white">
-            <h3 className="font-bold text-slate-900 mb-4 tracking-tight">Dados da Organização</h3>
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-[9px]">Nome do Tenant</label>
-                <p className="text-slate-700 font-bold text-sm">{tenant?.name || "Minha Empresa"}</p>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest text-[9px]">Workspace ID</label>
-                <code className="text-[11px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 font-mono block truncate">{tenantId || "---"}</code>
-              </div>
-              <div className="pt-4 border-t border-slate-100">
-                <button className="text-xs text-blue-600 hover:text-blue-700 font-bold uppercase tracking-wider">Editar Perfil Empresa</button>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* --- SEÇÃO DE CRÉDITOS --- */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <Sparkles size={20} className="text-blue-500 fill-blue-500/20" />
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Créditos de IA &amp; Automação</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-            {/* Visualização de Uso */}
-            <Card className="lg:col-span-2 p-6 flex flex-col md:flex-row gap-8 bg-white border-slate-200/60 transition-all hover:shadow-lg">
-              <div className="flex-1 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <p className="text-sm text-slate-500 font-bold tracking-tight">Uso no Período Atual</p>
-                    <p className="text-[11px] text-slate-400 italic">Baseado no {periodSource}</p>
-                  </div>
-                  <button
-                    onClick={() => refetch()}
-                    className="p-2 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-blue-600 transition-colors"
-                    title="Recarregar"
-                  >
-                    <RefreshCw size={16} className={loadingCredits ? "animate-spin" : ""} />
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-end justify-between">
-                    <span className="text-4xl font-black text-slate-900 tracking-tighter">
-                      {formatNumber(available)}
-                      <span className="text-lg font-normal text-slate-400 ml-1">restantes</span>
-                    </span>
-                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
-                      Cota: {formatNumber(quota)}
-                    </span>
-                  </div>
-                  <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden p-1 border border-slate-100 shadow-inner">
-                    <div
-                      className={`h-full rounded-full transition-all duration-1000 ease-out shadow-sm ${percent > 40 ? "bg-gradient-to-r from-blue-500 to-indigo-600" :
-                          percent > 15 ? "bg-amber-500" : "bg-red-500"
-                        }`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400 tracking-widest pt-1 px-1">
-                    <span>Início: {formatDate(credits?.lastResetAt)}</span>
-                    <span>Renova em: {renewsAt}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="w-full md:w-56 p-5 rounded-2xl bg-blue-50/50 border border-blue-100 flex flex-col justify-center gap-3">
-                <div className="flex items-center gap-2 text-blue-700 font-bold text-sm">
-                  <Zap size={16} className="fill-blue-700 underline underline-offset-2" />
-                  <span>Dica Momentum</span>
-                </div>
-                <p className="text-[11px] text-blue-800 leading-relaxed font-medium">
-                  Relatórios avançados consomem 20 créditos. O Health Score diário utiliza apenas 5.
-                </p>
-                <button className="text-[11px] font-bold text-blue-700 mt-2 hover:bg-white/50 px-2 py-1 rounded transition-colors w-fit border border-blue-200">
-                  VER TABELA DE CUSTOS
-                </button>
-              </div>
-            </Card>
-
-            {/* CTAs / Upgrades */}
-            <Card className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 border-none p-6 text-white shadow-xl shadow-indigo-500/20 flex flex-col justify-between">
-              <div className="space-y-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-md">
-                  <Sparkles size={20} className="fill-white/20" />
-                </div>
-                <h3 className="font-bold text-xl leading-tight tracking-tight">Precisa de mais Inteligência?</h3>
-                <p className="text-indigo-100 text-[13px] leading-relaxed">Adicione pacotes extras de 1.000 créditos ou migre para o Plano Business e ganhe quota ilimitada.</p>
-              </div>
-              <button className="mt-6 w-full py-3 rounded-xl bg-white text-indigo-700 font-bold hover:bg-slate-50 transition-all shadow-lg active:scale-95 text-sm uppercase tracking-wider">
-                Ver Opções de Upgrade
-              </button>
-            </Card>
-
-          </div>
-        </div>
-
-      </main>
-    </div>
-  );
-};
-
-export default Settings;
-</file>
-
 <file path="web/src/pages/Transactions.tsx">
 // web/src/pages/Transactions.tsx
 import React, { useEffect, useMemo, useState } from "react";
@@ -36351,6 +36877,14 @@ export async function listOwners(): Promise<Owner[]> {
     "/realestate/owners"
   );
   return res.data.owners;
+}
+
+export async function createOwner(data: { name: string; email?: string; phone?: string }): Promise<Owner> {
+  const res = await api.post<{ ok: boolean; owner: Owner }>(
+    "/realestate/owners",
+    data
+  );
+  return res.data.owner;
 }
 
 export async function createUnit(data: Partial<Unit>): Promise<Unit> {
@@ -48273,6 +48807,7 @@ import { createExpressApp } from "./app/createExpressApp";
 export { cfoNightly } from "./scheduler/cfoCron";
 export { pulseAggregateOnWrite } from "./triggers/pulseAggregate";
 export { cleanupExpiredLogs, cleanupExpiredLogsHttp } from "./cron/cleanupExpiredLogs";
+export { calculateRealEstateFees } from "./cron/calculateRealEstateFees";
 export { stripeWebhook } from "./billing/subscriptionManager";
 
 // Firebase Admin init
@@ -49087,7 +49622,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       if (effectiveFeatures.voiceTTS) {
         await speak({
           text: result.reply,
-          voice: resolveVoiceId(voiceProfiles, "advisor")
+          voice: resolveVoiceId("neural", voiceProfiles, "advisor")
         });
       }
     } catch (err: any) {
@@ -49248,7 +49783,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       </div>
 
       {/* C) Input area no rodapé */}
-      <div className="px-6 py-4 border-t border-momentum-border/50 bg-white/30 backdrop-blur-xl sticky bottom-0 z-10 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]">
+      <div className="px-6 py-4 border-t border-white/10 bg-slate-950/80 backdrop-blur-xl sticky bottom-0 z-10 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.5)]">
         <div className="max-w-4xl mx-auto space-y-4 pb-[env(safe-area-inset-bottom)]">
           <div className="flex items-center gap-3">
             <button
@@ -49258,7 +49793,7 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 "flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
                 recording
                   ? "bg-red-500 text-white shadow-lg animate-pulse"
-                  : "bg-momentum-accent/10 text-momentum-accent hover:bg-momentum-accent/20"
+                  : "bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
               )}
               aria-label={recording ? "Parar de ouvir" : "Falar com advisor"}
             >
@@ -49270,16 +49805,16 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
               <button
                 onClick={ttsLoading ? stopSpeaking : () => speak({
                   text: messages[messages.length - 1]?.content,
-                  voice: resolveVoiceId(voiceProfiles, "advisor")
+                  voice: resolveVoiceId("neural", voiceProfiles, "advisor")
                 })}
-                className="p-2 rounded-full hover:bg-momentum-accent/10 text-momentum-muted transition-colors"
+                className="p-2 rounded-full hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
                 title={ttsLoading ? "Parar leitura" : "Ouvir resposta"}
               >
                 {ttsLoading ? <VolumeX size={16} className="text-red-500 animate-pulse" /> : <Volume2 size={16} />}
               </button>
             )}
 
-            <Badge variant="neutral" className="ml-auto text-[9px] font-bold tracking-tighter bg-white/50 border-momentum-border/30">Advisor Premium v2</Badge>
+            <Badge variant="neutral" className="ml-auto text-[9px] font-bold tracking-tighter bg-slate-900 border-white/10 text-slate-400">Advisor Premium v2</Badge>
           </div>
 
           <div className="relative flex items-end gap-2">
@@ -49292,8 +49827,8 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 placeholder="Pergunte sobre seus saldos, categorias ou anomalias..."
                 aria-label="Mensagem para o Advisor"
                 className={cn(
-                  "w-full bg-white/80 dark:bg-slate-900/50 border border-momentum-border rounded-2xl px-5 py-3.5 pr-14 text-sm leading-relaxed",
-                  "focus:outline-none focus:ring-4 focus:ring-momentum-accent/10 focus:border-momentum-accent transition-all",
+                  "w-full bg-slate-900/50 border border-white/10 rounded-2xl px-5 py-3.5 pr-14 text-sm leading-relaxed text-slate-100 placeholder:text-slate-500",
+                  "focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all",
                   "resize-none min-h-[52px] max-h-36 scrollbar-none shadow-inner"
                 )}
               />
@@ -49303,8 +49838,8 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
                 className={cn(
                   "absolute right-2.5 bottom-2.5 h-9 w-9 rounded-xl flex items-center justify-center transition-all shadow-md",
                   loading || !input.trim()
-                    ? "bg-slate-100 text-slate-400 dark:bg-slate-800 shadow-none cursor-not-allowed"
-                    : "bg-momentum-accent text-white shadow-momentum-glow hover:scale-105 active:scale-95"
+                    ? "bg-slate-800 text-slate-600 shadow-none cursor-not-allowed"
+                    : "bg-primary text-white shadow-glow hover:scale-105 active:scale-95"
                 )}
                 aria-label="Enviar mensagem"
               >
@@ -49320,6 +49855,112 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
       </div>
     </div>
   );
+}
+</file>
+
+<file path="web/src/index.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================================================
+   Momentum Premium Refined Styles
+   ========================================================= */
+
+:root,
+[data-theme="light"] {
+  --primary: #6e34ff;
+  --secondary: #00c6ff;
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --text-primary: #0f172a;
+  /* slate-900 para contraste máximo */
+  --text-secondary: #040c16;
+  /* slate-600 para leitura confortável */
+  --success: #0bbd78b9;
+  --warning: #f59e0b;
+  --error: #f43f5e;
+  --border: rgba(15, 23, 42, 0.06);
+
+  /* Glass reference: p-0.7 opacity e white border 0.5 */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(15, 23, 42, 0.05);
+  /* Borda mais sutil no Light */
+}
+
+.dark,
+[data-theme="dark"] {
+  --primary: #6e34ff;
+  --secondary: #00c6ff;
+  --background: #020516;
+  --surface: #0f172a;
+  --text-primary: #e2e8f0;
+  /* slate-200 */
+  --text-secondary: #4c617e;
+  --success: #10b981;
+  --warning: #ffd901;
+  --error: #f43f5e;
+  --border: rgba(255, 255, 255, 0.05);
+
+  --glass-bg: rgba(15, 23, 42, 0.6);
+  --glass-border: rgba(255, 255, 255, 0);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Inter', 'Plus Jakarta Sans', sans-serif;
+}
+
+@layer components {
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(110, 52, 255, 0.15);
+  }
+
+  .shadow-glow-cyan {
+    box-shadow: 0 0 20px rgba(0, 198, 255, 0.15);
+  }
+
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b4cce9;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #b2b7be;
 }
 </file>
 
@@ -49525,7 +50166,8 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
-  Home
+  Home,
+  User
 } from "lucide-react";
 
 // APIs & Types
@@ -49540,6 +50182,8 @@ import {
 
 // Components
 import { NewPropertyModal } from "../components/realEstate/NewPropertyModal";
+import { NewOwnerModal } from "../components/realEstate/NewOwnerModal";
+import { NewBuildingModal } from "../components/realEstate/NewBuildingModal";
 
 // Primitives
 import { GlassPanel } from "../components/ui/GlassPanel";
@@ -49565,7 +50209,11 @@ export default function RealEstateDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [expandedBuildings, setExpandedBuildings] = useState<Record<string, boolean>>({ "avulsas": true });
-  const [showModal, setShowModal] = useState(false);
+
+  // Modal states
+  const [showPropertyModal, setShowPropertyModal] = useState(false);
+  const [showOwnerModal, setShowOwnerModal] = useState(false);
+  const [showBuildingModal, setShowBuildingModal] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -49611,36 +50259,65 @@ export default function RealEstateDashboard() {
   }, [units]);
 
   return (
-    <div className="space-y-8 pb-24 fade-in">
+    <div className="pt-24 space-y-8 pb-24 fade-in">
       <SectionHeader
         title={
           <div className="flex items-center gap-2">
-            <Building2 size={24} className="text-blue-500" />
-            <span className="tracking-tight">Portfólio Imobiliário V2</span>
+            <Building2 size={24} className="text-primary" />
+            <span className="tracking-tight font-display">Portfólio Imobiliário</span>
           </div>
         }
         subtitle="Gestão centralizada por edifícios e propriedades individuais."
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={loadData}
-              className="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95"
+              className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95"
+              title="Atualizar"
             >
               <RefreshCw size={14} className={cn(loading && "animate-spin")} />
             </button>
             <button
-              onClick={() => setShowModal(true)}
-              className="bg-slate-900 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 hover:bg-slate-800 active:scale-95"
+              onClick={() => setShowOwnerModal(true)}
+              className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95 font-display"
             >
-              <Plus size={16} /> Nova Propriedade
+              <User size={14} />
+              <span className="hidden sm:inline">Proprietário</span>
+            </button>
+            <button
+              onClick={() => setShowBuildingModal(true)}
+              className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95 font-display"
+            >
+              <Building2 size={14} />
+              <span className="hidden sm:inline">Edifício</span>
+            </button>
+            <button
+              onClick={() => setShowPropertyModal(true)}
+              className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-glow flex items-center gap-2 active:scale-95 font-display"
+            >
+              <Plus size={16} />
+              Imóvel
             </button>
           </div>
         }
       />
 
-      {showModal && (
+      {/* Modals */}
+      {showPropertyModal && (
         <NewPropertyModal
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowPropertyModal(false)}
+          onSuccess={loadData}
+        />
+      )}
+      {showOwnerModal && (
+        <NewOwnerModal
+          onClose={() => setShowOwnerModal(false)}
+          onSuccess={loadData}
+        />
+      )}
+      {showBuildingModal && (
+        <NewBuildingModal
+          onClose={() => setShowBuildingModal(false)}
           onSuccess={loadData}
         />
       )}
@@ -49805,6 +50482,334 @@ export default function RealEstateDashboard() {
     </div>
   );
 }
+</file>
+
+<file path="web/src/pages/Settings.tsx">
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useCredits } from "@/hooks/useCredits";
+import { useUsageLogs } from "@/hooks/useUsageLogs";
+import { useTenant as useTenantCtx } from "@/context/TenantContext";
+import { useTenant as useTenantData } from "@/hooks/useTenant";
+import { GlassPanel } from "@/components/ui/GlassPanel";
+import { AsyncPanel } from "@/components/ui/AsyncPanel";
+import { Shield, CreditCard, Sparkles, RefreshCw, Zap, ExternalLink, History, Building2, User, Settings as SettingsIcon } from "lucide-react";
+import { api } from "@/services/api";
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("pt-BR").format(value);
+}
+
+function formatDate(iso: string | undefined) {
+  if (!iso) return "N/A";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "N/A";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+type TabId = "profile" | "billing";
+
+import { useToast } from "@/components/Toast";
+
+const Settings: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { notify } = useToast();
+  const initialTab = (searchParams.get("tab") as TabId) || "billing";
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+
+  const { credits, isLoading: loadingCredits, refetch } = useCredits();
+  const { logs, isLoading: loadingLogs } = useUsageLogs(10);
+  const { tenantId } = useTenantCtx();
+  const tenant = useTenantData(tenantId);
+
+  // Profile form state
+  const [profileName, setProfileName] = useState("");
+  const [profileRole, setProfileRole] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (tenant) {
+      setProfileName((tenant as any)?.name || "");
+    }
+  }, [tenant]);
+
+  const handleTabChange = (tab: TabId) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      // Stub: In production, call API to update profile
+      await new Promise((r) => setTimeout(r, 500));
+      console.log("Profile saved:", { profileName, profileRole });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleOpenBillingPortal = async () => {
+    try {
+      const response = await api.get<{ url: string; code?: string; error?: string }>("/billing/portal");
+
+      if (response.data.code === "requires_setup" || (response.data.error && !response.data.url)) {
+        notify({
+          type: "info",
+          message: "Sua conta ainda não possui faturas geradas. Entre em contato com o suporte."
+        });
+        return;
+      }
+
+      if (response.data.url) {
+        window.open(response.data.url, "_blank");
+      }
+    } catch (err: any) {
+      console.warn("Billing portal error:", err);
+      if (err?.response?.data?.code === "NO_STRIPE_CUSTOMER") {
+        notify({
+          type: "info",
+          message: "Sua conta ainda não possui faturas geradas."
+        });
+      }
+    }
+  };
+
+  const quota = credits?.monthlyQuota || 0;
+  const available = credits?.available || 0;
+  const percent = quota > 0 ? Math.min(100, Math.max(0, (available / quota) * 100)) : 0;
+  const planName = (credits?.planNormalized || (tenant as any)?.plan || "Starter").toUpperCase();
+  const renewsAt = formatDate(credits?.renewsAt);
+  const periodSource = credits?.periodSource === "stripe" ? "Ciclo de Faturamento" : "Ciclo de 30 dias";
+
+  const tabs = [
+    { id: "profile" as TabId, label: "Perfil", icon: User },
+    { id: "billing" as TabId, label: "Plano & Créditos", icon: CreditCard },
+  ];
+
+  return (
+    <div className="pt-24 space-y-8 pb-24 fade-in" aria-live="polite">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-200 font-display flex items-center gap-2">
+            <SettingsIcon size={24} className="text-primary" />
+            Configurações
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 font-display text-sm">
+            Gerencie seu perfil, plano e créditos de IA.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <StatusBadge label={planName} color="success" />
+        </div>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div className="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => handleTabChange(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-t-lg text-sm font-bold transition-all font-display ${activeTab === tab.id
+              ? "bg-white dark:bg-slate-800 text-primary border-b-2 border-primary shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/50"
+              }`}
+          >
+            <tab.icon size={16} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Profile Tab */}
+      {activeTab === "profile" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-300">
+          <GlassPanel className="p-6 border border-slate-200/50 dark:border-white/5">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-lg font-bold shadow-glow">
+                {profileName?.charAt(0)?.toUpperCase() || "U"}
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Dados do Perfil</h3>
+                <p className="text-xs text-slate-400 font-display">Atualize suas informações pessoais</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest font-display">Nome Completo</label>
+                <input
+                  type="text"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-display focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  placeholder="Seu nome"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest font-display">Cargo</label>
+                <input
+                  type="text"
+                  value={profileRole}
+                  onChange={(e) => setProfileRole(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-display focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                  placeholder="Ex: Diretor Financeiro"
+                />
+              </div>
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="w-full py-3 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold text-sm transition-all shadow-glow disabled:opacity-50 font-display"
+              >
+                {savingProfile ? "Salvando..." : "Salvar Alterações"}
+              </button>
+            </div>
+          </GlassPanel>
+
+          <GlassPanel className="p-6 border border-slate-200/50 dark:border-white/5">
+            <div className="flex items-center gap-2 mb-4">
+              <Building2 size={18} className="text-primary" />
+              <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Dados da Organização</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest font-display">Nome do Tenant</label>
+                <p className="text-slate-700 dark:text-slate-200 font-bold text-sm font-display">{tenant?.name || "Minha Empresa"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest font-display">Workspace ID</label>
+                <code className="text-[11px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-500 dark:text-slate-400 font-mono block truncate">{tenantId || "---"}</code>
+              </div>
+            </div>
+          </GlassPanel>
+        </div>
+      )}
+
+      {/* Billing Tab */}
+      {activeTab === "billing" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Plan Card */}
+          <div className="glass rounded-xl p-8 relative overflow-hidden border border-primary/20 group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[80px] -mr-16 -mt-16 pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-primary/20 text-primary shadow-glow">
+                  <Shield size={24} />
+                </div>
+                <div>
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-display">Seu Plano</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold text-slate-800 dark:text-slate-200 font-display">{planName}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-bold uppercase">Ativo</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 font-display">Renova em: {renewsAt}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleOpenBillingPortal}
+                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm flex items-center gap-2 font-display"
+              >
+                Gerenciar Assinatura
+                <ExternalLink size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Credits Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/20 text-primary shadow-glow">
+                <Sparkles size={14} />
+              </span>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 font-display">Créditos de IA</h3>
+            </div>
+
+            <GlassPanel className="p-6 border border-slate-200/50 dark:border-white/5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 font-bold font-display">Uso no Período</p>
+                  <p className="text-[11px] text-slate-400 italic font-display">{periodSource}</p>
+                </div>
+                <button onClick={() => refetch()} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-primary transition-colors">
+                  <RefreshCw size={16} className={loadingCredits ? "animate-spin" : ""} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-end justify-between">
+                  <span className="text-4xl font-black text-slate-800 dark:text-slate-200 tracking-tighter font-display">
+                    {formatNumber(available)}
+                    <span className="text-lg font-normal text-slate-400 ml-1">restantes</span>
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md font-display">
+                    Cota: {formatNumber(quota)}
+                  </span>
+                </div>
+                <div className="h-5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden p-1 shadow-inner">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ease-out ${percent > 40 ? "bg-gradient-to-r from-primary to-secondary" :
+                      percent > 15 ? "bg-warning" : "bg-error"
+                      }`}
+                    style={{ width: `${percent}%` }}
+                  />
+                </div>
+              </div>
+            </GlassPanel>
+          </div>
+
+          {/* Usage History */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <History size={16} className="text-slate-500" />
+              <h3 className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest font-display">Histórico de Uso</h3>
+            </div>
+
+            <AsyncPanel isLoading={loadingLogs} error={null} isEmpty={logs.length === 0} emptyTitle="Sem registros" emptyDescription="Nenhum consumo de créditos registrado ainda.">
+              <GlassPanel className="p-0 overflow-hidden border border-slate-200/50 dark:border-white/5">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-50 dark:bg-white/5 border-b border-slate-200 dark:border-white/5">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Tipo</th>
+                      <th className="px-4 py-3 text-left text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Fonte</th>
+                      <th className="px-4 py-3 text-right text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Créditos</th>
+                      <th className="px-4 py-3 text-right text-[9px] font-bold uppercase text-slate-400 tracking-widest font-display">Data</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                    {logs.map((log) => (
+                      <tr key={log.id} className="hover:bg-primary/5 transition-colors">
+                        <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200 font-display">{log.type}</td>
+                        <td className="px-4 py-3 text-slate-500 dark:text-slate-400 font-display">{log.source}</td>
+                        <td className="px-4 py-3 text-right font-black text-error font-display">-{log.creditsConsumed}</td>
+                        <td className="px-4 py-3 text-right text-slate-400 font-display">{formatDate(log.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </GlassPanel>
+            </AsyncPanel>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const StatusBadge: React.FC<{ label: string; color?: string }> = ({ label, color = "slate" }) => {
+  const styles: Record<string, string> = {
+    slate: "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400",
+    success: "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400",
+  };
+  return (
+    <div className={`px-3 py-1 rounded-full border text-[11px] font-bold flex items-center gap-2 shadow-sm font-display ${styles[color]}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${color === "success" ? "bg-emerald-500" : "bg-slate-400"}`}></span>
+      {label}
+    </div>
+  );
+};
+
+export default Settings;
 </file>
 
 <file path="functions/lib/ai/advisor.js">
@@ -51207,7 +52212,7 @@ export default function DeepDiveFinanceiroPage() {
     };
 
     return (
-        <div className="space-y-8 pb-20 fade-in" aria-live="polite">
+        <div className="pt-24 space-y-8 pb-20 fade-in" aria-live="polite">
             <SectionHeader
                 title="Deep Dive Financeiro"
                 subtitle="Análise detalhada de performance, caixa e movimentações."
@@ -51215,11 +52220,11 @@ export default function DeepDiveFinanceiroPage() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleBack}
-                            className="bg-white border border-momentum-border text-momentum-muted hover:text-momentum-text px-4 py-2 rounded-xl transition-all text-sm font-medium flex items-center gap-2 shadow-sm"
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white px-4 py-2 rounded-xl transition-all text-sm font-medium flex items-center gap-2 shadow-sm font-display"
                         >
                             <ArrowLeft size={16} /> Voltar
                         </button>
-                        <Badge variant="neutral" className="px-3 py-1 bg-white/50">
+                        <Badge variant="neutral" className="px-3 py-1 bg-white/50 dark:bg-slate-800/50">
                             Últimos 30 dias
                         </Badge>
                     </div>
@@ -51273,11 +52278,11 @@ export default function DeepDiveFinanceiroPage() {
                 {/* Main Content: Detailed Table or Chart */}
                 <div className="lg:col-span-2 space-y-8">
                     {/* Visual Placeholder for a Chart */}
-                    <GlassPanel className="min-h-[320px] flex items-center justify-center relative overflow-hidden border-none shadow-xl bg-gradient-to-br from-white/40 to-white/10">
-                        <div className="absolute inset-0 bg-gradient-to-br from-momentum-accent/5 to-transparent z-0" />
+                    <GlassPanel className="min-h-[320px] flex items-center justify-center relative overflow-hidden border border-slate-200/50 dark:border-white/5 shadow-xl bg-white/50 dark:bg-slate-900/80 backdrop-blur-xl">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent z-0" />
                         <div className="text-center z-10 p-6">
-                            <h3 className="text-lg font-bold text-momentum-text mb-2">Fluxo de Caixa Diário</h3>
-                            <p className="text-sm text-momentum-muted mb-4 max-w-xs mx-auto">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200 mb-2 font-display">Fluxo de Caixa Diário</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4 max-w-xs mx-auto font-display">
                                 Visualização gráfica interativa em processamento. Disponível em breve para análise de tendência.
                             </p>
                             <Badge variant="neutral" className="animate-pulse">Aguardando IA</Badge>
@@ -51285,21 +52290,21 @@ export default function DeepDiveFinanceiroPage() {
                     </GlassPanel>
 
                     {/* Transaction List with Search */}
-                    <GlassPanel className="p-0 overflow-hidden border-none shadow-xl bg-white/50 backdrop-blur-xl">
-                        <div className="p-6 border-b border-momentum-border/50 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/20">
+                    <GlassPanel className="p-0 overflow-hidden border border-slate-200/50 dark:border-white/5 shadow-xl bg-white/50 dark:bg-slate-900/80 backdrop-blur-xl">
+                        <div className="p-6 border-b border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50 dark:bg-slate-800/50">
                             <div>
-                                <h3 className="font-bold text-lg text-momentum-text">Movimentações Detalhadas</h3>
-                                <p className="text-xs text-momentum-muted">Cruzamento de dados bancários e categorias</p>
+                                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200 font-display">Movimentações Detalhadas</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 font-display">Cruzamento de dados bancários e categorias</p>
                             </div>
 
                             <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-momentum-muted" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="text"
                                     placeholder="Buscar transações..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full bg-white/50 border border-momentum-border rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-momentum-accent/20 focus:border-momentum-accent transition-all"
+                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-display"
                                 />
                             </div>
                         </div>
@@ -51314,29 +52319,29 @@ export default function DeepDiveFinanceiroPage() {
                         >
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-50/50 text-momentum-muted font-bold uppercase text-[10px] tracking-widest border-b border-momentum-border/50">
+                                    <thead className="bg-slate-50/50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest border-b border-slate-200/50 dark:border-white/5">
                                         <tr>
-                                            <th className="px-6 py-4">Data</th>
-                                            <th className="px-6 py-4">Descrição</th>
-                                            <th className="px-6 py-4">Categoria</th>
-                                            <th className="px-6 py-4 text-right">Valor</th>
+                                            <th className="px-6 py-4 font-display">Data</th>
+                                            <th className="px-6 py-4 font-display">Descrição</th>
+                                            <th className="px-6 py-4 font-display">Categoria</th>
+                                            <th className="px-6 py-4 text-right font-display">Valor</th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-momentum-border/30">
+                                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                                         {filteredTransactions.map((tx, i) => (
-                                            <tr key={i} className="hover:bg-momentum-accent/5 transition-colors group">
-                                                <td className="px-6 py-4 text-momentum-muted whitespace-nowrap">{tx.date}</td>
-                                                <td className="px-6 py-4 font-medium text-momentum-text group-hover:text-momentum-accent transition-colors">
+                                            <tr key={i} className="hover:bg-primary/5 transition-colors group">
+                                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 whitespace-nowrap font-display">{tx.date}</td>
+                                                <td className="px-6 py-4 font-medium text-slate-800 dark:text-slate-200 group-hover:text-primary transition-colors font-display">
                                                     {tx.description}
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <Badge variant="neutral" className="bg-white/50 border-momentum-border/50 text-[10px]">
+                                                    <Badge variant="neutral" className="bg-slate-100 dark:bg-slate-800 border-slate-200/50 dark:border-white/5 text-[10px]">
                                                         {tx.category}
                                                     </Badge>
                                                 </td>
                                                 <td className={cn(
-                                                    "px-6 py-4 text-right font-bold",
-                                                    tx.type === 'credit' ? "text-momentum-success" : "text-momentum-text"
+                                                    "px-6 py-4 text-right font-bold font-display",
+                                                    tx.type === 'credit' ? "text-success" : "text-slate-800 dark:text-slate-200"
                                                 )}>
                                                     {tx.type === 'debit' ? "-" : ""}{Math.abs(tx.amount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                                 </td>
@@ -51353,33 +52358,33 @@ export default function DeepDiveFinanceiroPage() {
                 <div className="lg:col-span-1 space-y-8">
                     <CfoHealthCard />
 
-                    <GlassPanel className="p-6 space-y-6 border-none shadow-lg bg-white/50">
+                    <GlassPanel className="p-6 space-y-6 border border-slate-200/50 dark:border-white/5 shadow-lg bg-white/50 dark:bg-slate-900/80">
                         <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-momentum-warn/10 text-momentum-warn">
+                            <div className="p-2 rounded-lg bg-warning/10 text-warning">
                                 <AlertCircle size={20} />
                             </div>
-                            <h3 className="font-bold text-momentum-text">Anomalias de Fluxo</h3>
+                            <h3 className="font-bold text-slate-800 dark:text-slate-200 font-display">Anomalias de Fluxo</h3>
                         </div>
 
                         <AsyncPanel isLoading={pulseLoading} error={pulseError} loadingVariant="skeleton" className="border-none bg-transparent p-0 shadow-none">
                             {alerts.length > 0 ? (
                                 <div className="space-y-4">
                                     {alerts.map(a => (
-                                        <div key={a.id} className="p-4 bg-momentum-warn/5 rounded-xl border border-momentum-warn/10 text-sm">
+                                        <div key={a.id} className="p-4 bg-warning/5 rounded-xl border border-warning/10 text-sm">
                                             <div className="flex justify-between items-start mb-2">
-                                                <span className="text-[10px] font-bold uppercase tracking-wider text-momentum-warn">{a.type}</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-warning font-display">{a.type}</span>
                                                 <Badge variant="warn" className="scale-75 origin-right">Pendente</Badge>
                                             </div>
-                                            <p className="text-momentum-text font-medium leading-relaxed">{a.message}</p>
+                                            <p className="text-slate-700 dark:text-slate-300 font-medium leading-relaxed font-display">{a.message}</p>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="text-center py-6">
-                                    <div className="w-12 h-12 rounded-full bg-momentum-success/10 flex items-center justify-center mx-auto mb-3">
-                                        <CheckCircle className="w-6 h-6 text-momentum-success" />
+                                    <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-3">
+                                        <CheckCircle className="w-6 h-6 text-success" />
                                     </div>
-                                    <p className="text-sm text-momentum-muted">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 font-display">
                                         Nenhuma anomalia crítica detectada nos últimos 30 dias.
                                     </p>
                                 </div>
@@ -51387,13 +52392,13 @@ export default function DeepDiveFinanceiroPage() {
                         </AsyncPanel>
                     </GlassPanel>
 
-                    <GlassPanel className="p-6 space-y-4 border-none shadow-lg bg-momentum-accent/5 border-l-4 border-l-momentum-accent">
-                        <h3 className="text-sm font-bold text-momentum-accent uppercase tracking-widest">Saúde Operacional</h3>
-                        <p className="text-sm text-momentum-text leading-relaxed">
+                    <GlassPanel className="p-6 space-y-4 border border-slate-200/50 dark:border-white/5 shadow-lg bg-primary/5 dark:bg-primary/10 border-l-4 border-l-primary">
+                        <h3 className="text-sm font-bold text-primary uppercase tracking-widest font-display">Saúde Operacional</h3>
+                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-display">
                             Seu runway atual de <span className="font-bold">{pulseData?.kpis.runwayMonths || 0} meses</span> está dentro da meta saudável e seguro (mais de 6 meses).
                         </p>
                         <div className="pt-2">
-                            <button className="text-[10px] font-bold text-momentum-accent hover:underline uppercase tracking-wider">Ver plano de expansão</button>
+                            <button className="text-[10px] font-bold text-primary hover:underline uppercase tracking-wider font-display">Ver plano de expansão</button>
                         </div>
                     </GlassPanel>
                 </div>
@@ -52478,6 +53483,7 @@ import Layout from "./components/Layout";
 import { AuthDevHelper } from "./components/AuthDevHelper";
 import { FeatureGateProvider } from "./context/FeatureGateContext";
 import { ToastProvider } from "./components/Toast";
+import { NoCreditsProvider } from "./components/NoCreditsProvider";
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 
@@ -52546,60 +53552,62 @@ export default function App() {
       <ToastProvider>
         <FeatureGateProvider>
           <AuthProvider>
-            {import.meta.env.DEV && <AuthDevHelper />}
+            <NoCreditsProvider>
+              {import.meta.env.DEV && <AuthDevHelper />}
 
-            <Suspense
-              fallback={
-                <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="h-10 w-10 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-                    <p className="text-xs text-slate-400">Carregando Momentum...</p>
+              <Suspense
+                fallback={
+                  <div className="min-h-screen flex items-center justify-center bg-background text-text-primary">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-10 w-10 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+                      <p className="text-xs text-slate-400">Carregando Momentum...</p>
+                    </div>
                   </div>
-                </div>
-              }
-            >
-              <Routes>
-                <Route path="/auth" element={<AuthPage />} />
+                }
+              >
+                <Routes>
+                  <Route path="/auth" element={<AuthPage />} />
 
-                {import.meta.env.DEV && (
-                  <Route path="/_design-system" element={<DesignSystem />} />
-                )}
+                  {import.meta.env.DEV && (
+                    <Route path="/_design-system" element={<DesignSystem />} />
+                  )}
 
-                <Route
-                  path="/"
-                  element={
-                    <RequireAuth>
-                      <Layout />
-                    </RequireAuth>
-                  }
-                >
-                  <Route index element={<Dashboard />} />
-                  <Route path="insights" element={<Insights />} />
-                  <Route path="clients" element={<Clients />} />
-                  <Route path="settings" element={<Settings />} />
-                  <Route path="transactions" element={<Transactions />} />
-                  <Route path="data-cleaning" element={<DataCleaning />} />
-                  <Route path="analytics" element={<AnalyticsDashboard />} />
-                  <Route path="ai" element={<AIConsole />} />
-                  <Route path="help" element={<Help />} />
-                  <Route path="real-estate" element={<RealEstateDashboard />} />
-                  <Route path="cfo/deep-dive" element={<DeepDiveFinanceiroPage />} />
-                  <Route path="advisor/deep-dive" element={<DeepDiveFinanceiroPage />} />
-                  <Route path="cfo/simulation" element={<CfoSimulationPage />} />
-                  <Route path="alerts" element={<AlertsCenter />} />
-                  <Route path="imports" element={<Imports />} />
+                  <Route
+                    path="/"
+                    element={
+                      <RequireAuth>
+                        <Layout />
+                      </RequireAuth>
+                    }
+                  >
+                    <Route index element={<Dashboard />} />
+                    <Route path="insights" element={<Insights />} />
+                    <Route path="clients" element={<Clients />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="transactions" element={<Transactions />} />
+                    <Route path="data-cleaning" element={<DataCleaning />} />
+                    <Route path="analytics" element={<AnalyticsDashboard />} />
+                    <Route path="ai" element={<AIConsole />} />
+                    <Route path="help" element={<Help />} />
+                    <Route path="real-estate" element={<RealEstateDashboard />} />
+                    <Route path="cfo/deep-dive" element={<DeepDiveFinanceiroPage />} />
+                    <Route path="advisor/deep-dive" element={<DeepDiveFinanceiroPage />} />
+                    <Route path="cfo/simulation" element={<CfoSimulationPage />} />
+                    <Route path="alerts" element={<AlertsCenter />} />
+                    <Route path="imports" element={<Imports />} />
 
-                  <Route path="admin" element={<AdminLayout />}>
-                    <Route path="plans" element={<AdminPlans />} />
-                    <Route path="voice" element={<AdminVoice />} />
-                    <Route path="support" element={<AdminSupport />} />
-                    <Route path="emergency" element={<AdminEmergency />} />
+                    <Route path="admin" element={<AdminLayout />}>
+                      <Route path="plans" element={<AdminPlans />} />
+                      <Route path="voice" element={<AdminVoice />} />
+                      <Route path="support" element={<AdminSupport />} />
+                      <Route path="emergency" element={<AdminEmergency />} />
+                    </Route>
+
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
-
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </Suspense>
+                </Routes>
+              </Suspense>
+            </NoCreditsProvider>
           </AuthProvider>
         </FeatureGateProvider>
       </ToastProvider>

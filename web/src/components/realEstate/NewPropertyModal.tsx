@@ -1,6 +1,6 @@
 // web/src/components/realEstate/NewPropertyModal.tsx
-import React, { useState, useEffect } from "react";
-import { X, Building2, Home, User, Save, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { X, Building2, Home, User, Save, Loader2, Plus } from "lucide-react";
 import {
     listBuildings,
     listOwners,
@@ -9,6 +9,8 @@ import {
     Owner
 } from "../../services/realEstateApi";
 import { Badge } from "../ui/Badge";
+import { NewOwnerModal } from "./NewOwnerModal";
+import { NewBuildingModal } from "./NewBuildingModal";
 
 interface NewPropertyModalProps {
     onClose: () => void;
@@ -21,6 +23,10 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
+    // Quick Add Modals
+    const [showOwnerModal, setShowOwnerModal] = useState(false);
+    const [showBuildingModal, setShowBuildingModal] = useState(false);
+
     const [formData, setFormData] = useState({
         code: "",
         name: "",
@@ -28,21 +34,23 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
         ownerId: "",
     });
 
-    useEffect(() => {
-        async function load() {
-            setLoading(true);
-            try {
-                const [b, o] = await Promise.all([listBuildings(), listOwners()]);
-                setBuildings(b);
-                setOwners(o);
-            } catch (err) {
-                console.error("Erro ao carregar selects:", err);
-            } finally {
-                setLoading(false);
-            }
+    const loadSelects = useCallback(async () => {
+        // Only show loading on initial load if empty
+        if (buildings.length === 0 && owners.length === 0) setLoading(true);
+        try {
+            const [b, o] = await Promise.all([listBuildings(), listOwners()]);
+            setBuildings(b);
+            setOwners(o);
+        } catch (err) {
+            console.error("Erro ao carregar selects:", err);
+        } finally {
+            setLoading(false);
         }
-        load();
     }, []);
+
+    useEffect(() => {
+        loadSelects();
+    }, [loadSelects]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -68,14 +76,14 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[50] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
 
                 {/* Header */}
                 <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center">
-                            <PlusIcon size={20} />
+                            <Plus size={20} />
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-slate-900 tracking-tight">Nova Propriedade</h2>
@@ -126,20 +134,30 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
                             <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1.5">
                                 <Building2 size={12} /> Edifício (Opcional)
                             </label>
-                            {loading ? (
-                                <div className="h-12 bg-slate-100 animate-pulse rounded-xl" />
-                            ) : (
-                                <select
-                                    value={formData.buildingId}
-                                    onChange={e => setFormData(prev => ({ ...prev, buildingId: e.target.value }))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                            <div className="flex gap-2">
+                                {loading ? (
+                                    <div className="h-12 w-full bg-slate-100 animate-pulse rounded-xl" />
+                                ) : (
+                                    <select
+                                        value={formData.buildingId}
+                                        onChange={e => setFormData(prev => ({ ...prev, buildingId: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Nenhum (Propriedade Avulsa)</option>
+                                        {buildings.map(b => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBuildingModal(true)}
+                                    className="p-3 bg-slate-100 border border-slate-200 rounded-xl hover:bg-white hover:border-slate-300 transition-all text-slate-500 hover:text-blue-600 shadow-sm"
+                                    title="Novo Edifício"
                                 >
-                                    <option value="">Nenhum (Propriedade Avulsa)</option>
-                                    {buildings.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                            )}
+                                    <Plus size={18} />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Proprietário Select */}
@@ -147,23 +165,32 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
                             <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest flex items-center gap-1.5">
                                 <User size={12} /> Proprietário
                             </label>
-                            {loading ? (
-                                <div className="h-12 bg-slate-100 animate-pulse rounded-xl" />
-                            ) : (
-                                <select
-                                    required
-                                    value={formData.ownerId}
-                                    onChange={e => setFormData(prev => ({ ...prev, ownerId: e.target.value }))}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                            <div className="flex gap-2">
+                                {loading ? (
+                                    <div className="h-12 w-full bg-slate-100 animate-pulse rounded-xl" />
+                                ) : (
+                                    <select
+                                        required
+                                        value={formData.ownerId}
+                                        onChange={e => setFormData(prev => ({ ...prev, ownerId: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all appearance-none cursor-pointer"
+                                    >
+                                        <option value="">Selecione...</option>
+                                        {owners.map(o => (
+                                            <option key={o.id} value={o.id}>{o.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowOwnerModal(true)}
+                                    className="p-3 bg-slate-100 border border-slate-200 rounded-xl hover:bg-white hover:border-slate-300 transition-all text-slate-500 hover:text-blue-600 shadow-sm"
+                                    title="Novo Proprietário"
                                 >
-                                    <option value="" disabled>Selecione um proprietário...</option>
-                                    {owners.map(o => (
-                                        <option key={o.id} value={o.id}>{o.name}</option>
-                                    ))}
-                                </select>
-                            )}
+                                    <Plus size={18} />
+                                </button>
+                            </div>
                         </div>
-
                     </div>
 
                     {/* Footer / Action */}
@@ -186,6 +213,20 @@ export function NewPropertyModal({ onClose, onSuccess }: NewPropertyModalProps) 
                     </div>
                 </form>
             </div>
+
+            {/* Sub Modals */}
+            {showOwnerModal && (
+                <NewOwnerModal
+                    onClose={() => setShowOwnerModal(false)}
+                    onSuccess={loadSelects}
+                />
+            )}
+            {showBuildingModal && (
+                <NewBuildingModal
+                    onClose={() => setShowBuildingModal(false)}
+                    onSuccess={loadSelects}
+                />
+            )}
         </div>
     );
 }

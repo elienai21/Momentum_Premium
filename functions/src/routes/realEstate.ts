@@ -7,7 +7,9 @@ import {
   archiveBuilding,
   getPortfolioSummary,
   listOwners,
-  listUnits
+  createOwner,
+  listUnits,
+  createUnit
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
@@ -60,11 +62,35 @@ realEstateRouter.get("/portfolio-summary", async (req: any, res) => {
   res.json({ ok: true, summary });
 });
 
-// Listing units and owners (already existing in service, exposing here for completeness if needed)
+// Owners
+const ownerSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+});
+
 realEstateRouter.get("/owners", async (req: any, res) => {
   const tenantId = req.tenant.info.id;
   const owners = await listOwners(tenantId);
   res.json({ ok: true, owners });
+});
+
+realEstateRouter.post("/owners", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = ownerSchema.parse(req.body);
+  const owner = await createOwner(tenantId, data);
+  res.json({ ok: true, owner });
+});
+
+// Units
+const unitSchema = z.object({
+  code: z.string().min(1),
+  ownerId: z.string().min(1),
+  buildingId: z.string().optional(),
+  name: z.string().optional(),
+  bedrooms: z.number().optional(),
+  bathrooms: z.number().optional(),
+  nightlyRate: z.number().optional(),
 });
 
 realEstateRouter.get("/units", async (req: any, res) => {
@@ -73,4 +99,12 @@ realEstateRouter.get("/units", async (req: any, res) => {
   res.json({ ok: true, units });
 });
 
+realEstateRouter.post("/units", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = unitSchema.parse(req.body);
+  const unit = await createUnit(tenantId, data);
+  res.json({ ok: true, unit });
+});
+
 export default realEstateRouter;
+

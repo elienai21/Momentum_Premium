@@ -6,8 +6,48 @@ import { PlanTier } from "../billing/creditsTypes";
 import { z } from "zod";
 import { reportUsageToStripe } from "src/utils/usageTracker";
 import { db } from "src/services/firebase";
+import { getStripeClient } from "../billing/stripeBilling";
 
 export const billingRouter = Router();
+
+// ... existing code ...
+
+// GET /api/billing/portal - Redirect to Stripe Customer Portal
+billingRouter.get("/portal", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+
+    const tenantId = req.tenant.info.id;
+    const tenantDoc = await db.collection("tenants").doc(tenantId).get();
+    const billing = tenantDoc.data()?.billing || {};
+
+    if (!billing.stripeCustomerId) {
+      // Return a friendly response instead of error for frontend to handle
+      return res.json({
+        url: null,
+        error: "Conta de faturamento ainda não configurada.",
+        code: "requires_setup",
+        action: "setup_billing",
+      });
+    }
+
+    const stripe = getStripeClient();
+    const returnUrl = (req.headers.origin || "http://localhost:3000") + "/settings?tab=billing";
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: billing.stripeCustomerId,
+      return_url: returnUrl,
+    });
+
+    res.json({
+      url: session.url,
+    });
+  } catch (e: any) {
+    next(
+      new ApiError(500, e.message || "Erro ao gerar portal de faturamento", req.traceId)
+    );
+  }
+});
 
 // POST /api/billing/report (Stripe usage)
 const handleReportUsage = async (req: any, res: any, next: any) => {
@@ -108,3 +148,5 @@ billingRouter.get("/usage-logs", async (req: any, res, next) => {
     );
   }
 });
+
+

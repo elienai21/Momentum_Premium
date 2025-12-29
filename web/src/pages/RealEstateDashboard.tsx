@@ -11,7 +11,8 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
-  Home
+  Home,
+  User
 } from "lucide-react";
 
 // APIs & Types
@@ -26,6 +27,8 @@ import {
 
 // Components
 import { NewPropertyModal } from "../components/realEstate/NewPropertyModal";
+import { NewOwnerModal } from "../components/realEstate/NewOwnerModal";
+import { NewBuildingModal } from "../components/realEstate/NewBuildingModal";
 
 // Primitives
 import { GlassPanel } from "../components/ui/GlassPanel";
@@ -51,7 +54,11 @@ export default function RealEstateDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [expandedBuildings, setExpandedBuildings] = useState<Record<string, boolean>>({ "avulsas": true });
-  const [showModal, setShowModal] = useState(false);
+
+  // Modal states
+  const [showPropertyModal, setShowPropertyModal] = useState(false);
+  const [showOwnerModal, setShowOwnerModal] = useState(false);
+  const [showBuildingModal, setShowBuildingModal] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -83,12 +90,12 @@ export default function RealEstateDashboard() {
 
   const filteredBuildings = useMemo(() => {
     const s = search.toLowerCase();
-    return buildings.filter(b => b.name.toLowerCase().includes(s));
+    return (buildings || []).filter(b => b.name.toLowerCase().includes(s));
   }, [buildings, search]);
 
   const unitsByBuilding = useMemo(() => {
     const map: Record<string, Unit[]> = {};
-    units.forEach(u => {
+    (units || []).forEach(u => {
       const key = u.buildingId || "avulsas";
       if (!map[key]) map[key] = [];
       map[key].push(u);
@@ -97,42 +104,71 @@ export default function RealEstateDashboard() {
   }, [units]);
 
   return (
-    <div className="space-y-8 pb-24 fade-in">
+    <div className="pt-24 space-y-8 pb-24 fade-in">
       <SectionHeader
         title={
           <div className="flex items-center gap-2">
-            <Building2 size={24} className="text-blue-500" />
-            <span className="tracking-tight">Portfólio Imobiliário V2</span>
+            <Building2 size={24} className="text-primary" />
+            <span className="tracking-tight font-display">Portfólio Imobiliário</span>
           </div>
         }
         subtitle="Gestão centralizada por edifícios e propriedades individuais."
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={loadData}
-              className="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95"
+              className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-3 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95"
+              title="Atualizar"
             >
               <RefreshCw size={14} className={cn(loading && "animate-spin")} />
             </button>
             <button
-              onClick={() => setShowModal(true)}
-              className="bg-slate-900 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 hover:bg-slate-800 active:scale-95"
+              onClick={() => setShowOwnerModal(true)}
+              className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95 font-display"
             >
-              <Plus size={16} /> Nova Propriedade
+              <User size={14} />
+              <span className="hidden sm:inline">Proprietário</span>
+            </button>
+            <button
+              onClick={() => setShowBuildingModal(true)}
+              className="bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95 font-display"
+            >
+              <Building2 size={14} />
+              <span className="hidden sm:inline">Edifício</span>
+            </button>
+            <button
+              onClick={() => setShowPropertyModal(true)}
+              className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-glow flex items-center gap-2 active:scale-95 font-display"
+            >
+              <Plus size={16} />
+              Imóvel
             </button>
           </div>
         }
       />
 
-      {showModal && (
+      {/* Modals */}
+      {showPropertyModal && (
         <NewPropertyModal
-          onClose={() => setShowModal(false)}
+          onClose={() => setShowPropertyModal(false)}
+          onSuccess={loadData}
+        />
+      )}
+      {showOwnerModal && (
+        <NewOwnerModal
+          onClose={() => setShowOwnerModal(false)}
+          onSuccess={loadData}
+        />
+      )}
+      {showBuildingModal && (
+        <NewBuildingModal
+          onClose={() => setShowBuildingModal(false)}
           onSuccess={loadData}
         />
       )}
 
       {/* KPI Cards */}
-      <AsyncPanel isLoading={loading} error={error} isEmpty={!summary}>
+      <AsyncPanel isLoading={loading} error={error} isEmpty={false}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatsCard
             label="Receita Bruta (30d)"

@@ -2,6 +2,7 @@
 import React, { useRef } from "react";
 import { useTheme } from "../hooks/useTheme";
 import { AlertsBell } from "./AlertsBell";
+import { CreditsPill } from "./CreditsPill";
 
 type TopbarProps = { onMenuClick?: () => void };
 
@@ -41,6 +42,9 @@ const Topbar: React.FC<TopbarProps> = ({ onMenuClick }) => {
 
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-3">
+          {/* Créditos de IA */}
+          <CreditsPill />
+
           {/* Alertas */}
           <AlertsBell />
 

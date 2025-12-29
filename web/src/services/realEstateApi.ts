@@ -78,6 +78,14 @@ export async function listOwners(): Promise<Owner[]> {
   return res.data.owners;
 }
 
+export async function createOwner(data: { name: string; email?: string; phone?: string }): Promise<Owner> {
+  const res = await api.post<{ ok: boolean; owner: Owner }>(
+    "/realestate/owners",
+    data
+  );
+  return res.data.owner;
+}
+
 export async function createUnit(data: Partial<Unit>): Promise<Unit> {
   const res = await api.post<{ ok: boolean; unit: Unit }>(
     "/realestate/units",

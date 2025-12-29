@@ -13,7 +13,7 @@ const STRIPE_PRICE_ENTERPRISE = defineSecret("STRIPE_PRICE_ENTERPRISE");
 
 let stripeClient: Stripe | null = null;
 
-function getStripeClient(): Stripe {
+export function getStripeClient(): Stripe {
   const key = STRIPE_SECRET_KEY.value();
   if (!stripeClient) {
     stripeClient = new Stripe(key, {

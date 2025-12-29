@@ -1,22 +1,24 @@
 import { useEffect, useRef, useState } from "react";
-import { sttStart, sttStop } from "../services/voiceApi";
+import { uploadAudio } from "../services/voiceApi";
 import { track } from "../lib/analytics";
 
 export function useSTT() {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("\u200b");
   const [error, setError] = useState<Error | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
   const mediaRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
   async function start() {
     try {
       setError(null);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRef.current = new MediaRecorder(stream);
+      chunksRef.current = [];
 
-      const { sessionId } = await sttStart();
-      sessionIdRef.current = sessionId;
+      mediaRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
 
       mediaRef.current.start();
       setRecording(true);
@@ -28,20 +30,29 @@ export function useSTT() {
   }
 
   async function stop() {
-    try {
-      mediaRef.current?.stop();
-      mediaRef.current?.stream.getTracks().forEach(t => t.stop());
-      const sid = sessionIdRef.current!;
-      const { text } = await sttStop(sid);
-      setTranscript(text);
-      setRecording(false);
-      track("voice_stt_stop");
-      return text;
-    } catch (e: any) {
-      setError(e);
-      setRecording(false);
-      return "";
-    }
+    return new Promise<string>((resolve) => {
+      if (!mediaRef.current) return resolve("");
+
+      mediaRef.current.onstop = async () => {
+        try {
+          const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+          const { text } = await uploadAudio(blob);
+          setTranscript(text);
+          track("voice_stt_success");
+          resolve(text);
+        } catch (e: any) {
+          setError(e);
+          track("voice_stt_error", { message: String(e?.message || e) });
+          resolve("");
+        } finally {
+          setRecording(false);
+          // Cleanup tracks
+          mediaRef.current?.stream.getTracks().forEach((t) => t.stop());
+        }
+      };
+
+      mediaRef.current.stop();
+    });
   }
 
   useEffect(() => {
