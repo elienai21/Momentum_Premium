@@ -87,7 +87,7 @@ marketRouter.post(
 
       return res.status(200).json({
         ok: true,
-        data: result?.data ?? result,
+        data: result,
       });
     } catch (err: any) {
       const status: number | undefined =
