@@ -35,7 +35,7 @@
   --surface: #0f172a;
   --text-primary: #e2e8f0;
   /* slate-200 */
-  --text-secondary: #879fc0;
+  --text-secondary: #4c617e;
   --success: #10b981;
   --warning: #ffd901;
   --error: #f43f5e;
@@ -99,5 +99,5 @@ body {
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #b2b7be;
 }

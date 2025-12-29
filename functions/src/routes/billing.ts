@@ -5,6 +5,7 @@ import { getCredits } from "../billing/creditsService";
 import { PlanTier } from "../billing/creditsTypes";
 import { z } from "zod";
 import { reportUsageToStripe } from "src/utils/usageTracker";
+import { db } from "src/services/firebase";
 
 export const billingRouter = Router();
 
@@ -54,14 +55,15 @@ billingRouter.get("/credits", async (req: any, res, next) => {
 
     const state = await getCredits(tenantId, planId);
 
+    // Retorna objeto flat para compatibilidade com useCredits.ts
     res.json({
-      status: "ok",
-      credits: {
-        available: state.available,
-        monthlyQuota: state.monthlyQuota,
-        used: state.used,
-        renewsAt: state.renewsAt,
-      },
+      available: state.available,
+      monthlyQuota: state.monthlyQuota,
+      used: state.used,
+      renewsAt: state.renewsAt,
+      lastResetAt: state.lastResetAt,
+      planNormalized: state.planNormalized,
+      periodSource: state.periodSource,
     });
   } catch (e: any) {
     next(
@@ -74,3 +76,35 @@ billingRouter.get("/credits", async (req: any, res, next) => {
   }
 });
 
+// GET /api/billing/usage-logs - Lista logs de uso para exibição no Settings
+billingRouter.get("/usage-logs", async (req: any, res, next) => {
+  try {
+    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+
+    const tenantId = req.tenant.info.id;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
+
+    const logsSnap = await db
+      .collection("tenants")
+      .doc(tenantId)
+      .collection("usageLogs")
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
+
+    const logs = logsSnap.docs.map((doc: any) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.json({ logs });
+  } catch (e: any) {
+    next(
+      new ApiError(
+        500,
+        e.message || "Erro ao carregar logs de uso",
+        req.traceId
+      )
+    );
+  }
+});
