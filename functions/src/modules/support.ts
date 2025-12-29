@@ -11,7 +11,7 @@ import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
 import { ApiError } from "../utils/errors";
 import { logger } from "../utils/logger";
-import { ensureCreditsOrThrow, consumeCredits } from "../billing/creditsService";
+import { chargeCredits } from "../billing/chargeCredits";
 import { CREDIT_COSTS } from "../config/credits";
 import type { PlanTier } from "../billing/creditsTypes";
 
@@ -87,10 +87,6 @@ supportRouter.post(
 
       const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
       const featureKey = "support.ask" as const;
-      const cost = CREDIT_COSTS[featureKey];
-
-      // Verifica créditos antes de chamar IA
-      await ensureCreditsOrThrow(tenantId, cost, featureKey, plan);
 
       // 1) Criar ou recuperar sessão de suporte
       let effectiveSessionId = sessionId;
@@ -160,7 +156,7 @@ supportRouter.post(
 
       await userMessageRef.set(userMessageDoc);
 
-      // 3) Chamar IA de suporte
+      // 3) Chamar IA de suporte (Com cobrança de créditos transacional e idempotente)
       const ctx: SupportRequestContext = {
         tenantId,
         userId,
@@ -169,19 +165,27 @@ supportRouter.post(
         traceId: (req as any)?.traceId,
       };
 
-      const aiResponse = await getSupportAnswer(
+      const aiResponse = await chargeCredits(
         {
           tenantId,
-          userId,
-          question,
-          locale,
-          planTier: plan,
+          plan,
+          featureKey,
+          traceId: ctx.traceId,
+          idempotencyKey: req.header("x-idempotency-key"),
         },
-        ctx,
+        async () => {
+          return await getSupportAnswer(
+            {
+              tenantId,
+              userId,
+              question,
+              locale,
+              planTier: plan,
+            },
+            ctx,
+          );
+        }
       );
-
-      // Consome créditos APÓS sucesso da IA
-      await consumeCredits(tenantId, cost, { type: featureKey });
 
       // 4) Registrar mensagem da IA
       const aiMessageRef = sessionRef.collection("messages").doc();
@@ -415,4 +419,3 @@ supportRouter.post(
 
 // ✅ Exportação única (evita redeclaração)
 export const router = supportRouter;
-

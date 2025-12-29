@@ -7,6 +7,9 @@ export interface CreditsInfo {
   monthlyQuota: number;
   used: number;
   renewsAt: string;
+  lastResetAt?: string;
+  planNormalized?: string;
+  periodSource?: "stripe" | "fallback";
 }
 
 interface UseCreditsResult {

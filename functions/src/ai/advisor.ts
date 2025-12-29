@@ -1,11 +1,12 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { buildUserContext } from "./context";
 import { aiClient } from "../utils/aiClient";
 import { logger } from "../utils/logger";
-import { checkPlanLimit } from "../middleware/checkPlan";
 import { db } from "src/services/firebase";
-import { FirestoreAdapter } from "../core/adapters/firestore"; // Importe o adapter
-import { calculateFinancialHealthMath } from "../cfo/logic/calculator"; // Importe a calculadora
+import { FirestoreAdapter } from "../core/adapters/firestore";
+import { calculateFinancialHealthMath } from "../cfo/logic/calculator";
+import { chargeCredits } from "../billing/chargeCredits";
+import type { PlanTier } from "../billing/creditsTypes";
 
 export type AdvisorAction = {
   name: string;
@@ -19,33 +20,27 @@ export type AdvisorReply = {
   voice?: boolean;
 };
 
-// Fallback local mantido...
 export async function advisorReply(message: string): Promise<AdvisorReply> {
-  // ... (código existente de fallback)
   return { answer: "Estou indisponível no momento.", voice: false };
 }
 
-export async function runAdvisor(req: Request, res: Response) {
+export async function runAdvisor(req: any, res: Response) {
   const userId = req.user?.uid;
   const tenantId = req.tenant?.info?.id || "default";
+  const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
   const message = String(req.body.message || "").trim();
 
   if (!userId) return res.status(401).json({ ok: false, error: "Usuário não autenticado." });
   if (!message) return res.status(400).json({ ok: false, error: "Mensagem vazia." });
 
   try {
-    // 1. Controle de Cota
-    await checkPlanLimit(userId, 300, "textAI");
-
     // 2. BUSCA DE CONTEXTO FINANCEIRO (PULSE)
-    // Aqui injetamos a inteligência real
     let financialContext = "";
     try {
       const adapter = new FirestoreAdapter(tenantId);
       const { currentBalance } = await adapter.getDashboardData();
-      const { items: transactions } = await adapter.getRecords({ limit: 100 }); // Pequeno histórico para contexto
+      const { items: transactions } = await adapter.getRecords({ limit: 100 });
 
-      // Usa a mesma lógica do CFO para ter os números mastigados
       const health = calculateFinancialHealthMath(currentBalance, transactions);
 
       financialContext = `
@@ -75,18 +70,29 @@ Se o runway for baixo (menos de 6 meses), alerte o usuário em sua resposta.
 Seja conciso, prático e numérico quando possível.
 `;
 
-    // 4. Execução IA
-    const result = await aiClient(enrichedSystemPrompt, {
-      tenantId,
-      userId,
-      model: "gemini",
-      promptKind: "advisor",
-      locale: req.tenant?.info?.locale || "pt-BR",
-    });
+    // 4. Execução IA (Com cobrança de créditos transacional e idempotente)
+    const result = await chargeCredits(
+      {
+        tenantId,
+        plan,
+        featureKey: "advisor.query",
+        traceId: req.traceId,
+        idempotencyKey: req.header("x-idempotency-key"),
+      },
+      async () => {
+        return await aiClient(enrichedSystemPrompt, {
+          tenantId,
+          userId,
+          model: "gemini",
+          promptKind: "advisor",
+          locale: req.tenant?.info?.locale || "pt-BR",
+        });
+      }
+    );
 
     const answerText = result.text?.trim() || "Não consegui gerar uma resposta agora.";
 
-    // 5. Analisa Ações (Exemplo simples)
+    // 5. Analisa Ações
     const actions: AdvisorAction[] = [];
     if (/alerta/i.test(answerText) || /alert/i.test(answerText)) {
       actions.push({
@@ -116,7 +122,17 @@ Seja conciso, prático e numérico quando possível.
 
   } catch (error: any) {
     logger.error("Advisor execution failed", { userId, error: error.message });
-    const fallback = await advisorReply(message); // Usa o fallback simples se der erro
+
+    // Se for erro de créditos, propaga o status 402
+    if (error.status === 402 || error.code === "NO_CREDITS") {
+      return res.status(402).json({
+        ok: false,
+        code: "NO_CREDITS",
+        message: "Você não possui créditos de IA suficientes."
+      });
+    }
+
+    const fallback = await advisorReply(message);
     return res.json({ ok: true, reply: fallback });
   }
 }

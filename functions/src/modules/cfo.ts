@@ -15,6 +15,8 @@ import { getAdvisorContext } from "../cfo/advisorContext";
 import { runFinancialSimulation } from "../cfo/simulationEngine";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
+import { chargeCredits } from "../billing/chargeCredits";
+import type { PlanTier } from "../billing/creditsTypes";
 
 // Infra
 import { FirestoreAdapter } from "../core/adapters/firestore";
@@ -338,27 +340,29 @@ cfoRouter.post(
         typeof req.body?.period === "number"
           ? req.body.period
           : typeof req.body?.periodDays === "number"
-          ? req.body.periodDays
-          : undefined;
+            ? req.body.periodDays
+            : undefined;
 
       const periodDays = rawPeriod && rawPeriod > 0 ? rawPeriod : 30;
 
-      const result = await generateCfoAiReport({
-        tenantId,
-        userId,
-        periodDays,
-        locale,
-        planId,
-      });
-
-      await db.collection("usage_logs").add({
-        tenantId,
-        uid: userId || "anonymous",
-        feature: "cfo_ai_report",
-        tokens: result?.meta?.tokens ?? 0,
-        provider: result?.meta?.provider || "mock",
-        createdAt: Date.now(),
-      });
+      const result = await chargeCredits(
+        {
+          tenantId,
+          plan: planId as PlanTier,
+          featureKey: "cfo.aiReport",
+          traceId: req.traceId,
+          idempotencyKey: req.header("x-idempotency-key"),
+        },
+        async () => {
+          return await generateCfoAiReport({
+            tenantId,
+            userId,
+            periodDays,
+            locale,
+            planId,
+          });
+        }
+      );
 
       res.json({
         status: "ok",

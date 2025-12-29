@@ -10,6 +10,8 @@ import { FirestoreAdapter } from "../core/adapters/firestore";
 import { OPENAI_KEY } from "../middleware/withSecrets";
 import { ApiError } from "../utils/errors";
 import { logger } from "../utils/logger";
+import { chargeCredits } from "../billing/chargeCredits";
+import type { PlanTier } from "../billing/creditsTypes";
 
 const voiceRouter = Router();
 
@@ -55,13 +57,26 @@ voiceRouter.post(
 
     const tenantId = req.tenant?.info?.id || "anon";
 
+    const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
+
     try {
-      const result = await synthesizeToGcs({
-        tenantId,
-        text,
-        lang,
-        voiceName,
-      });
+      const result = await chargeCredits(
+        {
+          tenantId,
+          plan,
+          featureKey: "voice.standardSession",
+          traceId: req.traceId,
+          idempotencyKey: req.header("x-idempotency-key"),
+        },
+        async () => {
+          return await synthesizeToGcs({
+            tenantId,
+            text,
+            lang,
+            voiceName,
+          });
+        }
+      );
 
       // result esperado: { cached: boolean; url: string }
       res.status(200).json({
@@ -100,12 +115,26 @@ voiceRouter.post(
       return;
     }
 
+    const tenantId = req.tenant?.info?.id || "anon";
+    const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
+
     try {
-      const result = await transcribeFromGcs({
-        tenantId: req.tenant?.info?.id || "anon",
-        gcsUri,
-        languageCode,
-      });
+      const result = await chargeCredits(
+        {
+          tenantId,
+          plan,
+          featureKey: "voice.stt",
+          traceId: req.traceId,
+          idempotencyKey: req.header("x-idempotency-key"),
+        },
+        async () => {
+          return await transcribeFromGcs({
+            tenantId,
+            gcsUri,
+            languageCode,
+          });
+        }
+      );
 
       // result esperado: { text: string }
       res.status(200).json({ transcript: result.text });
@@ -165,7 +194,20 @@ voiceRouter.post(
         "Mantenha a resposta em até 3 parágrafos curtos, com foco em ações práticas.",
       ].join("\n");
 
-      const llmResult = await runGemini(prompt, { tenantId } as any);
+      const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
+
+      const llmResult = await chargeCredits(
+        {
+          tenantId,
+          plan,
+          featureKey: "voice.session",
+          traceId: req.traceId,
+          idempotencyKey: req.header("x-idempotency-key"),
+        },
+        async () => {
+          return await runGemini(prompt, { tenantId } as any);
+        }
+      );
 
       res.status(200).json({
         reply: llmResult.text,
@@ -251,71 +293,77 @@ REGRAS:
 4. Foque sempre em decisões práticas de caixa, lucro e sobrevivência do negócio.
 `;
 
-      // 3) Criar sessão efêmera na OpenAI Realtime
-      const model = "gpt-4o-realtime-preview-2024-12-17";
+      // 🔄 Debitagem de créditos transacional e idempotente
+      const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
 
-      const response = await fetch(
-        "https://api.openai.com/v1/realtime/sessions",
+      const sessionResult = await chargeCredits(
         {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENAI_KEY.value()}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            voice: "verse",
-            instructions: systemInstructions,
-          }),
+          tenantId,
+          plan,
+          featureKey: "voice.live",
+          traceId: req.traceId,
+          idempotencyKey: req.header("x-idempotency-key"),
+        },
+        async () => {
+          // 3) Criar sessão efêmera na OpenAI Realtime
+          const model = "gpt-4o-realtime-preview-2024-12-17";
+
+          const response = await fetch(
+            "https://api.openai.com/v1/realtime/sessions",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${OPENAI_KEY.value()}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model,
+                voice: "verse",
+                instructions: systemInstructions,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            const text = await response.text().catch(() => "");
+            logger.error("OpenAI Realtime API error", {
+              status: response.status,
+              body: text,
+              tenantId,
+              userId,
+              traceId: req.traceId,
+            });
+            throw new ApiError(502, "Erro ao criar sessão de voz com a IA.");
+          }
+
+          const sessionJson: any = await response.json();
+
+          const clientSecret = sessionJson?.client_secret?.value;
+          const expiresAt = sessionJson?.client_secret?.expires_at;
+
+          if (!clientSecret) {
+            logger.error("[voice.realtime-session] Resposta sem client_secret", {
+              tenantId,
+              userId,
+              sessionJson,
+            });
+            throw new ApiError(
+              502,
+              "Resposta inválida do provedor de IA ao criar sessão de voz."
+            );
+          }
+
+          return { clientSecret, expiresAt, model: sessionJson?.model || model };
         }
       );
-
-      if (!response.ok) {
-        const text = await response.text().catch(() => "");
-        logger.error("OpenAI Realtime API error", {
-          status: response.status,
-          body: text,
-          tenantId,
-          userId,
-          traceId: req.traceId,
-        });
-        throw new ApiError(502, "Erro ao criar sessão de voz com a IA.");
-      }
-
-      const sessionJson: any = await response.json();
-
-      const clientSecret = sessionJson?.client_secret?.value;
-      const expiresAt = sessionJson?.client_secret?.expires_at;
-
-      if (!clientSecret) {
-        logger.error("[voice.realtime-session] Resposta sem client_secret", {
-          tenantId,
-          userId,
-          sessionJson,
-        });
-        throw new ApiError(
-          502,
-          "Resposta inválida do provedor de IA ao criar sessão de voz."
-        );
-      }
-
-      logger.info("[voice.realtime-session] Session criada", {
-        tenantId,
-        userId,
-        model: sessionJson?.model || model,
-        expiresAt,
-        traceId: req.traceId,
-      });
-
-      // 🔄 Hook futuro: debitar créditos, registrar auditoria etc.
 
       res.status(200).json({
         status: "ok",
         provider: "openai",
         wsUrl: "wss://api.openai.com/v1/realtime",
-        model: sessionJson?.model || model,
-        clientSecret,
-        expiresAt,
+        model: sessionResult.model,
+        clientSecret: sessionResult.clientSecret,
+        expiresAt: sessionResult.expiresAt,
         tenantId,
       });
     } catch (err: any) {

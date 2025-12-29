@@ -1,16 +1,6 @@
 // web/src/pages/RealEstateDashboard.tsx
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
-  collection,
-  getDocs,
-  orderBy,
-  query,
-  QueryDocumentSnapshot,
-  DocumentData,
-} from "firebase/firestore";
-import { db } from "../services/firebase";
-import { useTenant } from "../context/TenantContext";
-import {
   Building2,
   TrendingUp,
   Wallet,
@@ -18,8 +8,24 @@ import {
   Percent,
   RefreshCw,
   Search,
-  ChevronRight
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Home
 } from "lucide-react";
+
+// APIs & Types
+import {
+  getPortfolioSummary,
+  listBuildings,
+  listUnits,
+  PortfolioSummary,
+  Building,
+  Unit
+} from "../services/realEstateApi";
+
+// Components
+import { NewPropertyModal } from "../components/realEstate/NewPropertyModal";
 
 // Primitives
 import { GlassPanel } from "../components/ui/GlassPanel";
@@ -29,316 +35,259 @@ import { Badge } from "../components/ui/Badge";
 import { AsyncPanel } from "../components/ui/AsyncPanel";
 import { cn } from "../lib/utils";
 
-// Commercial baseline: o backend gera demonstrativos em `tenants/{tenantId}/realEstate_statements`.
-// Evite trocar o nome dessa coleção sem alinhar backend + dashboard (senão o painel fica vazio).
-const REAL_ESTATE_STATEMENTS_COLLECTION = "realEstate_statements" as const;
-
-type RealEstateMonthDoc = {
-  id: string;
-  month: string; // "2025-12"
-  unitCode?: string;
-  ownerName?: string;
-  ownerId?: string;
-  grossRevenue?: number;
-  cleaningFees?: number;
-  platformFees?: number;
-  otherCosts?: number;
-  ownerPayout?: number;
-  realEstatePayouts?: number;
-};
-
-function parseMonthLabel(month: string | undefined): string {
-  if (!month) return "Mês não definido";
-  const [y, m] = month.split("-");
-  const num = Number(m);
-  const meses = [
-    "", "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-  ];
-  if (!isNaN(num) && num >= 1 && num <= 12) {
-    return `${meses[num]}/${y}`;
-  }
-  return month;
-}
-
-function currency(n: number | undefined | null): string {
-  if (!n) return "R$ 0,00";
+const currency = (n: number | undefined | null) => {
+  if (n === undefined || n === null) return "R$ 0,00";
   return n.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
-    minimumFractionDigits: 2,
   });
-}
+};
 
 export default function RealEstateDashboard() {
-  const { tenantId } = useTenant();
-  const [items, setItems] = useState<RealEstateMonthDoc[]>([]);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [expandedBuildings, setExpandedBuildings] = useState<Record<string, boolean>>({ "avulsas": true });
+  const [showModal, setShowModal] = useState(false);
 
-  const load = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      if (!tenantId) {
-        throw new Error("tenantId ausente");
-      }
-      const colRef = collection(
-        db,
-        "tenants",
-        tenantId,
-        REAL_ESTATE_STATEMENTS_COLLECTION,
-      );
-      const q = query(colRef, orderBy("month", "desc"));
-      const snap = await getDocs(q);
-
-      const rows: RealEstateMonthDoc[] = [];
-
-      snap.docs.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
-        const d = (doc.data() || {}) as any;
-        const month = String(d.month ?? doc.id);
-        const ownerId = d.ownerId ? String(d.ownerId) : undefined;
-        const ownerShareRate =
-          typeof d.ownerShareRate === "number" ? Number(d.ownerShareRate) : 1;
-
-        const units = Array.isArray(d.units) ? d.units : [];
-        units.forEach((u: any, idx: number) => {
-          const grossRevenue = Number(u.grossRevenue ?? 0);
-          const cleaningFees = Number(u.cleaningFees ?? 0);
-          const platformFees = Number(u.platformFees ?? 0);
-          const otherCosts = Number(u.otherCosts ?? 0);
-          const netRevenue =
-            typeof u.netRevenue === "number"
-              ? Number(u.netRevenue)
-              : grossRevenue - (cleaningFees + platformFees + otherCosts);
-
-          const ownerPayout = netRevenue * ownerShareRate;
-          const housePayout = netRevenue - ownerPayout;
-
-          rows.push({
-            id: `${doc.id}:${idx}`,
-            month,
-            unitCode: u.unitCode,
-            ownerName: ownerId,
-            ownerId,
-            grossRevenue,
-            cleaningFees,
-            platformFees,
-            otherCosts,
-            ownerPayout,
-            realEstatePayouts: housePayout,
-          });
-        });
-      });
-
-      setItems(rows);
+      const [summ, bldgs, unts] = await Promise.all([
+        getPortfolioSummary(30),
+        listBuildings(),
+        listUnits()
+      ]);
+      setSummary(summ);
+      setBuildings(bldgs);
+      setUnits(unts);
     } catch (err: any) {
-      console.error("[RealEstate] erro ao carregar dados:", err);
-      setError(
-        err?.message ||
-        "Não foi possível carregar os dados de Real Estate.",
-      );
+      console.error("[RealEstateDashboard] Erro:", err);
+      setError("Falha ao carregar dados do portfólio.");
     } finally {
       setLoading(false);
     }
-  }, [tenantId]);
+  }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    loadData();
+  }, [loadData]);
 
-  const filteredItems = useMemo(() => {
-    if (!search.trim()) return items;
+  const toggleBuilding = (id: string) => {
+    setExpandedBuildings(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const filteredBuildings = useMemo(() => {
     const s = search.toLowerCase();
-    return items.filter(it =>
-      it.unitCode?.toLowerCase().includes(s) ||
-      it.ownerName?.toLowerCase().includes(s) ||
-      it.month.includes(s)
-    );
-  }, [items, search]);
+    return buildings.filter(b => b.name.toLowerCase().includes(s));
+  }, [buildings, search]);
 
-  const summary = useMemo(() => {
-    if (!items.length) {
-      return {
-        totalGross: 0,
-        totalOwner: 0,
-        totalHouse: 0,
-        totalCosts: 0,
-        avgMargin: 0,
-      };
-    }
-
-    let totalGross = 0;
-    let totalOwner = 0;
-    let totalHouse = 0;
-    let totalCosts = 0;
-
-    for (const it of items) {
-      const gross = it.grossRevenue ?? 0;
-      const owner = it.ownerPayout ?? 0;
-      const house = it.realEstatePayouts ?? 0;
-      const costs =
-        (it.cleaningFees ?? 0) +
-        (it.platformFees ?? 0) +
-        (it.otherCosts ?? 0);
-
-      totalGross += gross;
-      totalOwner += owner;
-      totalHouse += house;
-      totalCosts += costs;
-    }
-
-    const profitHouse = totalHouse;
-    const avgMargin =
-      totalGross > 0 ? profitHouse / totalGross : 0;
-
-    return {
-      totalGross,
-      totalOwner,
-      totalHouse,
-      totalCosts,
-      avgMargin,
-    };
-  }, [items]);
+  const unitsByBuilding = useMemo(() => {
+    const map: Record<string, Unit[]> = {};
+    units.forEach(u => {
+      const key = u.buildingId || "avulsas";
+      if (!map[key]) map[key] = [];
+      map[key].push(u);
+    });
+    return map;
+  }, [units]);
 
   return (
     <div className="space-y-8 pb-24 fade-in">
       <SectionHeader
         title={
           <div className="flex items-center gap-2">
-            <Building2 size={24} className="text-momentum-accent" />
-            <span>Real Estate · Performance</span>
+            <Building2 size={24} className="text-blue-500" />
+            <span className="tracking-tight">Portfólio Imobiliário V2</span>
           </div>
         }
-        subtitle="Consolidado de repasses, receita bruta e payout Vivare por unidade."
+        subtitle="Gestão centralizada por edifícios e propriedades individuais."
         actions={
           <div className="flex gap-2">
             <button
-              onClick={load}
-              className="bg-momentum-bg/50 hover:bg-white text-momentum-text border border-momentum-border px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm flex items-center gap-2"
+              onClick={loadData}
+              className="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 active:scale-95"
             >
-              <RefreshCw size={14} className={cn(loading && "animate-spin")} /> Atualizar
+              <RefreshCw size={14} className={cn(loading && "animate-spin")} />
+            </button>
+            <button
+              onClick={() => setShowModal(true)}
+              className="bg-slate-900 border border-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg flex items-center gap-2 hover:bg-slate-800 active:scale-95"
+            >
+              <Plus size={16} /> Nova Propriedade
             </button>
           </div>
         }
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard
-          label="Receita Bruta"
-          value={currency(summary.totalGross)}
-          icon={TrendingUp}
-          variant="default"
+      {showModal && (
+        <NewPropertyModal
+          onClose={() => setShowModal(false)}
+          onSuccess={loadData}
         />
-        <StatsCard
-          label="Repasses Proprietários"
-          value={currency(summary.totalOwner)}
-          icon={Wallet}
-          variant="default"
-        />
-        <StatsCard
-          label="Payout Vivare"
-          value={currency(summary.totalHouse)}
-          icon={CircleDollarSign}
-          variant="success"
-        />
-        <StatsCard
-          label="Margem Média"
-          value={`${(summary.avgMargin * 100).toFixed(1)}%`}
-          icon={Percent}
-          variant="default"
-        />
-      </div>
+      )}
 
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h3 className="text-lg font-bold text-momentum-text font-display flex items-center gap-2">
-            Meses Consolidados
-            <Badge variant="neutral">{filteredItems.length}</Badge>
+      {/* KPI Cards */}
+      <AsyncPanel isLoading={loading} error={error} isEmpty={!summary}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatsCard
+            label="Receita Bruta (30d)"
+            value={currency(summary?.totals?.grossRevenue)}
+            icon={TrendingUp}
+            variant="default"
+          />
+          <StatsCard
+            label="Unidades Ativas"
+            value={summary?.totals?.activeUnits?.toString() || "0"}
+            icon={Home}
+            variant="default"
+          />
+          <StatsCard
+            label="Lucro Operacional"
+            value={currency(summary?.totals?.netRevenue)}
+            icon={CircleDollarSign}
+            variant="success"
+          />
+          <StatsCard
+            label="Booking Volume"
+            value={summary?.totals?.staysCount?.toString() || "0"}
+            icon={Percent}
+            variant="default"
+          />
+        </div>
+      </AsyncPanel>
+
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            Edifícios & Ativos
+            <Badge variant="neutral">{buildings.length}</Badge>
           </h3>
-
-          <div className="relative group w-full md:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-momentum-muted group-focus-within:text-momentum-accent transition-colors" />
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar unidade ou proprietário..."
+              placeholder="Buscar edifício..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-white/50 dark:bg-slate-900/50 border border-momentum-border rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-momentum-accent/20 focus:border-momentum-accent transition-all"
+              className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all outline-none"
             />
           </div>
         </div>
 
-        <AsyncPanel
-          isLoading={loading}
-          error={error}
-          isEmpty={items.length === 0}
-          emptyTitle="Nenhum dado de Real Estate"
-          emptyDescription={`Nenhum registro encontrado em tenants/${tenantId}/realEstate_statements.`}
-        >
-          <GlassPanel className="p-0 overflow-hidden shadow-2xl">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-momentum-muted/5 text-momentum-muted font-bold uppercase tracking-widest text-[10px] border-b border-momentum-border">
-                  <tr>
-                    <th className="px-6 py-4">Mês</th>
-                    <th className="px-6 py-4">Unidade</th>
-                    <th className="px-6 py-4">Proprietário</th>
-                    <th className="px-6 py-4 text-right">Receita Bruta</th>
-                    <th className="px-6 py-4 text-right">Taxas / Gestão</th>
-                    <th className="px-6 py-4 text-right">Repasse</th>
-                    <th className="px-6 py-4 text-right">Payout Vivare</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-momentum-border">
-                  {filteredItems.map((it) => {
-                    const costs =
-                      (it.cleaningFees ?? 0) +
-                      (it.platformFees ?? 0) +
-                      (it.otherCosts ?? 0);
+        <div className="space-y-4">
+          {/* Listagem de Edifícios */}
+          {filteredBuildings.map(bldg => (
+            <div key={bldg.id} className="group">
+              <button
+                onClick={() => toggleBuilding(bldg.id)}
+                className="w-full flex items-center justify-between p-4 bg-white border border-slate-200 rounded-2xl hover:border-blue-300 transition-all shadow-sm group-hover:shadow-md"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                    <Building2 size={24} />
+                  </div>
+                  <div className="text-left leading-tight">
+                    <h4 className="font-bold text-slate-900">{bldg.name}</h4>
+                    <p className="text-xs text-slate-500">{bldg.address || "Sem endereço cadastrado"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="hidden md:block text-right">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Unidades</p>
+                    <p className="font-bold text-slate-700">{unitsByBuilding[bldg.id]?.length || 0}</p>
+                  </div>
+                  {expandedBuildings[bldg.id] ? <ChevronDown className="text-slate-400" /> : <ChevronRight className="text-slate-400" />}
+                </div>
+              </button>
 
-                    return (
-                      <tr
-                        key={it.id}
-                        className="group hover:bg-momentum-accent/5 transition-colors cursor-default"
-                      >
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-momentum-text">{parseMonthLabel(it.month)}</div>
-                        </td>
-                        <td className="px-6 py-4 font-medium text-momentum-text">
-                          <div className="flex items-center gap-2">
-                            <Building2 size={14} className="text-momentum-muted" />
-                            {it.unitCode || "N/A"}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-momentum-muted">
-                          {it.ownerName || "Não Informado"}
-                        </td>
-                        <td className="px-6 py-4 text-right font-medium text-momentum-text">
-                          {currency(it.grossRevenue)}
-                        </td>
-                        <td className="px-6 py-4 text-right text-momentum-muted">
-                          {currency(costs)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-semibold text-momentum-text">
-                          {currency(it.ownerPayout)}
-                        </td>
-                        <td className="px-6 py-4 text-right font-bold text-momentum-success">
-                          <div className="flex items-center justify-end gap-1">
-                            {currency(it.realEstatePayouts)}
-                            <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity translate-x-1" />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              {expandedBuildings[bldg.id] && (
+                <div className="mt-2 ml-6 pl-6 border-l-2 border-slate-100 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                  {unitsByBuilding[bldg.id]?.map(unit => (
+                    <div key={unit.id} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl border border-slate-100/50 hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <Badge variant={unit.active ? "success" : "neutral"}>{unit.code}</Badge>
+                        <span className="text-sm font-medium text-slate-700">{unit.name || "Sem nome"}</span>
+                      </div>
+                      <button className="text-xs font-bold text-blue-600 hover:text-blue-700">DETALHES</button>
+                    </div>
+                  )) || <p className="text-xs text-slate-400 italic">Nenhuma unidade vinculada.</p>}
+                </div>
+              )}
             </div>
-          </GlassPanel>
-        </AsyncPanel>
+          ))}
+
+          {/* Propriedades Avulsas */}
+          <div className="group">
+            <button
+              onClick={() => toggleBuilding("avulsas")}
+              className="w-full flex items-center justify-between p-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl hover:border-slate-400 transition-all shadow-sm"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center text-slate-500">
+                  <Home size={24} />
+                </div>
+                <div className="text-left leading-tight">
+                  <h4 className="font-bold text-slate-700 tracking-tight">Propriedades Avulsas</h4>
+                  <p className="text-xs text-slate-500 italic">Unidades sem edifício vinculado</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-6">
+                <div className="hidden md:block text-right">
+                  <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Contagem</p>
+                  <p className="font-bold text-slate-600">{unitsByBuilding["avulsas"]?.length || 0}</p>
+                </div>
+                {expandedBuildings["avulsas"] ? <ChevronDown className="text-slate-400" /> : <ChevronRight className="text-slate-400" />}
+              </div>
+            </button>
+
+            {expandedBuildings["avulsas"] && (
+              <div className="mt-2 ml-6 pl-6 border-l-2 border-slate-100 space-y-2 animate-in slide-in-from-top-2 duration-300">
+                {unitsByBuilding["avulsas"]?.map(unit => (
+                  <div key={unit.id} className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100 hover:shadow-sm transition-all">
+                    <div className="flex items-center gap-3">
+                      <Badge variant={unit.active ? "success" : "neutral"}>{unit.code}</Badge>
+                      <span className="text-sm font-medium text-slate-700">{unit.name || "Sem nome"}</span>
+                    </div>
+                    <button className="text-xs font-bold text-blue-600 hover:text-blue-700">DETALHES</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* Billing Preview Section */}
+      {summary?.potentialCharges && (
+        <GlassPanel className="p-6 border-slate-200 shadow-xl shadow-slate-200/40">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-1 text-center md:text-left">
+              <h3 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2 justify-center md:justify-start">
+                <CircleDollarSign className="text-emerald-500" size={20} />
+                Billing Preview
+              </h3>
+              <p className="text-sm text-slate-500 max-w-lg">
+                Estimativa mensal baseada na volumetria atual do seu portfólio ({summary.totals.activeOwners} proprietários e {summary.totals.activeUnits} unidades).
+              </p>
+            </div>
+            <div className="flex items-center gap-8 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+              <div className="text-center">
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Base Mensal</p>
+                <p className="text-xl font-black text-slate-900 tracking-tighter">{currency(summary.potentialCharges.total)}</p>
+              </div>
+              <ChevronRight size={20} className="text-slate-200" />
+              <button className="px-5 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 hover:bg-blue-700 active:scale-95 transition-all">
+                Upgrade Pro
+              </button>
+            </div>
+          </div>
+        </GlassPanel>
+      )}
     </div>
   );
 }

@@ -9,9 +9,21 @@ export type Owner = {
   createdAt: string;
 };
 
+export type Building = {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  active: boolean;
+  createdAt: string;
+};
+
 export type Unit = {
   id: string;
   ownerId: string;
+  buildingId?: string;
   code: string;
   name?: string;
   bedrooms?: number;
@@ -96,6 +108,9 @@ function expensesCol(tenantId: string) {
 function statementsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_statements`);
 }
+function buildingsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/realEstate_buildings`);
+}
 
 async function findUnitByCode(
   tenantId: string,
@@ -168,6 +183,43 @@ export async function createUnit(
 export async function listUnits(tenantId: string): Promise<Unit[]> {
   const snap = await unitsCol(tenantId).orderBy("createdAt", "desc").get();
   return snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+// ============================================================
+// 🏢 Building CRUD
+// ============================================================
+
+export async function createBuilding(
+  tenantId: string,
+  data: Omit<Building, "id" | "createdAt" | "active">
+): Promise<Building> {
+  const createdAt = new Date().toISOString();
+  const payload = { ...data, active: true, createdAt };
+  const doc = await buildingsCol(tenantId).add(payload);
+  return { id: doc.id, ...payload };
+}
+
+export async function listBuildings(tenantId: string): Promise<Building[]> {
+  const snap = await buildingsCol(tenantId)
+    .where("active", "==", true)
+    .orderBy("createdAt", "desc")
+    .get();
+  return snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+export async function updateBuilding(
+  tenantId: string,
+  id: string,
+  data: Partial<Omit<Building, "id" | "createdAt">>
+): Promise<void> {
+  await buildingsCol(tenantId).doc(id).update(data);
+}
+
+export async function archiveBuilding(
+  tenantId: string,
+  id: string
+): Promise<void> {
+  await buildingsCol(tenantId).doc(id).update({ active: false });
 }
 
 export async function registerStay(
@@ -468,4 +520,114 @@ export async function getOrGenerateMonthlyStatement(
     return { id: docId, ...(existing.data() as any) } as MonthlyStatement;
   }
   return generateMonthlyStatement(tenantId, ownerId, month);
+}
+
+// ============================================================
+// 📊 Portfolio Summary & Stats
+// ============================================================
+
+export type PortfolioSummary = {
+  totals: {
+    activeOwners: number;
+    totalUnits: number;
+    activeUnits: number;
+    grossRevenue: number;
+    netRevenue: number;
+    totalExpenses: number;
+    staysCount: number;
+  };
+  period: {
+    start: string;
+    end: string;
+  };
+  potentialCharges?: {
+    ownerFee: number;
+    unitFee: number;
+    total: number;
+  };
+};
+
+const SUMMARY_CACHE: Record<string, { data: PortfolioSummary; expires: number }> = {};
+
+export async function getPortfolioSummary(
+  tenantId: string,
+  days = 30
+): Promise<PortfolioSummary> {
+  const cacheKey = `${tenantId}_${days}`;
+  const now = Date.now();
+
+  if (SUMMARY_CACHE[cacheKey] && SUMMARY_CACHE[cacheKey].expires > now) {
+    return SUMMARY_CACHE[cacheKey].data;
+  }
+
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - days);
+
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+
+  // 1. Stats de inventário
+  const ownersSnap = await ownersCol(tenantId).get();
+  const unitsSnap = await unitsCol(tenantId).get();
+
+  const activeOwnersCount = ownersSnap.size;
+  const totalUnitsCount = unitsSnap.size;
+  const activeUnitsCount = unitsSnap.docs.filter((d: any) => (d.data() as Unit).active).length;
+
+  // 2. Stats financeiras (Stays & Expenses no período)
+  const staysSnap = await staysCol(tenantId)
+    .where("checkIn", ">=", startIso)
+    .where("checkIn", "<", endIso)
+    .get();
+
+  const expensesSnap = await expensesCol(tenantId)
+    .where("incurredAt", ">=", startIso)
+    .where("incurredAt", "<", endIso)
+    .get();
+
+  const stays = staysSnap.docs.map((d: any) => d.data() as Stay);
+  const expenses = expensesSnap.docs.map((d: any) => d.data() as Expense);
+
+  const grossRevenue = stays.reduce((sum: number, s: Stay) => sum + (s.grossRevenue || 0), 0);
+  const staysFees = stays.reduce((sum: number, s: Stay) => sum + (s.platformFees || 0) + (s.cleaningFees || 0) + (s.otherCosts || 0), 0);
+  const expensesAmount = expenses.reduce((sum: number, e: Expense) => sum + (e.amount || 0), 0);
+
+  const totalExpenses = staysFees + expensesAmount;
+  const netRevenue = grossRevenue - totalExpenses;
+  const staysCount = stays.length;
+
+  // 3. Billing Preview (Estimativa simbólica)
+  // R$ 10 por proprietário ativo + R$ 2 por unidade ativa
+  const ownerFee = activeOwnersCount * 10;
+  const unitFee = activeUnitsCount * 2;
+
+  const summary: PortfolioSummary = {
+    totals: {
+      activeOwners: activeOwnersCount,
+      totalUnits: totalUnitsCount,
+      activeUnits: activeUnitsCount,
+      grossRevenue,
+      netRevenue,
+      totalExpenses,
+      staysCount
+    },
+    period: {
+      start: startIso,
+      end: endIso
+    },
+    potentialCharges: {
+      ownerFee,
+      unitFee,
+      total: ownerFee + unitFee
+    }
+  };
+
+  // Cache por 15 minutos
+  SUMMARY_CACHE[cacheKey] = {
+    data: summary,
+    expires: now + 15 * 60 * 1000
+  };
+
+  return summary;
 }

@@ -76,36 +76,61 @@ export const stripeWebhook = onRequest(
     }
 
     const dataObject = event.data.object as any;
-    const tenantId = dataObject.metadata?.tenantId;
+    let tenantId = dataObject.metadata?.tenantId;
+
+    // Se não veio no metadata, tenta buscar pelo stripeCustomerId
+    if (!tenantId && dataObject.customer) {
+      const tenantSnap = await db.collection("tenants")
+        .where("billing.stripeCustomerId", "==", dataObject.customer)
+        .limit(1)
+        .get();
+
+      if (!tenantSnap.empty) {
+        tenantId = tenantSnap.docs[0].id;
+      }
+    }
+
+    if (!tenantId) {
+      logger.error(`Could not resolve tenantId for Stripe event ${event.type}`, {
+        eventId: event.id,
+        customer: dataObject.customer
+      });
+      res.status(200).send({ received: true, resolved: false });
+      return;
+    }
+
+    const subscriptionId = dataObject.subscription || dataObject.id;
+    const periodStart = dataObject.current_period_start ? new Date(dataObject.current_period_start * 1000).toISOString() : null;
+    const periodEnd = dataObject.current_period_end ? new Date(dataObject.current_period_end * 1000).toISOString() : null;
 
     switch (event.type) {
-      case "invoice.payment_succeeded": {
-        const subscription = dataObject.subscription;
-        if (tenantId) {
-          await db
-            .collection("tenants")
-            .doc(tenantId)
-            .update({
-              "billing.status": "active",
-              "billing.subscriptionId": subscription,
-            });
-          invalidateTenantCache(tenantId); // Clear cache so new plan loads
-          logger.info(`Subscription activated for tenant ${tenantId}`);
-        }
+      case "invoice.payment_succeeded":
+      case "customer.subscription.updated":
+      case "customer.subscription.created": {
+        const updateData: any = {
+          "billing.status": dataObject.status || "active",
+          "billing.subscriptionId": subscriptionId,
+        };
+
+        if (periodStart) updateData["billing.currentPeriodStart"] = periodStart;
+        if (periodEnd) updateData["billing.currentPeriodEnd"] = periodEnd;
+        if (dataObject.customer) updateData["billing.stripeCustomerId"] = dataObject.customer;
+
+        await db.collection("tenants").doc(tenantId).update(updateData);
+        invalidateTenantCache(tenantId);
+        logger.info(`Subscription updated for tenant ${tenantId}`, { eventType: event.type });
         break;
       }
 
       case "customer.subscription.deleted": {
-        if (tenantId) {
-          await db
-            .collection("tenants")
-            .doc(tenantId)
-            .update({
-              "billing.status": "canceled",
-            });
-          invalidateTenantCache(tenantId); // Clear cache so downgraded features load
-          logger.info(`Subscription canceled for tenant ${tenantId}`);
-        }
+        await db
+          .collection("tenants")
+          .doc(tenantId)
+          .update({
+            "billing.status": "canceled",
+          });
+        invalidateTenantCache(tenantId);
+        logger.info(`Subscription canceled for tenant ${tenantId}`);
         break;
       }
 

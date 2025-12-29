@@ -1,17 +1,103 @@
 // web/src/services/realEstateApi.ts
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  QueryDocumentSnapshot,
-} from "firebase/firestore";
-import { db } from "./firebase";
+import { api } from "./api";
+
+export interface Building {
+  id: string;
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface Unit {
+  id: string;
+  ownerId: string;
+  buildingId?: string;
+  code: string;
+  name?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  active: boolean;
+}
+
+export interface PortfolioSummary {
+  totals: {
+    activeOwners: number;
+    totalUnits: number;
+    activeUnits: number;
+    grossRevenue: number;
+    netRevenue: number;
+    totalExpenses: number;
+    staysCount: number;
+  };
+  period: {
+    start: string;
+    end: string;
+  };
+  potentialCharges?: {
+    ownerFee: number;
+    unitFee: number;
+    total: number;
+  };
+}
+
+export async function getPortfolioSummary(days = 30): Promise<PortfolioSummary> {
+  const res = await api.get<{ ok: boolean; summary: PortfolioSummary }>(
+    `/realestate/portfolio-summary?days=${days}`
+  );
+  return res.data.summary;
+}
+
+export async function listBuildings(): Promise<Building[]> {
+  const res = await api.get<{ ok: boolean; buildings: Building[] }>(
+    "/realestate/buildings"
+  );
+  return res.data.buildings;
+}
+
+export async function listUnits(): Promise<Unit[]> {
+  const res = await api.get<{ ok: boolean; units: Unit[] }>(
+    "/realestate/units"
+  );
+  return res.data.units;
+}
+
+export interface Owner {
+  id: string;
+  name: string;
+  email?: string;
+}
+
+export async function listOwners(): Promise<Owner[]> {
+  const res = await api.get<{ ok: boolean; owners: Owner[] }>(
+    "/realestate/owners"
+  );
+  return res.data.owners;
+}
+
+export async function createUnit(data: Partial<Unit>): Promise<Unit> {
+  const res = await api.post<{ ok: boolean; unit: Unit }>(
+    "/realestate/units",
+    data
+  );
+  return res.data.unit;
+}
+
+export async function createBuilding(data: Partial<Building>): Promise<Building> {
+  const res = await api.post<{ ok: boolean; building: Building }>(
+    "/realestate/buildings",
+    data
+  );
+  return res.data.building;
+}
 
 export interface RealEstatePayoutDoc {
   id: string;
-  month: string;          // "2025-12"
-  unitCode: string;       // ex: "Brera Moema 123"
+  month: string;
+  unitCode: string;
   ownerId?: string;
   ownerName?: string;
   grossRevenue: number;
@@ -19,99 +105,9 @@ export interface RealEstatePayoutDoc {
   cleaningFees: number;
   otherCosts: number;
   ownerPayout: number;
-  vivarePayout: number;   // quanto fica pra Vivare
+  vivarePayout: number;
 }
 
-export interface RealEstateSummary {
-  totalGrossRevenue: number;
-  totalPlatformFees: number;
-  totalCleaningFees: number;
-  totalOtherCosts: number;
-  totalOwnerPayout: number;
-  totalVivarePayout: number;
-  vivareMarginPerc: number | null;
-}
-
-export interface RealEstatePayoutsResult {
-  items: RealEstatePayoutDoc[];
-  summary: RealEstateSummary;
-}
-
-function num(v: any): number {
-  if (typeof v === "number") return v;
-  const n = Number(v ?? 0);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function parseDoc(doc: QueryDocumentSnapshot): RealEstatePayoutDoc {
-  const data = doc.data() as any;
-
-  return {
-    id: doc.id,
-    month: data.month || "",
-    unitCode: data.unitCode || data.unit || "Unidade",
-    ownerId: data.ownerId,
-    ownerName: data.ownerName,
-    grossRevenue: num(data.grossRevenue),
-    platformFees: num(data.platformFees),
-    cleaningFees: num(data.cleaningFees),
-    otherCosts: num(data.otherCosts),
-    ownerPayout: num(data.ownerPayout),
-    vivarePayout: num(data.realEstatePayouts ?? data.vivarePayout),
-  };
-}
-
-/**
- * Lê os docs de payouts de locação por unidade/ proprietário.
- *
- * Coleção esperada: tenants/{tenantId}/realEstatePayouts
- * Se você criou com OUTRO nome, troque aqui:
- *   const colRef = collection(db, "tenants", tenantId, "NOME_DA_COLECAO");
- */
-export async function getRealEstatePayouts(params: {
-  tenantId: string;
-  month?: string;          // "2025-12" → se não vier, traz todos
-}): Promise<RealEstatePayoutsResult> {
-  const { tenantId, month } = params;
-
-  const colRef = collection(db, "tenants", tenantId, "realEstatePayouts");
-  const q = month ? query(colRef, where("month", "==", month)) : colRef;
-
-  const snap = await getDocs(q);
-
-  const items: RealEstatePayoutDoc[] = [];
-  snap.forEach((doc) => items.push(parseDoc(doc)));
-
-  // Agregados
-  let totalGrossRevenue = 0;
-  let totalPlatformFees = 0;
-  let totalCleaningFees = 0;
-  let totalOtherCosts = 0;
-  let totalOwnerPayout = 0;
-  let totalVivarePayout = 0;
-
-  for (const it of items) {
-    totalGrossRevenue += it.grossRevenue;
-    totalPlatformFees += it.platformFees;
-    totalCleaningFees += it.cleaningFees;
-    totalOtherCosts += it.otherCosts;
-    totalOwnerPayout += it.ownerPayout;
-    totalVivarePayout += it.vivarePayout;
-  }
-
-  const vivareMarginPerc =
-    totalGrossRevenue > 0 ? totalVivarePayout / totalGrossRevenue : null;
-
-  return {
-    items,
-    summary: {
-      totalGrossRevenue,
-      totalPlatformFees,
-      totalCleaningFees,
-      totalOtherCosts,
-      totalOwnerPayout,
-      totalVivarePayout,
-      vivareMarginPerc,
-    },
-  };
-}
+// Mantendo compatibilidade com o formato legado se necessário,
+// mas agora buscando via API se possível.
+// O dashboard atual usa statements, vamos focar neles.

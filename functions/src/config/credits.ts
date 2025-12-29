@@ -19,6 +19,9 @@ export const CREDIT_COSTS = {
   "advisor.query": 2,
   "market.advice": 20,
   "support.ask": 2,
+  "vision.analyze": 5,
+  "voice.stt": 2,
+  "voice.live": 50,
 } as const;
 
 export type CreditFeatureKey = keyof typeof CREDIT_COSTS;
