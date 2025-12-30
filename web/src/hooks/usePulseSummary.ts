@@ -1,7 +1,9 @@
 // web/src/hooks/usePulseSummary.ts
 import { useState, useEffect, useCallback } from "react";
+import { doc, getDoc } from "firebase/firestore";
 import { getPulseSummary, PulseSummary } from "../services/pulseApi";
 import { useAuth } from "../context/AuthContext";
+import { db } from "../services/firebase";
 
 interface UsePulseSummaryParams {
   tenantId: string;
@@ -85,14 +87,43 @@ export function usePulseSummary(
     let active = true;
 
     async function fetchData() {
-      // 1. Reset explicit no início (evita "sticky state")
       setLoading(true);
       setError(null);
       setEmpty(false);
-      // setData(null); // Opcional: manter o dado anterior enquanto carrega ou limpar? 
-      // User sugeriu reset explícito, vamos seguir o padrão seguro.
 
       try {
+        const statsRef = doc(db, "tenants", tenantId, "stats", "financial_overview");
+        const statsSnap = await getDoc(statsRef);
+
+        if (statsSnap.exists()) {
+          const stats = statsSnap.data() as any;
+          const cached: PulseSummary = {
+            tenantId,
+            periodStart,
+            periodEnd,
+            kpis: {
+              cashBalance: stats.balance ?? 0,
+              revenueMonth: stats.totalRevenue ?? 0,
+              expenseMonth: stats.totalExpenses ?? 0,
+              runwayMonths: 0,
+            },
+            inflows: { total: 0, byCategory: {} },
+            outflows: { total: 0, byCategory: {} },
+            balanceSeries: [],
+            accounts: [],
+            alerts: [],
+            projections: { runwayText: "" },
+            sources: ["stats_cache"],
+            meta: { traceId: "stats-cache", latency_ms: 0 },
+          };
+
+          if (!active) return;
+          setData(cached);
+          setEmpty(false);
+          setLoading(false);
+          return;
+        }
+
         const result = await getPulseSummary({
           tenantId,
           periodStart,
@@ -113,10 +144,9 @@ export function usePulseSummary(
 
         const status = getHttpStatus(err);
 
-        // 403 ou 404 → tratamos como "sem dados" com observabilidade em DEV
         if (status === 403 || status === 404) {
           setData(null);
-          setError(null); // Não propagamos erro para UI nesses casos
+          setError(null);
           setEmpty(true);
 
           if (import.meta.env.DEV) {
@@ -126,7 +156,6 @@ export function usePulseSummary(
           return;
         }
 
-        // Outros erros (500, timeout, etc)
         setError(err);
         setData(null);
         setEmpty(false);

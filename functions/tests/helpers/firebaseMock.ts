@@ -1,3 +1,3 @@
-import { __mockCollectionGet, __resetMocks } from "../mocks/firebase";
+import { __resetMocks, __setDoc, db } from "../mocks/firebase";
 
-export { __mockCollectionGet, __resetMocks };
+export { __resetMocks, __setDoc, db };

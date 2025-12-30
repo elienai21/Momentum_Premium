@@ -1,4 +1,12 @@
 import { db } from "./firebase";
+import { storage } from "./firebase";
+import { firestore } from "firebase-admin";
+import {
+  documentCommitSchema,
+  documentInitUploadSchema,
+  documentListQuerySchema,
+  RealEstateDocument,
+} from "../types/realEstate";
 
 export type Owner = {
   id: string;
@@ -31,6 +39,18 @@ export type Unit = {
   nightlyRate?: number;
   active: boolean;
   createdAt: string;
+};
+
+export type Contract = {
+  id: string;
+  unitId: string;
+  tenantName: string;
+  startDate: string;
+  endDate: string;
+  rentAmount: number;
+  readjustmentIndex?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Stay = {
@@ -99,6 +119,9 @@ function ownersCol(tenantId: string) {
 function unitsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_units`);
 }
+function contractsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/realEstate_contracts`);
+}
 function staysCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_stays`);
 }
@@ -110,6 +133,12 @@ function statementsCol(tenantId: string) {
 }
 function buildingsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_buildings`);
+}
+function documentsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/documents`);
+}
+function uploadSessionsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/documentUploads`);
 }
 
 async function findUnitByCode(
@@ -183,6 +212,200 @@ export async function createUnit(
 export async function listUnits(tenantId: string): Promise<Unit[]> {
   const snap = await unitsCol(tenantId).orderBy("createdAt", "desc").get();
   return snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+// ============================
+// Documents (GED)
+// ============================
+
+type AuthContext = { uid: string; email?: string | null };
+
+export async function initDocumentUpload(
+  tenantId: string,
+  payload: unknown,
+  user: AuthContext
+): Promise<{ uploadSessionId: string; uploadUrl: string; storagePath: string }> {
+  const data = documentInitUploadSchema.parse(payload);
+  const safeFileName = data.fileName.replace(/[^\w.\-]/g, "_");
+  const storagePath = `tenants/${tenantId}/docs/${data.linkedEntityType}/${data.linkedEntityId}/${Date.now()}-${safeFileName}`;
+
+  const sessionRef = await uploadSessionsCol(tenantId).add({
+    ...data,
+    storagePath,
+    createdAt: new Date().toISOString(),
+    createdBy: user.uid,
+  });
+
+  const bucket = storage.bucket();
+  const file = bucket.file(storagePath);
+  const [uploadUrl] = await file.getSignedUrl({
+    version: "v4",
+    action: "write",
+    expires: Date.now() + 15 * 60 * 1000,
+    contentType: data.mimeType,
+  });
+
+  return { uploadSessionId: sessionRef.id, uploadUrl, storagePath };
+}
+
+export async function commitDocument(
+  tenantId: string,
+  payload: unknown,
+  user: AuthContext
+): Promise<RealEstateDocument> {
+  const data = documentCommitSchema.parse(payload);
+
+  const expectedPrefix = `tenants/${tenantId}/docs/${data.linkedEntityType}/${data.linkedEntityId}/`;
+  if (!data.storagePath.startsWith(expectedPrefix)) {
+    throw Object.assign(new Error("invalid_storage_path"), { statusCode: 400 });
+  }
+
+  const sessionRef = uploadSessionsCol(tenantId).doc(data.uploadSessionId);
+  const sessionSnap = await sessionRef.get();
+  if (!sessionSnap.exists) {
+    throw Object.assign(new Error("upload_session_not_found"), { statusCode: 404 });
+  }
+
+  const session = sessionSnap.data() as any;
+  if (session.createdBy !== user.uid || session.storagePath !== data.storagePath) {
+    throw Object.assign(new Error("upload_session_mismatch"), { statusCode: 403 });
+  }
+
+  const versionKey = `${data.linkedEntityType}:${data.linkedEntityId}:${data.docType}`;
+  const now = new Date().toISOString();
+
+  const newDoc = await db.runTransaction(async (tx: firestore.Transaction) => {
+    const activeQuery = await tx.get(
+      documentsCol(tenantId)
+        .where("versionKey", "==", versionKey)
+        .where("status", "==", "active")
+        .limit(1)
+    );
+
+    let nextVersion = 1;
+    if (!activeQuery.empty) {
+      const activeDoc = activeQuery.docs[0];
+      const current = activeDoc.data() as RealEstateDocument;
+      nextVersion = (current.version || 1) + 1;
+      tx.update(activeDoc.ref, {
+        status: "archived",
+        updatedAt: now,
+        updatedBy: user.uid,
+      });
+    }
+
+    const docRef = documentsCol(tenantId).doc();
+    const document: RealEstateDocument = {
+      id: docRef.id,
+      tenantId,
+      linkedEntityType: data.linkedEntityType,
+      linkedEntityId: data.linkedEntityId,
+      title: data.title,
+      docType: data.docType,
+      tags: data.tags || [],
+      validUntil: data.validUntil ?? null,
+      version: nextVersion,
+      status: "active",
+      storagePath: data.storagePath,
+      fileName: data.fileName,
+      mimeType: data.mimeType,
+      sizeBytes: data.sizeBytes,
+      checksum: data.checksum ?? null,
+      createdAt: now,
+      createdBy: user.uid,
+      updatedAt: now,
+      updatedBy: user.uid,
+      versionKey,
+    };
+
+    tx.set(docRef, document);
+    tx.delete(sessionRef);
+
+    return document;
+  });
+
+  return newDoc;
+}
+
+export async function listDocuments(
+  tenantId: string,
+  query: unknown
+): Promise<RealEstateDocument[]> {
+  const params = documentListQuerySchema.parse(query);
+  let ref: FirebaseFirestore.Query = documentsCol(tenantId);
+
+  if (params.linkedEntityType) {
+    ref = ref.where("linkedEntityType", "==", params.linkedEntityType);
+  }
+  if (params.linkedEntityId) {
+    ref = ref.where("linkedEntityId", "==", params.linkedEntityId);
+  }
+  if (params.docType) {
+    ref = ref.where("docType", "==", params.docType);
+  }
+  if (params.status) {
+    ref = ref.where("status", "==", params.status);
+  }
+  if (params.validBefore || params.validAfter) {
+    ref = ref.orderBy("validUntil");
+  } else {
+    ref = ref.orderBy("createdAt", "desc");
+  }
+  if (params.validBefore) {
+    ref = ref.where("validUntil", "<=", params.validBefore);
+  }
+  if (params.validAfter) {
+    ref = ref.where("validUntil", ">=", params.validAfter);
+  }
+
+  const limit = params.limit ?? 20;
+  ref = ref.limit(limit);
+
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+// ============================================================
+// 📄 Contracts CRUD
+// ============================================================
+
+export async function listContracts(
+  tenantId: string,
+  unitId?: string
+): Promise<Contract[]> {
+  let ref = contractsCol(tenantId).orderBy("updatedAt", "desc") as FirebaseFirestore.Query;
+  if (unitId) {
+    ref = ref.where("unitId", "==", unitId);
+  }
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Contract[];
+}
+
+export async function createContract(
+  tenantId: string,
+  data: Omit<Contract, "id" | "createdAt" | "updatedAt">
+): Promise<Contract> {
+  const timestamp = new Date().toISOString();
+  const payload = {
+    ...data,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const doc = await contractsCol(tenantId).add(payload);
+  return { id: doc.id, ...payload };
+}
+
+export async function updateContract(
+  tenantId: string,
+  id: string,
+  data: Partial<Omit<Contract, "id" | "createdAt">>
+): Promise<void> {
+  const payload = { ...data, updatedAt: new Date().toISOString() };
+  await contractsCol(tenantId).doc(id).update(payload);
+}
+
+export async function deleteContract(tenantId: string, id: string): Promise<void> {
+  await contractsCol(tenantId).doc(id).delete();
 }
 
 // ============================================================

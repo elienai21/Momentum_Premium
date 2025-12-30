@@ -23,6 +23,18 @@ export interface Unit {
   active: boolean;
 }
 
+export interface Contract {
+  id: string;
+  unitId: string;
+  tenantName: string;
+  startDate: string;
+  endDate: string;
+  rentAmount: number;
+  readjustmentIndex?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PortfolioSummary {
   totals: {
     activeOwners: number;
@@ -102,6 +114,26 @@ export async function createBuilding(data: Partial<Building>): Promise<Building>
   return res.data.building;
 }
 
+export async function listContracts(unitId?: string): Promise<Contract[]> {
+  const res = await api.get<{ ok: boolean; contracts: Contract[] }>(
+    "/realestate/contracts",
+    { params: unitId ? { unitId } : undefined }
+  );
+  return res.data.contracts;
+}
+
+export async function createContract(data: Omit<Contract, "id">): Promise<Contract> {
+  const res = await api.post<{ ok: boolean; contract: Contract }>(
+    "/realestate/contracts",
+    data
+  );
+  return res.data.contract;
+}
+
+export async function updateContract(id: string, data: Partial<Contract>): Promise<void> {
+  await api.put(`/realestate/contracts/${id}`, data);
+}
+
 export interface RealEstatePayoutDoc {
   id: string;
   month: string;
@@ -115,6 +147,43 @@ export interface RealEstatePayoutDoc {
   ownerPayout: number;
   vivarePayout: number;
 }
+
+// Pass 0 stubs for upcoming GED/Financial features
+export const realEstateApi = {
+  // existing helpers can stay exported individually above
+  documents: {
+    initUpload: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    commit: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  statements: {
+    generate: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  receivables: {
+    generateBatch: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  analytics: {
+    getAging: async (_params: unknown) => {
+      return null as any;
+    },
+  },
+};
 
 // Mantendo compatibilidade com o formato legado se necessário,
 // mas agora buscando via API se possível.

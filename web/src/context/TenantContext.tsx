@@ -1,27 +1,24 @@
 import React, { createContext, useContext, useState, useMemo, useCallback } from "react";
 
-const DEFAULT_TENANT_ID =
-  import.meta.env.VITE_DEFAULT_TENANT_ID || "demo-tenant-001";
-
 type TenantContextValue = {
-  tenantId: string;
-  setTenantId: (id: string) => void;
+  tenantId: string | null;
+  setTenantId: (id: string | null) => void;
 };
 
 const TenantContext = createContext<TenantContextValue>({
-  tenantId: DEFAULT_TENANT_ID,
+  tenantId: null,
   setTenantId: () => {},
 });
 
-let currentTenantId = DEFAULT_TENANT_ID;
+let currentTenantId: string | null = null;
 
 export const getCurrentTenantId = () => currentTenantId;
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const [tenantId, setTenantIdState] = useState<string>(DEFAULT_TENANT_ID);
+  const [tenantId, setTenantIdState] = useState<string | null>(null);
 
-  const setTenantId = useCallback((id: string) => {
-    currentTenantId = id || DEFAULT_TENANT_ID;
+  const setTenantId = useCallback((id: string | null) => {
+    currentTenantId = id || null;
     setTenantIdState(currentTenantId);
   }, []);
 
