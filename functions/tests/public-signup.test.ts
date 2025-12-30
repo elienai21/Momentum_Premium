@@ -1,12 +1,9 @@
 import "./setupFirebaseMock";
 import request from "supertest";
 import { makeTestApp, debugIfNotOk } from "./helpers/testApp";
-import { __mockCollectionGet } from "./helpers/firebaseMock";
 
 describe("Public signup", () => {
   it("cria tenant + member com status active e email", async () => {
-    __mockCollectionGet.mockResolvedValueOnce({ docs: [], empty: true, size: 0 });
-
     const app = makeTestApp();
     const res = await request(app)
       .post("/api/public/signup")
@@ -35,4 +32,3 @@ describe("Public signup", () => {
     expect(memberPayload.joinedAt).toBeTruthy();
   });
 });
-
