@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.logAction = logAction;
 exports.logActionFromRequest = logActionFromRequest;
 exports.listAuditLogs = listAuditLogs;
-const firebase_1 = require("../../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../../utils/logger");
 const errors_1 = require("../../utils/errors");
 require("../../types");

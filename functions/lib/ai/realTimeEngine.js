@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processTenantAdvisor = processTenantAdvisor;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 // src/ai/realTimeEngine.ts
 // ============================
 // 🤖 AI Real-Time Engine — worker de manutenção

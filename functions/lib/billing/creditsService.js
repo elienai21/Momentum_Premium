@@ -5,7 +5,7 @@ exports.getCredits = getCredits;
 exports.consumeCredits = consumeCredits;
 exports.ensureCreditsOrThrow = ensureCreditsOrThrow;
 // functions/src/billing/creditsService.ts
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const errors_1 = require("../utils/errors");
 const planNormalize_1 = require("./planNormalize");
 function resolveMonthlyCreditsForPlan(plan) {

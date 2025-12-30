@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPrompt = getPrompt;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 // Fallback prompts to ensure the system works even if a prompt is not configured in Firestore.
 const fallbackPrompts = {

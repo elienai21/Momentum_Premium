@@ -25,6 +25,7 @@ const AIConsole = lazy(() =>
 );
 
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminPlans = lazy(() => import("./pages/admin/AdminPlans"));
 const AdminVoice = lazy(() => import("./pages/admin/AdminVoice"));
 const AdminSupport = lazy(() => import("./pages/admin/AdminSupport"));
@@ -120,6 +121,7 @@ export default function App() {
                     <Route path="imports" element={<Imports />} />
 
                     <Route path="admin" element={<AdminLayout />}>
+                      <Route index element={<AdminDashboard />} />
                       <Route path="plans" element={<AdminPlans />} />
                       <Route path="voice" element={<AdminVoice />} />
                       <Route path="support" element={<AdminSupport />} />

@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.trackUsage = trackUsage;
 exports.reportUsageToStripe = reportUsageToStripe;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 // ============================
 // 📈 usageTracker.ts — Unified Usage and Billing Tracker (v7.9.3 Safe Build)
 // ============================

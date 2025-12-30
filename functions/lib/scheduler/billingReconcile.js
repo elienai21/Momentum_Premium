@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.billingReconcile = void 0;
 // functions/src/scheduler/billingReconcile.ts
 const scheduler_1 = require("firebase-functions/v2/scheduler");
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 const reconcileStripe_1 = require("../billing/reconcileStripe");
 // Cron diário às 03:00 UTC (ajusta o horário se quiser)

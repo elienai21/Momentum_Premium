@@ -44,7 +44,7 @@ exports.voiceHandler = voiceHandler;
 const multer_1 = __importDefault(require("multer"));
 const checkPlan_1 = require("../middleware/checkPlan");
 const logger_1 = require("../utils/logger");
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const aiClient_1 = require("../utils/aiClient");
 // Lazy load — evita timeout no deploy
 let speechClient;

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handleFailedInsight = void 0;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 const DLQ_COLLECTION = "queues/insights_requests_dlq";
 /**

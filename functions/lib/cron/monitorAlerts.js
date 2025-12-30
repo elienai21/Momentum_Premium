@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.monitorAlerts = void 0;
 // src/cron/monitorAlerts.ts
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const logger_1 = require("../utils/logger");
 exports.monitorAlerts = (0, scheduler_1.onSchedule)({

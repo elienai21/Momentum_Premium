@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOrSetCache = getOrSetCache;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 /**
  * Retrieves a cached value or executes a function to generate and cache it.

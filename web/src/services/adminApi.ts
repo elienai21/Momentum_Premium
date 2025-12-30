@@ -23,7 +23,7 @@ export async function adminBootstrap(): Promise<BootstrapResponse> {
 export async function adminSavePlan(tenantId: string, plan: PlanKey) {
   const r = await authorizedFetch(`/api/admin/tenant/${encodeURIComponent(tenantId)}/plan`, {
     method: "PUT",
-    body: { plan },
+    body: { plan } as any,
   });
   if (!r.ok) throw new Error("Falha ao salvar plano");
 }
@@ -31,7 +31,7 @@ export async function adminSavePlan(tenantId: string, plan: PlanKey) {
 export async function adminSaveVoice(tenantId: string, voice: VoiceProfiles) {
   const r = await authorizedFetch(`/api/admin/tenant/${encodeURIComponent(tenantId)}/voice-profiles`, {
     method: "PUT",
-    body: voice,
+    body: voice as any,
   });
   if (!r.ok) throw new Error("Falha ao salvar perfis de voz");
 }
@@ -39,7 +39,7 @@ export async function adminSaveVoice(tenantId: string, voice: VoiceProfiles) {
 export async function adminSaveEmergency(tenantId: string, flags: BootstrapResponse["emergency"]) {
   const r = await authorizedFetch(`/api/admin/tenant/${encodeURIComponent(tenantId)}/emergency`, {
     method: "PUT",
-    body: flags,
+    body: flags as any,
   });
   if (!r.ok) throw new Error("Falha ao salvar emergência");
 }
@@ -47,7 +47,28 @@ export async function adminSaveEmergency(tenantId: string, flags: BootstrapRespo
 export async function adminSaveSupportConfig(tenantId: string, cfg: { collection: string; temperature: number }) {
   const r = await authorizedFetch(`/api/admin/tenant/${encodeURIComponent(tenantId)}/support-config`, {
     method: "PUT",
-    body: cfg,
+    body: cfg as any,
   });
   if (!r.ok) throw new Error("Falha ao salvar suporte");
+}
+
+export interface EconomicsData {
+  totalTokens: number;
+  totalEstimatedCost: number;
+  activeTenantsCount: number;
+  dailyCost: Record<string, number>;
+  topSpenders: {
+    tenantId: string;
+    name: string;
+    plan: string;
+    tokens: number;
+    cost: number;
+  }[];
+}
+
+export async function getEconomics(): Promise<EconomicsData> {
+  const r = await authorizedFetch("/api/admin/economics");
+  if (!r.ok) throw new Error("Failed to fetch economics");
+  const json = await r.json();
+  return json.data;
 }

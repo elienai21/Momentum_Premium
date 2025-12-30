@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.recordMetric = recordMetric;
 exports.recordLatency = recordLatency;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 // utils/metrics.ts
 const logger_1 = require("./logger");
 /**

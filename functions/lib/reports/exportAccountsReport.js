@@ -4,7 +4,7 @@
 // ============================
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.exportAccountsReport = exportAccountsReport;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 /**
  * Formata um array de contas em CSV
  */

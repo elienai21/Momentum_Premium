@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.billingRouter = void 0;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 // functions/src/modules/billingUsage.ts
 const express_1 = require("express");
 const zod_1 = require("zod");
 const requireAuth_1 = require("../middleware/requireAuth");
-const usageTracker_1 = require("../utils/usageTracker");
+const usageTracker_1 = require("src/utils/usageTracker");
 exports.billingRouter = (0, express_1.Router)();
 exports.billingRouter.get("/api/billing/usage", requireAuth_1.requireAuth, async (req, res) => {
     const tenantId = req.user?.tenantId || "default";

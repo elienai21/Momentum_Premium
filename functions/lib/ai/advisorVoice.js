@@ -41,7 +41,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.advisorVoice = advisorVoice;
 const advisor_1 = require("./advisor");
 const checkPlan_1 = require("../middleware/checkPlan");
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 // Lazy-load para evitar timeout
 let speechClient, ttsClient;

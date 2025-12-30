@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useCredits } from "@/hooks/useCredits";
@@ -6,8 +7,10 @@ import { useTenant as useTenantCtx } from "@/context/TenantContext";
 import { useTenant as useTenantData } from "@/hooks/useTenant";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { AsyncPanel } from "@/components/ui/AsyncPanel";
-import { Shield, CreditCard, Sparkles, RefreshCw, Zap, ExternalLink, History, Building2, User, Settings as SettingsIcon } from "lucide-react";
+import { Shield, CreditCard, Sparkles, RefreshCw, Zap, ExternalLink, History, Building2, User, Settings as SettingsIcon, Users } from "lucide-react";
 import { api } from "@/services/api";
+import { useToast } from "@/components/Toast";
+import { TeamSettings } from "@/components/settings/TeamSettings";
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("pt-BR").format(value);
@@ -20,9 +23,7 @@ function formatDate(iso: string | undefined) {
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-type TabId = "profile" | "billing";
-
-import { useToast } from "@/components/Toast";
+type TabId = "profile" | "billing" | "team";
 
 const Settings: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -98,6 +99,7 @@ const Settings: React.FC = () => {
   const tabs = [
     { id: "profile" as TabId, label: "Perfil", icon: User },
     { id: "billing" as TabId, label: "Plano & Créditos", icon: CreditCard },
+    { id: "team" as TabId, label: "Equipe", icon: Users },
   ];
 
   return (
@@ -304,6 +306,11 @@ const Settings: React.FC = () => {
             </AsyncPanel>
           </div>
         </div>
+      )}
+
+      {/* Team Tab */}
+      {activeTab === "team" && (
+        <TeamSettings />
       )}
     </div>
   );

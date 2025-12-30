@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.computeHealthScore = computeHealthScore;
 // functions/src/cfo/healthScore.ts
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const aiClient_1 = require("../utils/aiClient");
 const logger_1 = require("../utils/logger");
 const firestore_1 = require("../core/adapters/firestore");

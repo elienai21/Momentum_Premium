@@ -37,7 +37,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.visionAI = visionAI;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 const chargeCredits_1 = require("../billing/chargeCredits");
 // Lazy-load do Vision evita travar deploys

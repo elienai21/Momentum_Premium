@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.apiV2 = exports.expressApp = exports.stripeWebhook = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
+exports.apiV2 = exports.expressApp = exports.stripeWebhook = exports.calculateRealEstateFees = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
 // functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
@@ -47,6 +47,8 @@ Object.defineProperty(exports, "pulseAggregateOnWrite", { enumerable: true, get:
 var cleanupExpiredLogs_1 = require("./cron/cleanupExpiredLogs");
 Object.defineProperty(exports, "cleanupExpiredLogs", { enumerable: true, get: function () { return cleanupExpiredLogs_1.cleanupExpiredLogs; } });
 Object.defineProperty(exports, "cleanupExpiredLogsHttp", { enumerable: true, get: function () { return cleanupExpiredLogs_1.cleanupExpiredLogsHttp; } });
+var calculateRealEstateFees_1 = require("./cron/calculateRealEstateFees");
+Object.defineProperty(exports, "calculateRealEstateFees", { enumerable: true, get: function () { return calculateRealEstateFees_1.calculateRealEstateFees; } });
 var subscriptionManager_1 = require("./billing/subscriptionManager");
 Object.defineProperty(exports, "stripeWebhook", { enumerable: true, get: function () { return subscriptionManager_1.stripeWebhook; } });
 // Firebase Admin init

@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildOrUpdateMemory = buildOrUpdateMemory;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 async function buildOrUpdateMemory(tenantId, userId) {
     const txSnap = await firebase_1.db.collection(`tenants/${tenantId}/transactions`).limit(1000).get();
     let income = 0, expense = 0;

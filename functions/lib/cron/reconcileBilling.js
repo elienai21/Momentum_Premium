@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reconcileAllTenantsBilling = reconcileAllTenantsBilling;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 const reconcileStripe_1 = require("../billing/reconcileStripe");
 async function reconcileAllTenantsBilling() {

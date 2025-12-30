@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireRole = void 0;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const errors_1 = require("../utils/errors");
 require("../types");
 const requireRole = (role) => async (req, _res, next) => {

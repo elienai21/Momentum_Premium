@@ -46,15 +46,42 @@ exports.realEstateRouter.get("/portfolio-summary", async (req, res) => {
     const summary = await (0, realEstateService_1.getPortfolioSummary)(tenantId, days);
     res.json({ ok: true, summary });
 });
-// Listing units and owners (already existing in service, exposing here for completeness if needed)
+// Owners
+const ownerSchema = zod_1.z.object({
+    name: zod_1.z.string().min(1),
+    email: zod_1.z.string().email().optional(),
+    phone: zod_1.z.string().optional(),
+});
 exports.realEstateRouter.get("/owners", async (req, res) => {
     const tenantId = req.tenant.info.id;
     const owners = await (0, realEstateService_1.listOwners)(tenantId);
     res.json({ ok: true, owners });
 });
+exports.realEstateRouter.post("/owners", async (req, res) => {
+    const tenantId = req.tenant.info.id;
+    const data = ownerSchema.parse(req.body);
+    const owner = await (0, realEstateService_1.createOwner)(tenantId, data);
+    res.json({ ok: true, owner });
+});
+// Units
+const unitSchema = zod_1.z.object({
+    code: zod_1.z.string().min(1),
+    ownerId: zod_1.z.string().min(1),
+    buildingId: zod_1.z.string().optional(),
+    name: zod_1.z.string().optional(),
+    bedrooms: zod_1.z.number().optional(),
+    bathrooms: zod_1.z.number().optional(),
+    nightlyRate: zod_1.z.number().optional(),
+});
 exports.realEstateRouter.get("/units", async (req, res) => {
     const tenantId = req.tenant.info.id;
     const units = await (0, realEstateService_1.listUnits)(tenantId);
     res.json({ ok: true, units });
+});
+exports.realEstateRouter.post("/units", async (req, res) => {
+    const tenantId = req.tenant.info.id;
+    const data = unitSchema.parse(req.body);
+    const unit = await (0, realEstateService_1.createUnit)(tenantId, data);
+    res.json({ ok: true, unit });
 });
 exports.default = exports.realEstateRouter;

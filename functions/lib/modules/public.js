@@ -6,7 +6,7 @@ const firebase_admin_1 = require("firebase-admin");
 const errors_1 = require("../utils/errors");
 const logger_1 = require("../utils/logger");
 const zod_1 = require("zod");
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 exports.publicRouter = (0, express_1.Router)();
 const signupSchema = zod_1.z.object({
     companyName: zod_1.z.string().min(2).max(100),

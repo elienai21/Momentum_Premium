@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildActionPlan = buildActionPlan;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 async function buildActionPlan(tenantId) {
     const memDoc = await firebase_1.db.collection(`tenants/${tenantId}/ai_context`).doc('memory').get();
     const mem = memDoc.data() || {};

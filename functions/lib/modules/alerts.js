@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.router = exports.alertsRouter = void 0;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 // functions/src/modules/alerts.ts
 const express_1 = require("express");
 require("../types");

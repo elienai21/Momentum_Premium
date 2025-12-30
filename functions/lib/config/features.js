@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.loadPlanFlags = loadPlanFlags;
 exports.hasFeature = hasFeature;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 /**
  * Loads the feature flags associated with a specific plan from Firestore.
  * @param planId The ID of the plan (e.g., 'starter', 'premium').

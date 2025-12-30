@@ -8,7 +8,7 @@ exports.router = exports.importsRouter = void 0;
 const express_1 = require("express");
 require("../types");
 const zod_1 = require("zod");
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const requireAuth_1 = require("../middleware/requireAuth");
 const withTenant_1 = require("../middleware/withTenant");
 const errors_1 = require("../utils/errors");

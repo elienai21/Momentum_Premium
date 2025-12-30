@@ -4,7 +4,7 @@
 // ============================================================
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.checkPlanLimit = checkPlanLimit;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const errors_1 = require("../utils/errors");
 /**
  * Verifica e consome a cota de IA do usuário com base no plano.

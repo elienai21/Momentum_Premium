@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getBenchmarks = getBenchmarks;
 exports.compareToBenchmark = compareToBenchmark;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 async function getBenchmarks(vertical) {
     return {
         vertical,

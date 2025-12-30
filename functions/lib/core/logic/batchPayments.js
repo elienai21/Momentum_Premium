@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPendingPayments = getPendingPayments;
 exports.confirmPayments = confirmPayments;
-const firebase_1 = require("../../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const getCollection = (tenantId) => firebase_1.db.collection(`tenants/${tenantId}/transactions`);
 async function getPendingPayments(tenantId) {
     const today = new Date().toISOString().split("T")[0];

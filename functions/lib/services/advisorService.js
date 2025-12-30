@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processAdvisorMessage = processAdvisorMessage;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const aiClient_1 = require("../utils/aiClient");
 const logger_1 = require("../utils/logger");
 const errors_1 = require("../utils/errors");

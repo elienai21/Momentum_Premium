@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getHealthSeries = getHealthSeries;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 async function getHealthSeries(tenantId, days = 30) {
     const since = new Date();
     since.setDate(since.getDate() - days);

@@ -35,7 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendAlertEmail = void 0;
 exports.sendAdvisorAlert = sendAdvisorAlert;
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const logger_1 = require("../utils/logger");
 const admin = __importStar(require("firebase-admin"));
 /**

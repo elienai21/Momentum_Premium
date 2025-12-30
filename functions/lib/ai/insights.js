@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.insightsRouter = void 0;
 exports.getAiInsights = getAiInsights;
 const express_1 = require("express");
-const firebase_1 = require("../services/firebase");
+const firebase_1 = require("src/services/firebase");
 const requireAuth_1 = require("../middleware/requireAuth");
 const zod_1 = require("zod");
 const aiClient_1 = require("../utils/aiClient");
