@@ -33,6 +33,18 @@ export type Unit = {
   createdAt: string;
 };
 
+export type Contract = {
+  id: string;
+  unitId: string;
+  tenantName: string;
+  startDate: string;
+  endDate: string;
+  rentAmount: number;
+  readjustmentIndex?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type Stay = {
   id: string;
   unitId: string;
@@ -98,6 +110,9 @@ function ownersCol(tenantId: string) {
 }
 function unitsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_units`);
+}
+function contractsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/realEstate_contracts`);
 }
 function staysCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_stays`);
@@ -183,6 +198,49 @@ export async function createUnit(
 export async function listUnits(tenantId: string): Promise<Unit[]> {
   const snap = await unitsCol(tenantId).orderBy("createdAt", "desc").get();
   return snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+// ============================================================
+// 📄 Contracts CRUD
+// ============================================================
+
+export async function listContracts(
+  tenantId: string,
+  unitId?: string
+): Promise<Contract[]> {
+  let ref = contractsCol(tenantId).orderBy("updatedAt", "desc") as FirebaseFirestore.Query;
+  if (unitId) {
+    ref = ref.where("unitId", "==", unitId);
+  }
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Contract[];
+}
+
+export async function createContract(
+  tenantId: string,
+  data: Omit<Contract, "id" | "createdAt" | "updatedAt">
+): Promise<Contract> {
+  const timestamp = new Date().toISOString();
+  const payload = {
+    ...data,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const doc = await contractsCol(tenantId).add(payload);
+  return { id: doc.id, ...payload };
+}
+
+export async function updateContract(
+  tenantId: string,
+  id: string,
+  data: Partial<Omit<Contract, "id" | "createdAt">>
+): Promise<void> {
+  const payload = { ...data, updatedAt: new Date().toISOString() };
+  await contractsCol(tenantId).doc(id).update(payload);
+}
+
+export async function deleteContract(tenantId: string, id: string): Promise<void> {
+  await contractsCol(tenantId).doc(id).delete();
 }
 
 // ============================================================
