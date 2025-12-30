@@ -10,6 +10,7 @@ export { pulseAggregateOnWrite } from "./triggers/pulseAggregate";
 export { cleanupExpiredLogs, cleanupExpiredLogsHttp } from "./cron/cleanupExpiredLogs";
 export { calculateRealEstateFees } from "./cron/calculateRealEstateFees";
 export { stripeWebhook } from "./billing/subscriptionManager";
+export { analyticsAggregator } from "./triggers/analyticsAggregator";
 
 // Firebase Admin init
 try {

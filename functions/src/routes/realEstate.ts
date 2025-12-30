@@ -9,7 +9,11 @@ import {
   listOwners,
   createOwner,
   listUnits,
-  createUnit
+  createUnit,
+  listContracts,
+  createContract,
+  updateContract,
+  deleteContract,
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
@@ -93,6 +97,15 @@ const unitSchema = z.object({
   nightlyRate: z.number().optional(),
 });
 
+const contractSchema = z.object({
+  unitId: z.string().min(1),
+  tenantName: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  rentAmount: z.number().positive(),
+  readjustmentIndex: z.string().optional(),
+});
+
 realEstateRouter.get("/units", async (req: any, res) => {
   const tenantId = req.tenant.info.id;
   const units = await listUnits(tenantId);
@@ -106,5 +119,32 @@ realEstateRouter.post("/units", async (req: any, res) => {
   res.json({ ok: true, unit });
 });
 
-export default realEstateRouter;
+// Contracts
+realEstateRouter.get("/contracts", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const unitId = (req.query.unitId as string) || undefined;
+  const contracts = await listContracts(tenantId, unitId);
+  res.json({ ok: true, contracts });
+});
 
+realEstateRouter.post("/contracts", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = contractSchema.parse(req.body);
+  const contract = await createContract(tenantId, data);
+  res.json({ ok: true, contract });
+});
+
+realEstateRouter.put("/contracts/:id", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = contractSchema.partial().parse(req.body);
+  await updateContract(tenantId, req.params.id, data);
+  res.json({ ok: true });
+});
+
+realEstateRouter.delete("/contracts/:id", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  await deleteContract(tenantId, req.params.id);
+  res.json({ ok: true });
+});
+
+export default realEstateRouter;

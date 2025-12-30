@@ -23,6 +23,18 @@ export interface Unit {
   active: boolean;
 }
 
+export interface Contract {
+  id: string;
+  unitId: string;
+  tenantName: string;
+  startDate: string;
+  endDate: string;
+  rentAmount: number;
+  readjustmentIndex?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PortfolioSummary {
   totals: {
     activeOwners: number;
@@ -100,6 +112,26 @@ export async function createBuilding(data: Partial<Building>): Promise<Building>
     data
   );
   return res.data.building;
+}
+
+export async function listContracts(unitId?: string): Promise<Contract[]> {
+  const res = await api.get<{ ok: boolean; contracts: Contract[] }>(
+    "/realestate/contracts",
+    { params: unitId ? { unitId } : undefined }
+  );
+  return res.data.contracts;
+}
+
+export async function createContract(data: Omit<Contract, "id">): Promise<Contract> {
+  const res = await api.post<{ ok: boolean; contract: Contract }>(
+    "/realestate/contracts",
+    data
+  );
+  return res.data.contract;
+}
+
+export async function updateContract(id: string, data: Partial<Contract>): Promise<void> {
+  await api.put(`/realestate/contracts/${id}`, data);
 }
 
 export interface RealEstatePayoutDoc {

@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import compression from "compression";
 import { ensureTraceId } from "../utils/trace";
+import { logError } from "../utils/logger";
 
 type AppMode = "prod" | "test";
 type AppOptions = { mode?: AppMode };
@@ -169,6 +170,14 @@ export function createExpressApp(opts?: AppOptions): express.Express {
   app.get("/api/cfo/summary", (_req, res) => {
     res.json({ status: "ok", summary: {} });
   });
+
+  if (process.env.ENABLE_DEBUG_FORCE_ERROR === "true") {
+    app.get("/api/debug/force-error", (req, _res, next) => {
+      const err = new Error("Forced critical error");
+      logError(err, "CRITICAL", {}, (req as any).traceId);
+      next(err);
+    });
+  }
 
   app.use((req: Request, res: Response) => {
     res.status(404).json({ error: "Not Found", path: req.path, traceId: (req as any).traceId });
