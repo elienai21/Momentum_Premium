@@ -18,7 +18,7 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # --- INÍCIO DA CORREÇÃO ---
+      # --- AQUI ESTA A CORREÇÃO QUE FALTA ---
       - name: Create Firebase Service Account Key
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
@@ -27,9 +27,7 @@ jobs:
         run: npx firebase-tools deploy --non-interactive --token ""
         env:
           GOOGLE_APPLICATION_CREDENTIALS: service-account.json
-          # Opcional: Se precisar definir o projeto explicitamente
-          # FIREBASE_PROJECT: momentum-premium 
-      # --- FIM DA CORREÇÃO ---
+      # --------------------------------------
       
       - name: Cleanup
         if: always()
