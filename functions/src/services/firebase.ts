@@ -27,6 +27,12 @@ const fallbackDb = {
     add: async () => ({ id: "mock-id" }),
     where: () => ({ get: async () => ({ docs: [] }) }),
   }),
+  runTransaction: async (fn: any) => fn({
+    get: async () => ({ exists: false, data: () => null }),
+    set: async () => undefined,
+    update: async () => undefined,
+    delete: async () => undefined,
+  }),
 };
 
 const fallbackAuth = {

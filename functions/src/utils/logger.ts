@@ -3,7 +3,6 @@
 // ============================
 
 import { Request } from "express";
-import { db } from "src/services/firebase";
 
 type Meta = Record<string, any>;
 
@@ -60,3 +59,41 @@ export const logger = {
   },
 };
 
+export async function logError(
+  error: Error | string,
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" = "LOW",
+  meta: Meta = {},
+  traceId?: string
+) {
+  const message = typeof error === "string" ? error : error.message;
+  const payload = normalizeMeta({ severity, error: message, traceId, ...meta }, {}, undefined);
+
+  console.error(JSON.stringify({ level: "error", message, ...payload }));
+
+  const shouldAlert = severity === "HIGH" || severity === "CRITICAL";
+  const webhookUrl = process.env.ERROR_WEBHOOK_URL;
+
+  if (!shouldAlert || !webhookUrl) return;
+
+  try {
+    await fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        service: "Momentum",
+        error: message,
+        traceId: payload.traceId,
+      }),
+    });
+  } catch (err: any) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "Failed to post error webhook",
+        severity,
+        traceId: payload.traceId,
+        error: err?.message,
+      })
+    );
+  }
+}
