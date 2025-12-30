@@ -18,6 +18,16 @@ import {
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
 import { z } from "zod";
+import {
+  documentCommitSchema,
+  documentInitUploadSchema,
+  documentListQuerySchema,
+  generateStatementSchema,
+  statementListQuerySchema,
+  receivableGenerateBatchSchema,
+  receivableListQuerySchema,
+  agingAnalyticsQuerySchema,
+} from "../types/realEstate";
 
 export const realEstateRouter = Router();
 
@@ -145,6 +155,49 @@ realEstateRouter.delete("/contracts/:id", async (req: any, res) => {
   const tenantId = req.tenant.info.id;
   await deleteContract(tenantId, req.params.id);
   res.json({ ok: true });
+});
+
+// Documents (stubs)
+realEstateRouter.post("/documents/init-upload", (req: any, res) => {
+  documentInitUploadSchema.parse(req.body);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+realEstateRouter.post("/documents/commit", (req: any, res) => {
+  documentCommitSchema.parse(req.body);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+realEstateRouter.get("/documents", (req: any, res) => {
+  documentListQuerySchema.parse(req.query);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+// Statements (stubs)
+realEstateRouter.post("/statements/generate", (req: any, res) => {
+  generateStatementSchema.parse(req.body);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+realEstateRouter.get("/statements", (req: any, res) => {
+  statementListQuerySchema.parse(req.query);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+// Receivables & analytics (stubs)
+realEstateRouter.post("/receivables/generate-batch", (req: any, res) => {
+  receivableGenerateBatchSchema.parse(req.body);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+realEstateRouter.get("/receivables", (req: any, res) => {
+  receivableListQuerySchema.parse(req.query);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+realEstateRouter.get("/analytics/aging", (req: any, res) => {
+  agingAnalyticsQuerySchema.parse(req.query);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
 });
 
 export default realEstateRouter;

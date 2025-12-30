@@ -148,6 +148,43 @@ export interface RealEstatePayoutDoc {
   vivarePayout: number;
 }
 
+// Pass 0 stubs for upcoming GED/Financial features
+export const realEstateApi = {
+  // existing helpers can stay exported individually above
+  documents: {
+    initUpload: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    commit: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  statements: {
+    generate: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  receivables: {
+    generateBatch: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  analytics: {
+    getAging: async (_params: unknown) => {
+      return null as any;
+    },
+  },
+};
+
 // Mantendo compatibilidade com o formato legado se necessário,
 // mas agora buscando via API se possível.
 // O dashboard atual usa statements, vamos focar neles.
