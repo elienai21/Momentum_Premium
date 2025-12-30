@@ -5,7 +5,7 @@ exports.updateAccount = updateAccount;
 exports.deleteAccount = deleteAccount;
 exports.getAccountById = getAccountById;
 exports.listAccounts = listAccounts;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../../services/firebase");
 // ============================
 // 💼 Accounts Service — Financial Ledger (refactor safe build)
 // ============================

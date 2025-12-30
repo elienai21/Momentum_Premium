@@ -34,7 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAuth = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const admin = __importStar(require("firebase-admin"));
 const errors_1 = require("../utils/errors");
 const logger_1 = require("../utils/logger");

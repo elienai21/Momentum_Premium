@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildUserContext = buildUserContext;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 async function buildUserContext(uid) {
     const doc = await firebase_1.db.collection("users").doc(uid).get();
     const prefs = doc.data()?.preferences || {};
