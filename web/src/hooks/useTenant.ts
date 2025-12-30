@@ -7,10 +7,14 @@ export interface TenantData {
   logoUrl?: string;
 }
 
-export function useTenant(tenantId: string) {
+export function useTenant(tenantId: string | null) {
   const [tenant, setTenant] = useState<TenantData | null>(null);
 
   useEffect(() => {
+    if (!tenantId) {
+      setTenant(null);
+      return;
+    }
     async function fetchTenant() {
       try {
         const docRef = doc(db, "tenants", tenantId);
