@@ -27,7 +27,9 @@ import {
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
+import { requireRole } from "../middleware/requireRole";
 import { z } from "zod";
+import { logActionFromRequest } from "../modules/audit/auditService";
 import {
   documentCommitSchema,
   documentInitUploadSchema,
@@ -168,7 +170,7 @@ realEstateRouter.delete("/contracts/:id", async (req: any, res) => {
 });
 
 // Documents (stubs)
-realEstateRouter.post("/documents/init-upload", async (req: any, res, next) => {
+realEstateRouter.post("/documents/init-upload", requireRole(["admin", "finance", "editor"]), async (req: any, res, next) => {
   try {
     const tenantId = req.tenant.info.id;
     const parsed = documentInitUploadSchema.parse(req.body);
@@ -179,11 +181,15 @@ realEstateRouter.post("/documents/init-upload", async (req: any, res, next) => {
   }
 });
 
-realEstateRouter.post("/documents/commit", async (req: any, res, next) => {
+realEstateRouter.post("/documents/commit", requireRole(["admin", "finance", "editor"]), async (req: any, res, next) => {
   try {
     const tenantId = req.tenant.info.id;
     const parsed = documentCommitSchema.parse(req.body);
     const document = await commitDocument(tenantId, parsed, req.user);
+    await logActionFromRequest(req, "realestate.document.upload", {
+      entityId: parsed.linkedEntityId,
+      docType: parsed.docType,
+    });
     res.json({ ok: true, document });
   } catch (err) {
     next(err);
@@ -202,7 +208,7 @@ realEstateRouter.get("/documents", async (req: any, res, next) => {
 });
 
 // Statements (stubs)
-realEstateRouter.post("/statements/generate", async (req: any, res, next) => {
+realEstateRouter.post("/statements/generate", requireRole(["admin", "finance"]), async (req: any, res, next) => {
   try {
     const tenantId = req.tenant.info.id;
     const parsed = generateStatementSchema.parse(req.body);
@@ -212,6 +218,10 @@ realEstateRouter.post("/statements/generate", async (req: any, res, next) => {
       parsed.period,
       req.user?.uid
     );
+    await logActionFromRequest(req, "realestate.statement.generated", {
+      ownerId: parsed.ownerId,
+      period: parsed.period,
+    });
     res.json({ ok: true, statement });
   } catch (err) {
     next(err);
@@ -230,7 +240,7 @@ realEstateRouter.get("/statements", async (req: any, res, next) => {
 });
 
 // Receivables & analytics (stubs)
-realEstateRouter.post("/receivables/generate-batch", async (req: any, res, next) => {
+realEstateRouter.post("/receivables/generate-batch", requireRole(["admin", "finance"]), async (req: any, res, next) => {
   try {
     const tenantId = req.tenant.info.id;
     const parsed = receivableGenerateBatchSchema.parse(req.body);
@@ -252,7 +262,7 @@ realEstateRouter.get("/receivables", async (req: any, res, next) => {
   }
 });
 
-realEstateRouter.post("/receivables/:id/payment", async (req: any, res, next) => {
+realEstateRouter.post("/receivables/:id/payment", requireRole(["admin", "finance"]), async (req: any, res, next) => {
   try {
     const tenantId = req.tenant.info.id;
     const bodySchema = z.object({
@@ -261,6 +271,10 @@ realEstateRouter.post("/receivables/:id/payment", async (req: any, res, next) =>
     });
     const parsed = bodySchema.parse(req.body);
     const receivable = await recordPayment(tenantId, req.params.id, parsed.amount, parsed.date);
+    await logActionFromRequest(req, "realestate.payment.recorded", {
+      receivableId: req.params.id,
+      amount: parsed.amount,
+    });
     res.json({ ok: true, receivable });
   } catch (err) {
     next(err);

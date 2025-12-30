@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { realEstateApi, Receivable, AgingSnapshot } from "../../services/realEstateApi";
 import { GlassPanel } from "../ui/GlassPanel";
 import { Badge } from "../ui/Badge";
-import { Loader2, DollarSign, AlertTriangle, CheckCircle, Clock, Download } from "lucide-react";
+import { Loader2, DollarSign, CheckCircle } from "lucide-react";
+import { usePermission } from "../../hooks/usePermission";
 
 type Props = {
   unitId?: string;
@@ -40,6 +41,7 @@ export function ReceivablesPanel({ unitId, ownerId }: Props) {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   });
   const [processing, setProcessing] = useState(false);
+  const { canManageFinance } = usePermission();
 
   const filters = useMemo(() => {
     const f: any = {};
@@ -132,7 +134,8 @@ export function ReceivablesPanel({ unitId, ownerId }: Props) {
           <button
             onClick={handleGenerate}
             className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold shadow-sm hover:bg-blue-700 disabled:opacity-60 inline-flex items-center gap-2"
-            disabled={processing}
+            disabled={processing || !canManageFinance}
+            title={!canManageFinance ? "Acesso restrito a finanças" : undefined}
           >
             {processing && <Loader2 className="h-4 w-4 animate-spin" />}
             Gerar Cobranças do Mês
@@ -195,14 +198,16 @@ export function ReceivablesPanel({ unitId, ownerId }: Props) {
               <Badge variant="neutral" className="text-[10px]">
                 {rec.period}
               </Badge>
-              <button
-                onClick={() => handlePayment(rec.id)}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-60"
-                disabled={processing}
-              >
-                <CheckCircle size={14} />
-                Baixar
-              </button>
+              {canManageFinance && (
+                <button
+                  onClick={() => handlePayment(rec.id)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-50 disabled:opacity-60"
+                  disabled={processing}
+                >
+                  <CheckCircle size={14} />
+                  Baixar
+                </button>
+              )}
             </div>
           </div>
         ))}

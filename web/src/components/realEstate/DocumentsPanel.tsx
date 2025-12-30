@@ -4,6 +4,7 @@ import { GlassPanel } from "../ui/GlassPanel";
 import { Badge } from "../ui/Badge";
 import { UploadDocumentModal } from "./UploadDocumentModal";
 import { FileText, Loader2, Upload } from "lucide-react";
+import { usePermission } from "../../hooks/usePermission";
 
 type Props = {
   entityId: string;
@@ -15,6 +16,7 @@ export function DocumentsPanel({ entityId, entityType }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { canEdit } = usePermission();
 
   const loadDocuments = async () => {
     setLoading(true);
@@ -51,13 +53,15 @@ export function DocumentsPanel({ entityId, entityType }: Props) {
           </p>
           <h4 className="text-lg font-bold text-slate-800">Documentos da Unidade</h4>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold shadow-sm hover:bg-blue-700"
-        >
-          <Upload size={16} />
-          Novo Documento
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold shadow-sm hover:bg-blue-700"
+          >
+            <Upload size={16} />
+            Novo Documento
+          </button>
+        )}
       </div>
 
       {loading && (
