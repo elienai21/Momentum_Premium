@@ -23,6 +23,18 @@ export interface Unit {
   active: boolean;
 }
 
+export interface Contract {
+  id: string;
+  unitId: string;
+  tenantName: string;
+  startDate: string;
+  endDate: string;
+  rentAmount: number;
+  readjustmentIndex?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PortfolioSummary {
   totals: {
     activeOwners: number;
@@ -102,6 +114,26 @@ export async function createBuilding(data: Partial<Building>): Promise<Building>
   return res.data.building;
 }
 
+export async function listContracts(unitId?: string): Promise<Contract[]> {
+  const res = await api.get<{ ok: boolean; contracts: Contract[] }>(
+    "/realestate/contracts",
+    { params: unitId ? { unitId } : undefined }
+  );
+  return res.data.contracts;
+}
+
+export async function createContract(data: Omit<Contract, "id">): Promise<Contract> {
+  const res = await api.post<{ ok: boolean; contract: Contract }>(
+    "/realestate/contracts",
+    data
+  );
+  return res.data.contract;
+}
+
+export async function updateContract(id: string, data: Partial<Contract>): Promise<void> {
+  await api.put(`/realestate/contracts/${id}`, data);
+}
+
 export interface RealEstatePayoutDoc {
   id: string;
   month: string;
@@ -115,6 +147,101 @@ export interface RealEstatePayoutDoc {
   ownerPayout: number;
   vivarePayout: number;
 }
+
+export interface RealEstateDocument {
+  id: string;
+  title: string;
+  docType: string;
+  fileName: string;
+  storagePath: string;
+  status: "active" | "archived";
+  version: number;
+  validUntil?: string | null;
+  downloadUrl?: string;
+  createdAt: string;
+}
+
+// Pass 0 stubs for upcoming GED/Financial features
+export const realEstateApi = {
+  // existing helpers can stay exported individually above
+  documents: {
+    initUpload: async (data: {
+      linkedEntityType: string;
+      linkedEntityId: string;
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      title: string;
+      docType: string;
+      validUntil?: string;
+      tags?: string[];
+      checksum?: string;
+    }) => {
+      const res = await api.post("/realestate/documents/init-upload", data);
+      return res.data as {
+        ok: boolean;
+        uploadUrl: string;
+        storagePath: string;
+        uploadSessionId: string;
+      };
+    },
+    commit: async (data: {
+      uploadSessionId: string;
+      storagePath: string;
+      linkedEntityType: string;
+      linkedEntityId: string;
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      title: string;
+      docType: string;
+      validUntil?: string;
+      tags?: string[];
+      checksum?: string;
+    }) => {
+      const res = await api.post("/realestate/documents/commit", data);
+      return res.data as { ok: boolean; document: RealEstateDocument };
+    },
+    list: async (filters: {
+      linkedEntityId?: string;
+      linkedEntityType?: string;
+      docType?: string;
+      status?: string;
+    }) => {
+      const params = new URLSearchParams();
+      Object.entries(filters || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          params.append(key, String(value));
+        }
+      });
+      const res = await api.get<{ ok: boolean; documents: RealEstateDocument[] }>(
+        `/realestate/documents${params.toString() ? `?${params.toString()}` : ""}`
+      );
+      return res.data.documents;
+    },
+  },
+  statements: {
+    generate: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  receivables: {
+    generateBatch: async (_data: unknown) => {
+      throw new Error("Pass 0");
+    },
+    list: async (_filters: unknown) => {
+      return [] as any[];
+    },
+  },
+  analytics: {
+    getAging: async (_params: unknown) => {
+      return null as any;
+    },
+  },
+};
 
 // Mantendo compatibilidade com o formato legado se necessário,
 // mas agora buscando via API se possível.
