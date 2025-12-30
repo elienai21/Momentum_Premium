@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCashflowForecast = getCashflowForecast;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 const prompts_1 = require("../config/prompts");
 const errors_1 = require("../utils/errors");
