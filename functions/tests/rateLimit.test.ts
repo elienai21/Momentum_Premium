@@ -4,18 +4,20 @@ import { createRateLimit } from "../src/middleware/rateLimit"; // Adjust import 
 import { Request, Response } from "express";
 
 // Mock dependencies
+const firestoreMock = {
+    runTransaction: jest.fn(),
+    collection: jest.fn(() => ({
+        doc: jest.fn(() => ({
+            get: jest.fn(),
+            set: jest.fn(),
+        })),
+    })),
+};
+
 jest.mock("firebase-admin", () => ({
     apps: [],
     initializeApp: jest.fn(),
-    firestore: () => ({
-        collection: jest.fn(() => ({
-            doc: jest.fn(() => ({
-                get: jest.fn(),
-                set: jest.fn(),
-            })),
-        })),
-        runTransaction: jest.fn(), // Mock transaction
-    }),
+    firestore: () => firestoreMock,
 }));
 
 describe("Rate Limit Middleware (Memory Fallback)", () => {
@@ -24,6 +26,7 @@ describe("Rate Limit Middleware (Memory Fallback)", () => {
     let next: jest.Mock;
 
     beforeEach(() => {
+        firestoreMock.runTransaction.mockReset();
         req = {
             ip: "127.0.0.1",
             path: "/api/test",
@@ -50,8 +53,7 @@ describe("Rate Limit Middleware (Memory Fallback)", () => {
 
     it("should block critical routes when Firestore fails (fail-closed)", async () => {
         // Mock Firestore transaction failure
-        const admin = require("firebase-admin");
-        admin.firestore().runTransaction.mockRejectedValue(new Error("Firestore unavailable"));
+        firestoreMock.runTransaction.mockRejectedValue(new Error("Firestore unavailable"));
 
         const limiter = createRateLimit({ enabled: true });
         (req as any).path = "/api/billing/charge"; // Critical route
@@ -67,8 +69,7 @@ describe("Rate Limit Middleware (Memory Fallback)", () => {
 
     it("should allow non-critical routes when Firestore fails (fail-open / memory fallback)", async () => {
         // Mock Firestore transaction failure
-        const admin = require("firebase-admin");
-        admin.firestore().runTransaction.mockRejectedValue(new Error("Firestore unavailable"));
+        firestoreMock.runTransaction.mockRejectedValue(new Error("Firestore unavailable"));
 
         const limiter = createRateLimit({ enabled: true });
         (req as any).path = "/api/public/status"; // Non-critical route
