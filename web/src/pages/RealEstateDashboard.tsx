@@ -541,4 +541,3 @@ export default function RealEstateDashboard() {
       )}
     </div>
   );
-}

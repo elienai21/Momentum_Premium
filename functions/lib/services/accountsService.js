@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAccount = createAccount;
 exports.updateAccount = updateAccount;
 exports.listAccounts = listAccounts;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 /**
  * 🧾 Criar nova conta

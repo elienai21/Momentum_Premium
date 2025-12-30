@@ -1,16 +1,25 @@
-name: Momentum CI
+name: Test and Deploy
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+
 jobs:
-  test:
+  test-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Install & Test (functions)
+          node-version: '18'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      # --- AQUI ESTA A CORREÇÃO QUE FALTA ---
+      - name: Create Firebase Service Account Key
         run: |
           cd functions
           npm ci || npm i
@@ -27,7 +36,9 @@ jobs:
           node-version: 20
       - name: Firebase Deploy (functions + rules)
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: |
-          npm i -g firebase-tools
-          firebase deploy --only functions,firestore:rules --non-interactive --token "$FIREBASE_TOKEN"
+          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
+      # --------------------------------------
+      
+      - name: Cleanup
+        if: always()
+        run: rm service-account.json

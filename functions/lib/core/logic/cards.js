@@ -6,7 +6,7 @@ exports.deleteCard = deleteCard;
 exports.getCards = getCards;
 exports.getCardByName = getCardByName;
 exports.calculateNextPaymentDate = calculateNextPaymentDate;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../../services/firebase");
 const errors_1 = require("../../utils/errors");
 const getCollection = (userId) => firebase_1.db.collection(`users/${userId}/cards`);
 async function createCard(userId, tenantId, data) {

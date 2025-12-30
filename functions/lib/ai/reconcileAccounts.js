@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.reconcileAccounts = reconcileAccounts;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const genai_1 = require("@google/genai");
 const logger_1 = require("../utils/logger");
 const config_1 = require("../config");
