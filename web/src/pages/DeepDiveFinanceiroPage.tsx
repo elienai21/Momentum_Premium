@@ -57,11 +57,8 @@ export default function DeepDiveFinanceiroPage() {
 
     const iso = (d: Date) => d.toISOString().slice(0, 10);
 
-    // Resolved Tenant ID (Auth Context primarily, Dev fallback)
-    const resolvedTenantId = useMemo(() => {
-        if (tenantId) return tenantId;
-        return import.meta.env.DEV ? (import.meta.env.VITE_DEFAULT_TENANT_ID || "demo-tenant-001") : "";
-    }, [tenantId]);
+    // Resolved Tenant ID (Auth Context primarily)
+    const resolvedTenantId = useMemo(() => tenantId ?? "", [tenantId]);
 
     // 1. KPI Data (Pulse)
     const { data: pulseData, loading: pulseLoading, error: pulseError, empty: pulseEmpty, refetch: refetchPulse } = usePulseSummary({
@@ -95,8 +92,13 @@ export default function DeepDiveFinanceiroPage() {
     };
 
     useEffect(() => {
+        if (!resolvedTenantId) {
+            setTransactions([]);
+            setTxLoading(false);
+            return;
+        }
         loadTx();
-    }, [periodStart, periodEnd]);
+    }, [periodStart, periodEnd, resolvedTenantId]);
 
     // Local Search filtering
     const filteredTransactions = useMemo(() => {
@@ -131,6 +133,12 @@ export default function DeepDiveFinanceiroPage() {
 
     return (
         <div className="pt-24 space-y-8 pb-20 fade-in" aria-live="polite">
+            {!resolvedTenantId && (
+                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-display">
+                    Selecione ou crie um tenant para visualizar os detalhes financeiros.
+                </div>
+            )}
+
             <SectionHeader
                 title="Deep Dive Financeiro"
                 subtitle="Análise detalhada de performance, caixa e movimentações."

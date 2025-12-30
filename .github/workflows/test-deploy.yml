@@ -17,7 +17,7 @@ jobs:
           npm run build || true
           npm test -- --runInBand --detectOpenHandles || true
   deploy:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.FIREBASE_TOKEN != ''
     needs: test
     runs-on: ubuntu-latest
     steps:

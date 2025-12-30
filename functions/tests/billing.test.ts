@@ -16,9 +16,14 @@ jest.mock("src/utils/usageTracker", () => ({
 
 describe("Billing", () => {
   it("reporta uso com sucesso", async () => {
+    const { __setDoc } = require("src/services/firebase");
+    __setDoc("tenants/test-tenant", { billing: { subscriptionItemId: "si_123" } });
+
     const app = makeTestApp();
     const res = await request(app)
       .post("/api/billing/report")
+      .set("x-test-tenant", "test-tenant")
+      .set("x-test-uid", "tester")
       .send({ tokens: 100, subscriptionItemId: "si_123" });
     await debugIfNotOk(res);
     expect(res.status).toBe(200);

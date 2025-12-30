@@ -9,11 +9,30 @@ import {
   listOwners,
   createOwner,
   listUnits,
-  createUnit
+  createUnit,
+  listContracts,
+  createContract,
+  updateContract,
+  deleteContract,
+  initDocumentUpload,
+  commitDocument,
+  listDocuments,
+  generateOwnerStatement,
+  listOwnerStatements,
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
 import { z } from "zod";
+import {
+  documentCommitSchema,
+  documentInitUploadSchema,
+  documentListQuerySchema,
+  generateStatementSchema,
+  statementListQuerySchema,
+  receivableGenerateBatchSchema,
+  receivableListQuerySchema,
+  agingAnalyticsQuerySchema,
+} from "../types/realEstate";
 
 export const realEstateRouter = Router();
 
@@ -93,6 +112,15 @@ const unitSchema = z.object({
   nightlyRate: z.number().optional(),
 });
 
+const contractSchema = z.object({
+  unitId: z.string().min(1),
+  tenantName: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  rentAmount: z.number().positive(),
+  readjustmentIndex: z.string().optional(),
+});
+
 realEstateRouter.get("/units", async (req: any, res) => {
   const tenantId = req.tenant.info.id;
   const units = await listUnits(tenantId);
@@ -106,5 +134,110 @@ realEstateRouter.post("/units", async (req: any, res) => {
   res.json({ ok: true, unit });
 });
 
-export default realEstateRouter;
+// Contracts
+realEstateRouter.get("/contracts", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const unitId = (req.query.unitId as string) || undefined;
+  const contracts = await listContracts(tenantId, unitId);
+  res.json({ ok: true, contracts });
+});
 
+realEstateRouter.post("/contracts", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = contractSchema.parse(req.body);
+  const contract = await createContract(tenantId, data);
+  res.json({ ok: true, contract });
+});
+
+realEstateRouter.put("/contracts/:id", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = contractSchema.partial().parse(req.body);
+  await updateContract(tenantId, req.params.id, data);
+  res.json({ ok: true });
+});
+
+realEstateRouter.delete("/contracts/:id", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  await deleteContract(tenantId, req.params.id);
+  res.json({ ok: true });
+});
+
+// Documents (stubs)
+realEstateRouter.post("/documents/init-upload", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentInitUploadSchema.parse(req.body);
+    const result = await initDocumentUpload(tenantId, parsed, req.user);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.post("/documents/commit", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentCommitSchema.parse(req.body);
+    const document = await commitDocument(tenantId, parsed, req.user);
+    res.json({ ok: true, document });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.get("/documents", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentListQuerySchema.parse(req.query);
+    const documents = await listDocuments(tenantId, parsed);
+    res.json({ ok: true, documents });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Statements (stubs)
+realEstateRouter.post("/statements/generate", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = generateStatementSchema.parse(req.body);
+    const statement = await generateOwnerStatement(
+      tenantId,
+      parsed.ownerId,
+      parsed.period,
+      req.user?.uid
+    );
+    res.json({ ok: true, statement });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.get("/statements", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = statementListQuerySchema.parse(req.query);
+    const statements = await listOwnerStatements(tenantId, parsed.ownerId);
+    res.json({ ok: true, statements });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Receivables & analytics (stubs)
+realEstateRouter.post("/receivables/generate-batch", (req: any, res) => {
+  receivableGenerateBatchSchema.parse(req.body);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+realEstateRouter.get("/receivables", (req: any, res) => {
+  receivableListQuerySchema.parse(req.query);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+realEstateRouter.get("/analytics/aging", (req: any, res) => {
+  agingAnalyticsQuerySchema.parse(req.query);
+  res.status(501).json({ message: "Not implemented in Pass 0" });
+});
+
+export default realEstateRouter;
