@@ -14,6 +14,9 @@ import {
   createContract,
   updateContract,
   deleteContract,
+  initDocumentUpload,
+  commitDocument,
+  listDocuments,
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
@@ -158,19 +161,37 @@ realEstateRouter.delete("/contracts/:id", async (req: any, res) => {
 });
 
 // Documents (stubs)
-realEstateRouter.post("/documents/init-upload", (req: any, res) => {
-  documentInitUploadSchema.parse(req.body);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.post("/documents/init-upload", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentInitUploadSchema.parse(req.body);
+    const result = await initDocumentUpload(tenantId, parsed, req.user);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    next(err);
+  }
 });
 
-realEstateRouter.post("/documents/commit", (req: any, res) => {
-  documentCommitSchema.parse(req.body);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.post("/documents/commit", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentCommitSchema.parse(req.body);
+    const document = await commitDocument(tenantId, parsed, req.user);
+    res.json({ ok: true, document });
+  } catch (err) {
+    next(err);
+  }
 });
 
-realEstateRouter.get("/documents", (req: any, res) => {
-  documentListQuerySchema.parse(req.query);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.get("/documents", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentListQuerySchema.parse(req.query);
+    const documents = await listDocuments(tenantId, parsed);
+    res.json({ ok: true, documents });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Statements (stubs)

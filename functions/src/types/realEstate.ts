@@ -29,6 +29,7 @@ export const documentSchema = z.object({
   createdBy: z.string(),
   updatedAt: z.string(),
   updatedBy: z.string(),
+  versionKey: z.string().optional(),
 });
 
 export type RealEstateDocument = z.infer<typeof documentSchema>;
