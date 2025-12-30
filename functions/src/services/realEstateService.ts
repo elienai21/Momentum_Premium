@@ -6,7 +6,9 @@ import {
   documentInitUploadSchema,
   documentListQuerySchema,
   RealEstateDocument,
+  OwnerStatement,
 } from "../types/realEstate";
+import { generateStatementSchema } from "../types/realEstate";
 
 export type Owner = {
   id: string;
@@ -133,6 +135,9 @@ function statementsCol(tenantId: string) {
 }
 function buildingsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_buildings`);
+}
+function transactionsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/transactions`);
 }
 function documentsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/documents`);
@@ -368,6 +373,234 @@ export async function listDocuments(
 // ============================================================
 // 📄 Contracts CRUD
 // ============================================================
+
+type StatementTotals = {
+  income: number;
+  expenses: number;
+  fees: number;
+  net: number;
+};
+
+function parsePeriodRange(period: string): { start: Date; end: Date } {
+  const [yearStr, monthStr] = period.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr) - 1;
+  const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59));
+  return { start, end };
+}
+
+function formatBRL(n: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+  }).format(n);
+}
+
+async function buildStatementHtml(
+  ownerId: string,
+  period: string,
+  totals: StatementTotals,
+  transactions: Array<{ date: string; description: string; amount: number }>
+): Promise<string> {
+  const rows = transactions
+    .map(
+      (t) => `<tr>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${t.date}</td>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${t.description}</td>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0; text-align:right;">${formatBRL(
+        t.amount
+      )}</td>
+      </tr>`
+    )
+    .join("");
+
+  return `
+  <html>
+    <head>
+      <meta charset="UTF-8" />
+      <title>Extrato ${period} - ${ownerId}</title>
+    </head>
+    <body style="font-family: Inter, Arial, sans-serif; background: #0f172a; padding: 24px; color: #0f172a;">
+      <div style="max-width: 960px; margin: 0 auto; background: #f8fafc; border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(15,23,42,0.15);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+          <div>
+            <p style="text-transform: uppercase; font-size: 11px; color: #64748b; letter-spacing: 1px; margin: 0;">Momentum • Real Estate</p>
+            <h1 style="font-size: 20px; margin: 4px 0 0 0; color: #0f172a;">Extrato do Proprietário</h1>
+            <p style="color: #475569; margin: 4px 0 0 0;">Período: ${period}</p>
+          </div>
+          <div style="height: 40px; width: 40px; border-radius: 12px; background: #0ea5e9; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800;">M</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 12px; margin-bottom: 20px;">
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Receitas</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0;">${formatBRL(
+              totals.income
+            )}</p>
+          </div>
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Despesas</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#ef4444;">${formatBRL(
+              totals.expenses
+            )}</p>
+          </div>
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Taxa de Administração</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#f97316;">${formatBRL(
+              totals.fees
+            )}</p>
+          </div>
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Repasse Líquido</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#0ea5e9;">${formatBRL(
+              totals.net
+            )}</p>
+          </div>
+        </div>
+
+        <table style="width:100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <thead style="background: #f1f5f9; text-align: left;">
+            <tr>
+              <th style="padding:10px; font-size:12px; color:#475569;">Data</th>
+              <th style="padding:10px; font-size:12px; color:#475569;">Descrição</th>
+              <th style="padding:10px; font-size:12px; color:#475569; text-align:right;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    </body>
+  </html>
+  `;
+}
+
+export async function generateOwnerStatement(
+  tenantId: string,
+  ownerId: string,
+  period: string,
+  generatedBy?: string
+): Promise<OwnerStatement & { htmlUrl?: string }> {
+  generateStatementSchema.parse({ ownerId, period });
+  const { start, end } = parsePeriodRange(period);
+  const unitsSnap = await unitsCol(tenantId).where("ownerId", "==", ownerId).get();
+  const unitIds = unitsSnap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => d.id);
+
+  const existingSnap = await statementsCol(tenantId)
+    .where("idempotencyKey", "==", `${tenantId}:${ownerId}:${period}`)
+    .limit(1)
+    .get();
+
+  const bucket = storage.bucket();
+
+  if (!existingSnap.empty) {
+    const existing = existingSnap.docs[0].data() as OwnerStatement;
+    const file = bucket.file(existing.htmlPath || "");
+    const [url] = existing.htmlPath
+      ? await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 15 * 60 * 1000 })
+      : [undefined];
+    return { ...existing, htmlUrl: url };
+  }
+
+  const transactionsQuery = transactionsCol(tenantId)
+    .orderBy("date", "desc")
+    .where("date", ">=", start.toISOString().slice(0, 10))
+    .where("date", "<=", end.toISOString().slice(0, 10));
+
+  const txSnap = await transactionsQuery.get().catch(async () => {
+    const fallback = await transactionsCol(tenantId).orderBy("date", "desc").limit(500).get();
+    return fallback;
+  });
+
+  const filtered: Array<{ date: string; description: string; amount: number; unitId?: string }> = [];
+  txSnap.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+    const data = doc.data() as any;
+    if (unitIds.length && data.unitId && !unitIds.includes(data.unitId)) return;
+    const dateStr = data.date || data.dueDate || data.createdAt || doc.createTime?.toDate().toISOString();
+    if (!dateStr) return;
+    const iso = new Date(dateStr).toISOString().slice(0, 10);
+    if (iso < start.toISOString().slice(0, 10) || iso > end.toISOString().slice(0, 10)) return;
+    filtered.push({
+      date: iso,
+      description: data.description || data.title || "Transação",
+      amount: Number(data.amount ?? 0),
+      unitId: data.unitId,
+    });
+  });
+
+  let income = 0;
+  let expenses = 0;
+  filtered.forEach((t) => {
+    if (t.amount >= 0) income += t.amount;
+    else expenses += Math.abs(t.amount);
+  });
+  const fees = income * 0.1;
+  const net = income - expenses - fees;
+
+  const html = await buildStatementHtml(ownerId, period, { income, expenses, fees, net }, filtered);
+  const storagePath = `tenants/${tenantId}/statements/${ownerId}/${period}.html`;
+  const file = bucket.file(storagePath);
+  await file.save(html, { contentType: "text/html" });
+
+  const [htmlUrl] = await file.getSignedUrl({
+    version: "v4",
+    action: "read",
+    expires: Date.now() + 15 * 60 * 1000,
+  });
+
+  const now = new Date().toISOString();
+  const statement: OwnerStatement = {
+    id: `${ownerId}-${period}`,
+    tenantId,
+    ownerId,
+    period,
+    unitIds,
+    totals: { income, expenses, fees, net },
+    generatedAt: now,
+    generatedBy: generatedBy || "system",
+    htmlPath: storagePath,
+    pdfPath: undefined,
+    status: "ready",
+    idempotencyKey: `${tenantId}:${ownerId}:${period}`,
+  };
+
+  await statementsCol(tenantId).doc(statement.id).set(statement);
+  return { ...statement, htmlUrl };
+}
+
+export async function listOwnerStatements(
+  tenantId: string,
+  ownerId?: string
+): Promise<Array<OwnerStatement & { htmlUrl?: string }>> {
+  let ref = statementsCol(tenantId).orderBy("generatedAt", "desc") as FirebaseFirestore.Query;
+  if (ownerId) {
+    ref = ref.where("ownerId", "==", ownerId);
+  }
+  const snap = await ref.limit(50).get();
+  const bucket = storage.bucket();
+
+  const results: Array<OwnerStatement & { htmlUrl?: string }> = [];
+  for (let i = 0; i < snap.docs.length; i++) {
+    const doc = snap.docs[i] as FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>;
+    const data = doc.data() as OwnerStatement;
+    let htmlUrl: string | undefined;
+    if (data.htmlPath) {
+      const file = bucket.file(data.htmlPath);
+      const [url] = await file.getSignedUrl({
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 15 * 60 * 1000,
+      });
+      htmlUrl = url;
+    }
+    results.push({ ...data, htmlUrl });
+  }
+
+  return results;
+}
 
 export async function listContracts(
   tenantId: string,

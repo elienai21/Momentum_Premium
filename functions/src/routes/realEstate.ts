@@ -17,6 +17,8 @@ import {
   initDocumentUpload,
   commitDocument,
   listDocuments,
+  generateOwnerStatement,
+  listOwnerStatements,
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
@@ -195,14 +197,31 @@ realEstateRouter.get("/documents", async (req: any, res, next) => {
 });
 
 // Statements (stubs)
-realEstateRouter.post("/statements/generate", (req: any, res) => {
-  generateStatementSchema.parse(req.body);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.post("/statements/generate", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = generateStatementSchema.parse(req.body);
+    const statement = await generateOwnerStatement(
+      tenantId,
+      parsed.ownerId,
+      parsed.period,
+      req.user?.uid
+    );
+    res.json({ ok: true, statement });
+  } catch (err) {
+    next(err);
+  }
 });
 
-realEstateRouter.get("/statements", (req: any, res) => {
-  statementListQuerySchema.parse(req.query);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.get("/statements", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = statementListQuerySchema.parse(req.query);
+    const statements = await listOwnerStatements(tenantId, parsed.ownerId);
+    res.json({ ok: true, statements });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Receivables & analytics (stubs)

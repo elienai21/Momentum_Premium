@@ -161,6 +161,22 @@ export interface RealEstateDocument {
   createdAt: string;
 }
 
+export interface OwnerStatement {
+  id: string;
+  ownerId: string;
+  period: string;
+  totals: {
+    income: number;
+    expenses: number;
+    fees: number;
+    net: number;
+  };
+  status: "ready" | "failed";
+  htmlPath?: string;
+  htmlUrl?: string;
+  generatedAt?: string;
+}
+
 // Pass 0 stubs for upcoming GED/Financial features
 export const realEstateApi = {
   // existing helpers can stay exported individually above
@@ -239,6 +255,19 @@ export const realEstateApi = {
   analytics: {
     getAging: async (_params: unknown) => {
       return null as any;
+    },
+  },
+  financial: {
+    getReceivables: async () => {
+      return [];
+    },
+    generateStatement: async (ownerId: string, period: string) => {
+      const res = await api.post("/realestate/statements/generate", { ownerId, period });
+      return res.data as { ok: boolean; statement: OwnerStatement };
+    },
+    listStatements: async (ownerId: string) => {
+      const res = await api.get(`/realestate/statements?ownerId=${ownerId}`);
+      return res.data.statements as OwnerStatement[];
     },
   },
 };
