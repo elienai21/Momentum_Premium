@@ -5,7 +5,7 @@
 // ============================
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const https_1 = require("firebase-functions/v2/https");
 const logger_1 = require("../utils/logger");

@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processHealthAlerts = void 0;
 exports.sendHealthAlerts = sendHealthAlerts;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 async function sendHealthAlerts(...args) {
     const userId = args[0];

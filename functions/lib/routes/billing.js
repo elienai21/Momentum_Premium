@@ -3,18 +3,21 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.billingRouter = void 0;
 // functions/src/routes/billing.ts
 const express_1 = require("express");
+const zod_1 = require("zod");
 const errors_1 = require("../utils/errors");
 const creditsService_1 = require("../billing/creditsService");
-const zod_1 = require("zod");
-const usageTracker_1 = require("src/utils/usageTracker");
-const firebase_1 = require("src/services/firebase");
+const usageTracker_1 = require("../utils/usageTracker");
+const firebase_1 = require("../services/firebase");
 const stripeBilling_1 = require("../billing/stripeBilling");
+const requireAuth_1 = require("../middleware/requireAuth");
+const withTenant_1 = require("../middleware/withTenant");
+const subscriptionItemGuard_1 = require("../utils/subscriptionItemGuard");
 exports.billingRouter = (0, express_1.Router)();
-// ... existing code ...
+exports.billingRouter.use(requireAuth_1.requireAuth, withTenant_1.withTenant);
 // GET /api/billing/portal - Redirect to Stripe Customer Portal
 exports.billingRouter.get("/portal", async (req, res, next) => {
     try {
-        if (!req.tenant)
+        if (!req.tenant || !req.user)
             throw new errors_1.ApiError(400, "Tenant context required");
         const tenantId = req.tenant.info.id;
         const tenantDoc = await firebase_1.db.collection("tenants").doc(tenantId).get();
@@ -45,6 +48,8 @@ exports.billingRouter.get("/portal", async (req, res, next) => {
 // POST /api/billing/report (Stripe usage)
 const handleReportUsage = async (req, res, next) => {
     try {
+        if (!req.tenant || !req.user)
+            throw new errors_1.ApiError(400, "Tenant context required");
         const schema = zod_1.z.union([
             zod_1.z.object({
                 subscriptionItemId: zod_1.z.string().min(1),
@@ -63,6 +68,15 @@ const handleReportUsage = async (req, res, next) => {
         }
         const subscriptionItemId = parsed.data.subscriptionItemId;
         const amountCents = "amountCents" in parsed.data ? parsed.data.amountCents : parsed.data.tokens;
+        const tenantId = req.tenant.info.id;
+        const belongsToTenant = await (0, subscriptionItemGuard_1.subscriptionItemBelongsToTenant)(tenantId, subscriptionItemId);
+        if (!belongsToTenant) {
+            return res.status(403).json({
+                ok: false,
+                error: "Subscription item does not belong to tenant",
+                code: "INVALID_SUBSCRIPTION_ITEM",
+            });
+        }
         await (0, usageTracker_1.reportUsageToStripe)(subscriptionItemId, amountCents);
         return res.status(200).json({ status: "ok" });
     }
@@ -76,7 +90,7 @@ exports.billingRouter.post("/report", handleReportUsage);
 // GET /api/billing/credits
 exports.billingRouter.get("/credits", async (req, res, next) => {
     try {
-        if (!req.tenant)
+        if (!req.tenant || !req.user)
             throw new errors_1.ApiError(400, "Tenant context required");
         const tenantId = req.tenant.info.id;
         const planId = (req.tenant.info.plan || "starter");
@@ -99,7 +113,7 @@ exports.billingRouter.get("/credits", async (req, res, next) => {
 // GET /api/billing/usage-logs - Lista logs de uso para exibição no Settings
 exports.billingRouter.get("/usage-logs", async (req, res, next) => {
     try {
-        if (!req.tenant)
+        if (!req.tenant || !req.user)
             throw new errors_1.ApiError(400, "Tenant context required");
         const tenantId = req.tenant.info.id;
         const limit = Math.min(parseInt(req.query.limit) || 20, 100);
