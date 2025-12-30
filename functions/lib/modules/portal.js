@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.portalRouter = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const express_1 = require("express");
 // FIX: Add import for type augmentations
 require("../types");
