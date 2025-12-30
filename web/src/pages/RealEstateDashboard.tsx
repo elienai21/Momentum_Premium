@@ -33,6 +33,7 @@ import {
 import { NewPropertyModal } from "../components/realEstate/NewPropertyModal";
 import { NewOwnerModal } from "../components/realEstate/NewOwnerModal";
 import { NewBuildingModal } from "../components/realEstate/NewBuildingModal";
+import { DocumentsPanel } from "../components/realEstate/DocumentsPanel";
 
 // Primitives
 import { GlassPanel } from "../components/ui/GlassPanel";
@@ -409,108 +410,114 @@ export default function RealEstateDashboard() {
       </div>
 
       {selectedUnit && (
-        <GlassPanel className="p-6">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <Home size={18} className="text-primary" />
-                {selectedUnit.name || selectedUnit.code}
-              </h3>
-              <p className="text-xs text-slate-500">Contrato ativo e status do inquilino.</p>
-            </div>
-            <Badge variant={selectedUnit.active ? "success" : "neutral"}>
-              {selectedUnit.active ? "Ativa" : "Inativa"}
-            </Badge>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <GlassPanel className="p-4 border border-slate-200/70">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-bold text-slate-800">Contrato Ativo</h4>
-                {isExpiringSoon && (
-                  <Badge variant="warning">Vencendo em breve</Badge>
-                )}
+        <>
+          <GlassPanel className="p-6">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <Home size={18} className="text-primary" />
+                  {selectedUnit.name || selectedUnit.code}
+                </h3>
+                <p className="text-xs text-slate-500">Contrato ativo e status do inquilino.</p>
               </div>
-              {activeContract ? (
-                <div className="space-y-2 text-sm text-slate-700">
-                  <p><span className="font-semibold">Inquilino:</span> {activeContract.tenantName}</p>
-                  <p><span className="font-semibold">Período:</span> {activeContract.startDate} → {activeContract.endDate}</p>
-                  <p><span className="font-semibold">Aluguel:</span> {currency(activeContract.rentAmount)}</p>
-                  {activeContract.readjustmentIndex && (
-                    <p><span className="font-semibold">Índice:</span> {activeContract.readjustmentIndex}</p>
+              <Badge variant={selectedUnit.active ? "success" : "neutral"}>
+                {selectedUnit.active ? "Ativa" : "Inativa"}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <GlassPanel className="p-4 border border-slate-200/70">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-slate-800">Contrato Ativo</h4>
+                  {isExpiringSoon && (
+                    <Badge variant="warning">Vencendo em breve</Badge>
                   )}
                 </div>
-              ) : (
-                <p className="text-sm text-slate-500">Nenhum contrato cadastrado para esta unidade.</p>
-              )}
-            </GlassPanel>
+                {activeContract ? (
+                  <div className="space-y-2 text-sm text-slate-700">
+                    <p><span className="font-semibold">Inquilino:</span> {activeContract.tenantName}</p>
+                    <p><span className="font-semibold">Período:</span> {activeContract.startDate} → {activeContract.endDate}</p>
+                    <p><span className="font-semibold">Aluguel:</span> {currency(activeContract.rentAmount)}</p>
+                    {activeContract.readjustmentIndex && (
+                      <p><span className="font-semibold">Índice:</span> {activeContract.readjustmentIndex}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">Nenhum contrato cadastrado para esta unidade.</p>
+                )}
+              </GlassPanel>
 
-            <GlassPanel className="p-4 border border-slate-200/70">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-bold text-slate-800">{activeContract ? "Renovar Contrato" : "Criar Contrato"}</h4>
-                {savingContract && <RefreshCw size={16} className="animate-spin text-slate-400" />}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="text-xs text-slate-500 font-semibold">
-                  Inquilino
-                  <input
-                    type="text"
-                    value={contractDraft.tenantName || ""}
-                    onChange={(e) => setContractDraft((draft) => ({ ...draft, tenantName: e.target.value }))}
-                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs text-slate-500 font-semibold">
-                  Aluguel
-                  <input
-                    type="number"
-                    value={contractDraft.rentAmount ?? ""}
-                    onChange={(e) => setContractDraft((draft) => ({ ...draft, rentAmount: Number(e.target.value) }))}
-                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs text-slate-500 font-semibold">
-                  Início
-                  <input
-                    type="date"
-                    value={contractDraft.startDate || ""}
-                    onChange={(e) => setContractDraft((draft) => ({ ...draft, startDate: e.target.value }))}
-                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs text-slate-500 font-semibold">
-                  Fim
-                  <input
-                    type="date"
-                    value={contractDraft.endDate || ""}
-                    onChange={(e) => setContractDraft((draft) => ({ ...draft, endDate: e.target.value }))}
-                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                </label>
-                <label className="text-xs text-slate-500 font-semibold">
-                  Índice de Reajuste
-                  <select
-                    value={contractDraft.readjustmentIndex || "IGPM"}
-                    onChange={(e) => setContractDraft((draft) => ({ ...draft, readjustmentIndex: e.target.value }))}
-                    className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              <GlassPanel className="p-4 border border-slate-200/70">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-bold text-slate-800">{activeContract ? "Renovar Contrato" : "Criar Contrato"}</h4>
+                  {savingContract && <RefreshCw size={16} className="animate-spin text-slate-400" />}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <label className="text-xs text-slate-500 font-semibold">
+                    Inquilino
+                    <input
+                      type="text"
+                      value={contractDraft.tenantName || ""}
+                      onChange={(e) => setContractDraft((draft) => ({ ...draft, tenantName: e.target.value }))}
+                      className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs text-slate-500 font-semibold">
+                    Aluguel
+                    <input
+                      type="number"
+                      value={contractDraft.rentAmount ?? ""}
+                      onChange={(e) => setContractDraft((draft) => ({ ...draft, rentAmount: Number(e.target.value) }))}
+                      className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs text-slate-500 font-semibold">
+                    Início
+                    <input
+                      type="date"
+                      value={contractDraft.startDate || ""}
+                      onChange={(e) => setContractDraft((draft) => ({ ...draft, startDate: e.target.value }))}
+                      className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs text-slate-500 font-semibold">
+                    Fim
+                    <input
+                      type="date"
+                      value={contractDraft.endDate || ""}
+                      onChange={(e) => setContractDraft((draft) => ({ ...draft, endDate: e.target.value }))}
+                      className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="text-xs text-slate-500 font-semibold">
+                    Índice de Reajuste
+                    <select
+                      value={contractDraft.readjustmentIndex || "IGPM"}
+                      onChange={(e) => setContractDraft((draft) => ({ ...draft, readjustmentIndex: e.target.value }))}
+                      className="w-full mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    >
+                      <option value="IGPM">IGPM</option>
+                      <option value="IPCA">IPCA</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="flex justify-end mt-4">
+                  <button
+                    onClick={handleRenew}
+                    disabled={savingContract}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-blue-700 disabled:opacity-60"
                   >
-                    <option value="IGPM">IGPM</option>
-                    <option value="IPCA">IPCA</option>
-                  </select>
-                </label>
-              </div>
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={handleRenew}
-                  disabled={savingContract}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {activeContract ? "Renovar Contrato" : "Criar Contrato"}
-                </button>
-              </div>
-            </GlassPanel>
+                    {activeContract ? "Renovar Contrato" : "Criar Contrato"}
+                  </button>
+                </div>
+              </GlassPanel>
+            </div>
+          </GlassPanel>
+
+          <div className="mt-4">
+            <DocumentsPanel entityId={selectedUnit.id} entityType="unit" />
           </div>
-        </GlassPanel>
+        </>
       )}
 
       {/* Billing Preview Section */}

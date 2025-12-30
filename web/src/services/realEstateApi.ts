@@ -148,18 +148,76 @@ export interface RealEstatePayoutDoc {
   vivarePayout: number;
 }
 
+export interface RealEstateDocument {
+  id: string;
+  title: string;
+  docType: string;
+  fileName: string;
+  storagePath: string;
+  status: "active" | "archived";
+  version: number;
+  validUntil?: string | null;
+  downloadUrl?: string;
+  createdAt: string;
+}
+
 // Pass 0 stubs for upcoming GED/Financial features
 export const realEstateApi = {
   // existing helpers can stay exported individually above
   documents: {
-    initUpload: async (_data: unknown) => {
-      throw new Error("Pass 0");
+    initUpload: async (data: {
+      linkedEntityType: string;
+      linkedEntityId: string;
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      title: string;
+      docType: string;
+      validUntil?: string;
+      tags?: string[];
+      checksum?: string;
+    }) => {
+      const res = await api.post("/realestate/documents/init-upload", data);
+      return res.data as {
+        ok: boolean;
+        uploadUrl: string;
+        storagePath: string;
+        uploadSessionId: string;
+      };
     },
-    commit: async (_data: unknown) => {
-      throw new Error("Pass 0");
+    commit: async (data: {
+      uploadSessionId: string;
+      storagePath: string;
+      linkedEntityType: string;
+      linkedEntityId: string;
+      fileName: string;
+      mimeType: string;
+      sizeBytes: number;
+      title: string;
+      docType: string;
+      validUntil?: string;
+      tags?: string[];
+      checksum?: string;
+    }) => {
+      const res = await api.post("/realestate/documents/commit", data);
+      return res.data as { ok: boolean; document: RealEstateDocument };
     },
-    list: async (_filters: unknown) => {
-      return [] as any[];
+    list: async (filters: {
+      linkedEntityId?: string;
+      linkedEntityType?: string;
+      docType?: string;
+      status?: string;
+    }) => {
+      const params = new URLSearchParams();
+      Object.entries(filters || {}).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          params.append(key, String(value));
+        }
+      });
+      const res = await api.get<{ ok: boolean; documents: RealEstateDocument[] }>(
+        `/realestate/documents${params.toString() ? `?${params.toString()}` : ""}`
+      );
+      return res.data.documents;
     },
   },
   statements: {
