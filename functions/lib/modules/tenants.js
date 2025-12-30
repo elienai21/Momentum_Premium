@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.tenantsRouter = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const express_1 = require("express");
 // FIX: Add import for type augmentations
 require("../types");
@@ -125,8 +125,8 @@ exports.tenantsRouter.get('/members', requireAuth_1.requireAuth, withTenant_1.wi
             firebase_1.db.collection('tenants').doc(tenantId).collection('members').get(),
             firebase_1.db.collection('tenants').doc(tenantId).collection('invites').get()
         ]);
-        const members = membersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        const invites = invitesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const members = membersSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        const invites = invitesSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
         res.json({ status: 'success', data: { members, invites } });
     }
     catch (err) {

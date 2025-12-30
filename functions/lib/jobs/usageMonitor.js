@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.usageMonitor = void 0;
 // src/jobs/usageMonitor.ts
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const logger_1 = require("../utils/logger");
 /**

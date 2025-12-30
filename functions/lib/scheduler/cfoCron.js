@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.cfoNightly = void 0;
 // functions/src/scheduler/cfoCron.ts
 const scheduler_1 = require("firebase-functions/v2/scheduler");
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 const healthScore_1 = require("../cfo/healthScore");
 /**
