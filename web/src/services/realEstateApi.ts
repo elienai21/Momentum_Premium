@@ -177,6 +177,30 @@ export interface OwnerStatement {
   generatedAt?: string;
 }
 
+export interface Receivable {
+  id: string;
+  contractId: string;
+  unitId: string;
+  ownerId: string;
+  tenantName?: string;
+  period: string;
+  dueDate: string;
+  amount: number;
+  amountPaid: number;
+  status: "open" | "partial" | "paid" | "overdue" | "renegotiated";
+  paidAt?: string | null;
+}
+
+export interface AgingSnapshot {
+  asOfDate: string;
+  buckets: {
+    d0_30: { total: number; count: number };
+    d31_60: { total: number; count: number };
+    d61_90: { total: number; count: number };
+    d90_plus: { total: number; count: number };
+  };
+}
+
 // Pass 0 stubs for upcoming GED/Financial features
 export const realEstateApi = {
   // existing helpers can stay exported individually above
@@ -245,16 +269,35 @@ export const realEstateApi = {
     },
   },
   receivables: {
-    generateBatch: async (_data: unknown) => {
-      throw new Error("Pass 0");
+    generateBatch: async (period: string) => {
+      const res = await api.post("/realestate/receivables/generate-batch", { period });
+      return res.data as { ok: boolean; created: number };
     },
-    list: async (_filters: unknown) => {
-      return [] as any[];
+    list: async (filters: {
+      period?: string;
+      status?: string;
+      ownerId?: string;
+      unitId?: string;
+      contractId?: string;
+    }) => {
+      const params = new URLSearchParams();
+      Object.entries(filters || {}).forEach(([key, value]) => {
+        if (value) params.append(key, String(value));
+      });
+      const res = await api.get<{ ok: boolean; receivables: Receivable[] }>(
+        `/realestate/receivables${params.toString() ? `?${params.toString()}` : ""}`
+      );
+      return res.data.receivables;
+    },
+    recordPayment: async (id: string, amount: number, date: string) => {
+      const res = await api.post(`/realestate/receivables/${id}/payment`, { amount, date });
+      return res.data.receivable as Receivable;
     },
   },
   analytics: {
-    getAging: async (_params: unknown) => {
-      return null as any;
+    getAging: async () => {
+      const res = await api.get<{ ok: boolean; aging: AgingSnapshot }>(`/realestate/analytics/aging`);
+      return res.data.aging;
     },
   },
   financial: {

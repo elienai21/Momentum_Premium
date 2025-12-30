@@ -7,6 +7,8 @@ import {
   documentListQuerySchema,
   RealEstateDocument,
   OwnerStatement,
+  RealEstateReceivable,
+  receivableListQuerySchema,
 } from "../types/realEstate";
 import { generateStatementSchema } from "../types/realEstate";
 
@@ -138,6 +140,12 @@ function buildingsCol(tenantId: string) {
 }
 function transactionsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/transactions`);
+}
+function receivablesCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/receivables`);
+}
+function agingSnapshotDoc(tenantId: string) {
+  return db.doc(`tenants/${tenantId}/analytics/aging_snapshot`);
 }
 function documentsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/documents`);
@@ -371,7 +379,7 @@ export async function listDocuments(
 }
 
 // ============================================================
-// 📄 Contracts CRUD
+// 💰 Receivables & Aging
 // ============================================================
 
 type StatementTotals = {
@@ -601,6 +609,162 @@ export async function listOwnerStatements(
 
   return results;
 }
+
+export async function generateReceivablesBatch(
+  tenantId: string,
+  period: string
+): Promise<{ created: number }> {
+  const { start, end } = parsePeriodRange(period);
+  const unitsSnap = await unitsCol(tenantId).get();
+  const unitsById = new Map<string, Unit>();
+  unitsSnap.forEach((u: FirebaseFirestore.QueryDocumentSnapshot) =>
+    unitsById.set(u.id, { id: u.id, ...(u.data() as any) })
+  );
+  const contractsSnap = await contractsCol(tenantId).get();
+  const receivablesRef = receivablesCol(tenantId);
+  const now = new Date().toISOString();
+
+  let created = 0;
+  for (const contractDoc of contractsSnap.docs) {
+    const contract = contractDoc.data() as Contract;
+    const contractStart = new Date(contract.startDate);
+    const contractEnd = new Date(contract.endDate);
+    if (contractStart > end || contractEnd < start) continue;
+
+    const existing = await receivablesRef
+      .where("contractId", "==", contractDoc.id)
+      .where("period", "==", period)
+      .limit(1)
+      .get();
+    if (!existing.empty) continue;
+
+    const dueDate = `${period}-10`;
+    const unit = unitsById.get(contract.unitId);
+    const payload: Omit<RealEstateReceivable, "id"> = {
+      tenantId,
+      contractId: contractDoc.id,
+      unitId: contract.unitId,
+      ownerId: unit?.ownerId || "",
+      tenantName: contract.tenantName,
+      period,
+      dueDate,
+      amount: contract.rentAmount,
+      amountPaid: 0,
+      status: "open",
+      paidAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await receivablesRef.add(payload);
+    created += 1;
+  }
+
+  return { created };
+}
+
+export async function recordPayment(
+  tenantId: string,
+  receivableId: string,
+  amount: number,
+  paidAt: string
+): Promise<RealEstateReceivable> {
+  const ref = receivablesCol(tenantId).doc(receivableId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw Object.assign(new Error("receivable_not_found"), { statusCode: 404 });
+  }
+  const data = snap.data() as RealEstateReceivable;
+  const newAmountPaid = (data.amountPaid || 0) + amount;
+  const status = newAmountPaid >= data.amount ? "paid" : "partial";
+  const updated: Partial<RealEstateReceivable> = {
+    amountPaid: newAmountPaid,
+    status,
+    paidAt,
+    updatedAt: new Date().toISOString(),
+  };
+  await ref.update(updated);
+  return { ...data, ...updated, id: receivableId };
+}
+
+type AgingBuckets = {
+  d0_30: { total: number; count: number };
+  d31_60: { total: number; count: number };
+  d61_90: { total: number; count: number };
+  d90_plus: { total: number; count: number };
+};
+
+export async function calculateAgingSnapshot(
+  tenantId: string
+): Promise<{ asOfDate: string; buckets: AgingBuckets }> {
+  const snap = await receivablesCol(tenantId)
+    .where("status", "in", ["open", "overdue", "partial"])
+    .get();
+
+  const buckets: AgingBuckets = {
+    d0_30: { total: 0, count: 0 },
+    d31_60: { total: 0, count: 0 },
+    d61_90: { total: 0, count: 0 },
+    d90_plus: { total: 0, count: 0 },
+  };
+
+  const today = new Date();
+  snap.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+    const data = doc.data() as RealEstateReceivable;
+    const outstanding = Math.max(0, data.amount - (data.amountPaid || 0));
+    if (outstanding <= 0) return;
+    const due = new Date(data.dueDate);
+    const diffDays = Math.max(
+      0,
+      Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24))
+    );
+
+    let bucketKey: keyof AgingBuckets = "d0_30";
+    if (diffDays > 90) bucketKey = "d90_plus";
+    else if (diffDays > 60) bucketKey = "d61_90";
+    else if (diffDays > 30) bucketKey = "d31_60";
+
+    buckets[bucketKey].count += 1;
+    buckets[bucketKey].total += outstanding;
+  });
+
+  const asOfDate = today.toISOString().slice(0, 10);
+  await agingSnapshotDoc(tenantId).set({
+    asOfDate,
+    buckets,
+    updatedAt: new Date().toISOString(),
+  });
+
+  return { asOfDate, buckets };
+}
+
+export async function getAgingSnapshot(
+  tenantId: string
+): Promise<{ asOfDate: string; buckets: AgingBuckets } | null> {
+  const snap = await agingSnapshotDoc(tenantId).get();
+  if (!snap.exists) return null;
+  return snap.data() as { asOfDate: string; buckets: AgingBuckets };
+}
+
+export async function listReceivables(
+  tenantId: string,
+  filters: any
+): Promise<RealEstateReceivable[]> {
+  const parsed = receivableListQuerySchema.parse(filters);
+  let ref = receivablesCol(tenantId) as FirebaseFirestore.Query;
+  if (parsed.period) ref = ref.where("period", "==", parsed.period);
+  if (parsed.status) ref = ref.where("status", "==", parsed.status);
+  if (parsed.ownerId) ref = ref.where("ownerId", "==", parsed.ownerId);
+  if (parsed.unitId) ref = ref.where("unitId", "==", parsed.unitId);
+  if (parsed.contractId) ref = ref.where("contractId", "==", parsed.contractId);
+
+  ref = ref.orderBy("dueDate", "desc").limit(parsed.limit ?? 100);
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as RealEstateReceivable[];
+}
+
+// ============================================================
+// 📄 Contracts CRUD
+// ============================================================
 
 export async function listContracts(
   tenantId: string,

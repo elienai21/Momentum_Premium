@@ -19,6 +19,11 @@ import {
   listDocuments,
   generateOwnerStatement,
   listOwnerStatements,
+  generateReceivablesBatch,
+  recordPayment,
+  listReceivables,
+  calculateAgingSnapshot,
+  getAgingSnapshot,
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
@@ -225,19 +230,57 @@ realEstateRouter.get("/statements", async (req: any, res, next) => {
 });
 
 // Receivables & analytics (stubs)
-realEstateRouter.post("/receivables/generate-batch", (req: any, res) => {
-  receivableGenerateBatchSchema.parse(req.body);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.post("/receivables/generate-batch", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = receivableGenerateBatchSchema.parse(req.body);
+    const result = await generateReceivablesBatch(tenantId, parsed.period);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    next(err);
+  }
 });
 
-realEstateRouter.get("/receivables", (req: any, res) => {
-  receivableListQuerySchema.parse(req.query);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.get("/receivables", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = receivableListQuerySchema.parse(req.query);
+    const receivables = await listReceivables(tenantId, parsed);
+    res.json({ ok: true, receivables });
+  } catch (err) {
+    next(err);
+  }
 });
 
-realEstateRouter.get("/analytics/aging", (req: any, res) => {
-  agingAnalyticsQuerySchema.parse(req.query);
-  res.status(501).json({ message: "Not implemented in Pass 0" });
+realEstateRouter.post("/receivables/:id/payment", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const bodySchema = z.object({
+      amount: z.number().positive(),
+      date: z.string().min(1),
+    });
+    const parsed = bodySchema.parse(req.body);
+    const receivable = await recordPayment(tenantId, req.params.id, parsed.amount, parsed.date);
+    res.json({ ok: true, receivable });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.get("/analytics/aging", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    agingAnalyticsQuerySchema.parse(req.query ?? {});
+    const existing = await getAgingSnapshot(tenantId);
+    if (existing) {
+      res.json({ ok: true, aging: existing });
+      return;
+    }
+    const aging = await calculateAgingSnapshot(tenantId);
+    res.json({ ok: true, aging });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default realEstateRouter;

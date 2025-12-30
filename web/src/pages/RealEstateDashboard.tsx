@@ -35,6 +35,7 @@ import { NewOwnerModal } from "../components/realEstate/NewOwnerModal";
 import { NewBuildingModal } from "../components/realEstate/NewBuildingModal";
 import { DocumentsPanel } from "../components/realEstate/DocumentsPanel";
 import { StatementsPanel } from "../components/realEstate/StatementsPanel";
+import { ReceivablesPanel } from "../components/realEstate/ReceivablesPanel";
 
 // Primitives
 import { GlassPanel } from "../components/ui/GlassPanel";
@@ -520,6 +521,9 @@ export default function RealEstateDashboard() {
           </div>
           <div className="mt-4">
             <StatementsPanel ownerId={selectedUnit.ownerId} />
+          </div>
+          <div className="mt-4">
+            <ReceivablesPanel unitId={selectedUnit.id} ownerId={selectedUnit.ownerId} />
           </div>
         </>
       )}
