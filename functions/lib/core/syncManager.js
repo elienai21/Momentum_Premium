@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.syncSheets = syncSheets;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const sheets_1 = require("./adapters/sheets");
 const logger_1 = require("../utils/logger");
 async function syncSheets(tenantId) {

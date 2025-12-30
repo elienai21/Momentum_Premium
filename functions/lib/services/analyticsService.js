@@ -4,7 +4,7 @@ exports.getForecastForTenant = getForecastForTenant;
 exports.filterTransactions = filterTransactions;
 // functions/src/services/analyticsService.ts
 const firestore_1 = require("firebase-admin/firestore");
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 /**
  * Normaliza qualquer coisa em Date:
