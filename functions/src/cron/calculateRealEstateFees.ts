@@ -28,6 +28,7 @@ export const calculateRealEstateFees = onSchedule(
     {
         schedule: "0 3 * * *", // Daily at 3 AM
         timeZone: "America/Sao_Paulo",
+        region: "southamerica-east1",
         memory: "256MiB",
     },
     async () => {

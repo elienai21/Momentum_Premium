@@ -25,7 +25,10 @@ function getStripeClient(): Stripe {
 
 // FIX: Explicitly type request object and infer response object to resolve import error.
 export const stripeWebhook = onRequest(
-  { secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET] },
+  {
+    secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],
+    region: "southamerica-east1"
+  },
   async (req: Request, res) => {
     const sig = req.headers["stripe-signature"];
     let event: Stripe.Event;

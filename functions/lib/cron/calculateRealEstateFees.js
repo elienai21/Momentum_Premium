@@ -20,6 +20,7 @@ const OWNER_FEE = 10; // R$ por proprietário
 exports.calculateRealEstateFees = (0, scheduler_1.onSchedule)({
     schedule: "0 3 * * *", // Daily at 3 AM
     timeZone: "America/Sao_Paulo",
+    region: "southamerica-east1",
     memory: "256MiB",
 }, async () => {
     console.log("[CRON] Starting Real Estate fees calculation...");

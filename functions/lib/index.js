@@ -35,9 +35,16 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.apiV2 = exports.expressApp = exports.dailyAging = exports.analyticsAggregator = exports.stripeWebhook = exports.calculateRealEstateFees = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
 // functions/src/index.ts
+const v2_1 = require("firebase-functions/v2");
+// Configuração global Regions v2 - Deve vir ANTES dos exports
+(0, v2_1.setGlobalOptions)({
+    region: "southamerica-east1",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    maxInstances: 10,
+});
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
-const v2_1 = require("firebase-functions/v2");
 const createExpressApp_1 = require("./app/createExpressApp");
 // Exports de schedulers/triggers
 var cfoCron_1 = require("./scheduler/cfoCron");
@@ -62,13 +69,6 @@ try {
 catch {
     admin.initializeApp();
 }
-// Configuração global Functions v2
-(0, v2_1.setGlobalOptions)({
-    region: "southamerica-east1",
-    timeoutSeconds: 120,
-    memory: "512MiB",
-    maxInstances: 10,
-});
 // Express app (puro, sem side-effects extra)
 exports.expressApp = (0, createExpressApp_1.createExpressApp)();
 // Entrypoint HTTP
