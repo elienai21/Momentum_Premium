@@ -36,7 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.reconcileStripeAndCreditsForTenant = reconcileStripeAndCreditsForTenant;
 // functions/src/billing/reconcileStripe.ts
 const stripeModule = __importStar(require("./stripeBilling")); // importa o módulo inteiro, independente de como ele exporta
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 /**
  * Tenta recuperar a instância do Stripe exportada pelo módulo stripeBilling.

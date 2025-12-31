@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.usersRouter = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const express_1 = require("express");
 const requireAuth_1 = require("../middleware/requireAuth");
 const logger_1 = require("../utils/logger");

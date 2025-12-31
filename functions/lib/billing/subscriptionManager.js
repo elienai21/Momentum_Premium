@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.stripeWebhook = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const https_1 = require("firebase-functions/v2/https");
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");

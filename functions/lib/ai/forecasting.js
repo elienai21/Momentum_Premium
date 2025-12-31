@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getForecast = getForecast;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 const aiClient_1 = require("../utils/aiClient");
 async function getForecast(tenantId, transactions) {
