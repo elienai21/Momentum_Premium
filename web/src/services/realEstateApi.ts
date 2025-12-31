@@ -201,7 +201,7 @@ export interface AgingSnapshot {
   };
 }
 
-// Pass 0 stubs for upcoming GED/Financial features
+// Real Estate API helpers
 export const realEstateApi = {
   // existing helpers can stay exported individually above
   documents: {
@@ -258,14 +258,6 @@ export const realEstateApi = {
         `/realestate/documents${params.toString() ? `?${params.toString()}` : ""}`
       );
       return res.data.documents;
-    },
-  },
-  statements: {
-    generate: async (_data: unknown) => {
-      throw new Error("Pass 0");
-    },
-    list: async (_filters: unknown) => {
-      return [] as any[];
     },
   },
   receivables: {
