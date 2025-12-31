@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.voiceRouter = void 0;
 // functions/src/routes/voice.ts
 const express_1 = require("express");
 const zod_1 = require("zod");
+const multer_1 = __importDefault(require("multer"));
 const ttsService_1 = require("../services/ttsService");
 const sttService_1 = require("../services/sttService");
 const aiClient_1 = require("../utils/aiClient");
@@ -16,6 +20,7 @@ const logger_1 = require("../utils/logger");
 const chargeCredits_1 = require("../billing/chargeCredits");
 const voiceRouter = (0, express_1.Router)();
 exports.voiceRouter = voiceRouter;
+const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 // 🔒 Flag de ambiente: voz só em DEV (ou se VOICE_FEATURE_ENABLED=true)
 const VOICE_ENABLED = process.env.NODE_ENV !== "production" ||
     process.env.VOICE_FEATURE_ENABLED === "true";
@@ -79,16 +84,16 @@ voiceRouter.post("/tts", async (req, res) => {
 });
 // -----------------------------
 // POST /api/voice/stt
-// Body: { gcsUri: string; languageCode?: string }
+// Body: multipart/form-data com field "file"; languageCode opcional
 // -----------------------------
-voiceRouter.post("/stt", async (req, res) => {
-    const { gcsUri, languageCode = "pt-BR" } = req.body || {};
-    if (!gcsUri || typeof gcsUri !== "string") {
-        res.status(400).json({ error: "Campo 'gcsUri' é obrigatório." });
-        return;
-    }
+voiceRouter.post("/stt", upload.single("file"), async (req, res) => {
+    const file = req.file;
     const tenantId = req.tenant?.info?.id || "anon";
     const plan = (req.tenant?.info?.plan || "starter");
+    if (!file?.buffer) {
+        res.status(400).json({ error: "Arquivo de áudio é obrigatório." });
+        return;
+    }
     try {
         const result = await (0, chargeCredits_1.chargeCredits)({
             tenantId,
@@ -97,14 +102,9 @@ voiceRouter.post("/stt", async (req, res) => {
             traceId: req.traceId,
             idempotencyKey: req.header("x-idempotency-key"),
         }, async () => {
-            return await (0, sttService_1.transcribeFromGcs)({
-                tenantId,
-                gcsUri,
-                languageCode,
-            });
+            return await (0, sttService_1.transcribeAudio)(file.buffer, file.mimetype || "audio/webm");
         });
-        // result esperado: { text: string }
-        res.status(200).json({ transcript: result.text });
+        res.status(200).json({ transcript: result });
     }
     catch (err) {
         const code = err?.code || "STT_ERROR";

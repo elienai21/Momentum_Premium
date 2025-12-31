@@ -1,56 +1,76 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.transcribeFromGcs = transcribeFromGcs;
-// functions/src/services/sttService.ts
-const speech_1 = __importDefault(require("@google-cloud/speech"));
-const storage_1 = require("@google-cloud/storage");
-// import { logger } from "../utils/logger";
-// Lazy init dos clients de STT (Speech-to-Text) e Storage
-let speechClient = null;
-let storageClient = null;
-function getSttClients() {
-    if (!speechClient) {
-        speechClient = new speech_1.default.SpeechClient();
-    }
-    if (!storageClient) {
-        storageClient = new storage_1.Storage();
-    }
-    return { client: speechClient, storage: storageClient };
-}
-const bucketName = process.env.VOICE_BUCKET || "";
-function ensureBucket() {
-    if (!bucketName) {
-        // logger?.warn?.("VOICE_BUCKET não configurado; STT desativado neste ambiente");
-        throw Object.assign(new Error("STT não configurado (VOICE_BUCKET ausente)"), {
-            code: "VOICE_DISABLED",
-            status: 503,
+exports.transcribeAudio = transcribeAudio;
+const openai_1 = __importDefault(require("openai"));
+const fs = __importStar(require("fs/promises"));
+const fs_1 = require("fs");
+const os = __importStar(require("os"));
+const path = __importStar(require("path"));
+const logger_1 = require("../utils/logger");
+// Inicializa OpenAI (garanta que a chave esteja no .env ou config)
+const openai = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
+async function transcribeAudio(audioBuffer, mimeType) {
+    // Cria arquivo temporário preservando uma extensão compatível
+    const ext = mimeType?.includes("mp4") ? "mp4" : "webm";
+    const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.${ext}`);
+    try {
+        await fs.writeFile(tempFilePath, audioBuffer);
+        const response = await openai.audio.transcriptions.create({
+            file: (0, fs_1.createReadStream)(tempFilePath),
+            model: "whisper-1",
+            language: "pt",
+            temperature: 0.2,
         });
+        return response.text || "";
     }
-    return bucketName;
-}
-async function transcribeFromGcs(params) {
-    const { gcsUri, languageCode = "pt-BR" } = params;
-    if (!gcsUri) {
-        throw new Error("gcsUri é obrigatório para STT");
+    catch (error) {
+        logger_1.logger.error("❌ Erro no Whisper STT:", error);
+        throw new Error("Não foi possível transcrever o áudio.");
     }
-    ensureBucket(); // só valida config; se quiser, pode validar prefixo do gcsUri também
-    const { client } = getSttClients();
-    const [operation] = await client.longRunningRecognize({
-        audio: { uri: gcsUri },
-        config: {
-            languageCode,
-            encoding: "WEBM_OPUS",
-            enableAutomaticPunctuation: true,
-        },
-    });
-    const [response] = await operation.promise();
-    const transcription = (response.results || [])
-        .flatMap((r) => r.alternatives || [])
-        .map((a) => a.transcript)
-        .join(" ")
-        .trim();
-    return { text: transcription };
+    finally {
+        try {
+            if ((0, fs_1.existsSync)(tempFilePath)) {
+                await fs.unlink(tempFilePath);
+            }
+        }
+        catch (unlinkError) {
+            logger_1.logger.warn("⚠️ Falha ao remover arquivo temporário de áudio:", { error: unlinkError });
+        }
+    }
 }

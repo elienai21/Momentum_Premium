@@ -93,7 +93,7 @@ async function visionAI(req, res) {
             detectedType: "invoice",
         });
         logger_1.logger.info("📸 VisionAI processado com sucesso", { uid, tenantId });
-        res.json({ ok: true, extracted: fullText, summary });
+        res.json({ ok: true, summary });
     }
     catch (error) {
         logger_1.logger.error("❌ VisionAI falhou", { error: error.message });

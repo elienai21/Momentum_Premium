@@ -1,5 +1,6 @@
 import OpenAI from "openai";
-import * as fs from "fs";
+import * as fs from "fs/promises";
+import { createReadStream, existsSync } from "fs";
 import * as os from "os";
 import * as path from "path";
 import { logger } from "../utils/logger";
@@ -13,10 +14,10 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
   const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.${ext}`);
 
   try {
-    fs.writeFileSync(tempFilePath, audioBuffer);
+    await fs.writeFile(tempFilePath, audioBuffer);
 
     const response = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(tempFilePath),
+      file: createReadStream(tempFilePath),
       model: "whisper-1",
       language: "pt",
       temperature: 0.2,
@@ -27,6 +28,12 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
     logger.error("❌ Erro no Whisper STT:", error);
     throw new Error("Não foi possível transcrever o áudio.");
   } finally {
-    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+    try {
+      if (existsSync(tempFilePath)) {
+        await fs.unlink(tempFilePath);
+      }
+    } catch (unlinkError: any) {
+      logger.warn("⚠️ Falha ao remover arquivo temporário de áudio:", { error: unlinkError });
+    }
   }
 }

@@ -37,13 +37,7 @@ exports.apiV2 = exports.expressApp = exports.dailyAging = exports.analyticsAggre
 // functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
-const options_1 = require("firebase-functions/v2/options");
-// ⚠️ IMPORTANTE: Configuração global Functions v2 deve vir ANTES dos exports
-(0, options_1.setGlobalOptions)({
-    region: "southamerica-east1",
-    timeoutSeconds: 120,
-    memory: "512MiB",
-});
+const v2_1 = require("firebase-functions/v2");
 const createExpressApp_1 = require("./app/createExpressApp");
 // Exports de schedulers/triggers
 var cfoCron_1 = require("./scheduler/cfoCron");
@@ -68,6 +62,13 @@ try {
 catch {
     admin.initializeApp();
 }
+// Configuração global Functions v2
+(0, v2_1.setGlobalOptions)({
+    region: "southamerica-east1",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+    maxInstances: 10,
+});
 // Express app (puro, sem side-effects extra)
 exports.expressApp = (0, createExpressApp_1.createExpressApp)();
 // Entrypoint HTTP
