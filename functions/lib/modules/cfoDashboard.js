@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.cfoRouter = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 // functions/src/modules/cfoDashboard.ts
 const express_1 = require("express");
 const financialReports_1 = require("../utils/financialReports");

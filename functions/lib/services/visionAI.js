@@ -37,7 +37,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.visionAI = visionAI;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 const chargeCredits_1 = require("../billing/chargeCredits");
 // Lazy-load do Vision evita travar deploys
@@ -57,7 +57,7 @@ async function visionAI(req, res) {
         const uid = req.user?.uid;
         const tenantId = req.tenant?.info?.id;
         const plan = (req.tenant?.info?.plan || "starter");
-        const { imageBase64 } = req.body;
+        const { imageBase64, fileId } = req.body || {};
         if (!uid || !tenantId)
             throw new Error("Usuário ou Tenant não autenticado.");
         if (!imageBase64)
@@ -83,13 +83,14 @@ async function visionAI(req, res) {
             const summaryText = buildFinanceSummary(lines);
             return { fullText: text, summary: summaryText };
         });
-        // Logs de auditoria específicos do Vision
+        // Logs de auditoria específicos do Vision (somente metadados, sem PII)
         await firebase_1.db.collection("ai_vision_logs").add({
-            uid,
+            fileId: fileId || null,
             tenantId,
-            extracted: fullText.slice(0, 5000),
-            summary,
             timestamp: Date.now(),
+            status: "success",
+            confidenceScore: summary ? 0.9 : 0.5,
+            detectedType: "invoice",
         });
         logger_1.logger.info("📸 VisionAI processado com sucesso", { uid, tenantId });
         res.json({ ok: true, extracted: fullText, summary });

@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const compression_1 = __importDefault(require("compression"));
 const trace_1 = require("../utils/trace");
+const logger_1 = require("../utils/logger");
 function createExpressApp(opts) {
     const mode = opts?.mode || "prod";
     const isTest = mode === "test" || process.env.FUNCTIONS_EMULATOR === "true";
@@ -156,6 +157,13 @@ function createExpressApp(opts) {
     app.get("/api/cfo/summary", (_req, res) => {
         res.json({ status: "ok", summary: {} });
     });
+    if (process.env.ENABLE_DEBUG_FORCE_ERROR === "true") {
+        app.get("/api/debug/force-error", (req, _res, next) => {
+            const err = new Error("Forced critical error");
+            (0, logger_1.logError)(err, "CRITICAL", {}, req.traceId);
+            next(err);
+        });
+    }
     app.use((req, res) => {
         res.status(404).json({ error: "Not Found", path: req.path, traceId: req.traceId });
     });
