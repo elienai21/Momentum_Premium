@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.complianceRouter = void 0;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 // ============================
 // 🧩 Compliance (LGPD) — v7.9.3 Final
 // ============================

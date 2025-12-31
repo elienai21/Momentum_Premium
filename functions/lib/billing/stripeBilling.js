@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCheckoutSession = void 0;
 exports.getStripeClient = getStripeClient;
 exports.processUsageForBilling = processUsageForBilling;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const stripe_1 = __importDefault(require("stripe"));
 const params_1 = require("firebase-functions/params");
 const https_1 = require("firebase-functions/v2/https");
