@@ -26,7 +26,7 @@ export async function visionAI(req: any, res: Response) {
     const uid = req.user?.uid;
     const tenantId = req.tenant?.info?.id;
     const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
-    const { imageBase64 } = req.body;
+    const { imageBase64, fileId } = req.body || {};
 
     if (!uid || !tenantId) throw new Error("Usuário ou Tenant não autenticado.");
     if (!imageBase64) throw new Error("Imagem não enviada.");
@@ -62,7 +62,7 @@ export async function visionAI(req: any, res: Response) {
 
     // Logs de auditoria específicos do Vision (somente metadados, sem PII)
     await db.collection("ai_vision_logs").add({
-      uid,
+      fileId: fileId || null,
       tenantId,
       timestamp: Date.now(),
       status: "success",
