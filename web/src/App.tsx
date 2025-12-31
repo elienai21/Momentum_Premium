@@ -122,7 +122,11 @@ export default function App() {
                     <Route path="alerts" element={<AlertsCenter />} />
                     <Route path="imports" element={<Imports />} />
 
-                    <Route path="admin" element={<AdminLayout />}>
+                    <Route path="admin" element={
+                      <RequireRole>
+                        <AdminLayout />
+                      </RequireRole>
+                    }>
                       <Route index element={<AdminDashboard />} />
                       <Route path="plans" element={<AdminPlans />} />
                       <Route path="voice" element={<AdminVoice />} />

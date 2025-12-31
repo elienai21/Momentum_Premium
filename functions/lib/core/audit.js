@@ -5,7 +5,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.recordAudit = recordAudit;
 exports.withLastModified = withLastModified;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 const logger_1 = require("../utils/logger");
 const COLLECTION = "audit_logs";
 /**
