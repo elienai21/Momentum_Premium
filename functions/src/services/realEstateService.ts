@@ -1,4 +1,16 @@
 import { db } from "./firebase";
+import { storage } from "./firebase";
+import { firestore } from "firebase-admin";
+import {
+  documentCommitSchema,
+  documentInitUploadSchema,
+  documentListQuerySchema,
+  RealEstateDocument,
+  OwnerStatement,
+  RealEstateReceivable,
+  receivableListQuerySchema,
+} from "../types/realEstate";
+import { generateStatementSchema } from "../types/realEstate";
 
 export type Owner = {
   id: string;
@@ -31,6 +43,18 @@ export type Unit = {
   nightlyRate?: number;
   active: boolean;
   createdAt: string;
+};
+
+export type Contract = {
+  id: string;
+  unitId: string;
+  tenantName: string;
+  startDate: string;
+  endDate: string;
+  rentAmount: number;
+  readjustmentIndex?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Stay = {
@@ -99,6 +123,9 @@ function ownersCol(tenantId: string) {
 function unitsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_units`);
 }
+function contractsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/realEstate_contracts`);
+}
 function staysCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_stays`);
 }
@@ -110,6 +137,21 @@ function statementsCol(tenantId: string) {
 }
 function buildingsCol(tenantId: string) {
   return db.collection(`tenants/${tenantId}/realEstate_buildings`);
+}
+function transactionsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/transactions`);
+}
+function receivablesCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/receivables`);
+}
+function agingSnapshotDoc(tenantId: string) {
+  return db.doc(`tenants/${tenantId}/analytics/aging_snapshot`);
+}
+function documentsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/documents`);
+}
+function uploadSessionsCol(tenantId: string) {
+  return db.collection(`tenants/${tenantId}/documentUploads`);
 }
 
 async function findUnitByCode(
@@ -183,6 +225,584 @@ export async function createUnit(
 export async function listUnits(tenantId: string): Promise<Unit[]> {
   const snap = await unitsCol(tenantId).orderBy("createdAt", "desc").get();
   return snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+// ============================
+// Documents (GED)
+// ============================
+
+type AuthContext = { uid: string; email?: string | null };
+
+export async function initDocumentUpload(
+  tenantId: string,
+  payload: unknown,
+  user: AuthContext
+): Promise<{ uploadSessionId: string; uploadUrl: string; storagePath: string }> {
+  const data = documentInitUploadSchema.parse(payload);
+  const safeFileName = data.fileName.replace(/[^\w.\-]/g, "_");
+  const storagePath = `tenants/${tenantId}/docs/${data.linkedEntityType}/${data.linkedEntityId}/${Date.now()}-${safeFileName}`;
+
+  const sessionRef = await uploadSessionsCol(tenantId).add({
+    ...data,
+    storagePath,
+    createdAt: new Date().toISOString(),
+    createdBy: user.uid,
+  });
+
+  const bucket = storage.bucket();
+  const file = bucket.file(storagePath);
+  const [uploadUrl] = await file.getSignedUrl({
+    version: "v4",
+    action: "write",
+    expires: Date.now() + 15 * 60 * 1000,
+    contentType: data.mimeType,
+  });
+
+  return { uploadSessionId: sessionRef.id, uploadUrl, storagePath };
+}
+
+export async function commitDocument(
+  tenantId: string,
+  payload: unknown,
+  user: AuthContext
+): Promise<RealEstateDocument> {
+  const data = documentCommitSchema.parse(payload);
+
+  const expectedPrefix = `tenants/${tenantId}/docs/${data.linkedEntityType}/${data.linkedEntityId}/`;
+  if (!data.storagePath.startsWith(expectedPrefix)) {
+    throw Object.assign(new Error("invalid_storage_path"), { statusCode: 400 });
+  }
+
+  const sessionRef = uploadSessionsCol(tenantId).doc(data.uploadSessionId);
+  const sessionSnap = await sessionRef.get();
+  if (!sessionSnap.exists) {
+    throw Object.assign(new Error("upload_session_not_found"), { statusCode: 404 });
+  }
+
+  const session = sessionSnap.data() as any;
+  if (session.createdBy !== user.uid || session.storagePath !== data.storagePath) {
+    throw Object.assign(new Error("upload_session_mismatch"), { statusCode: 403 });
+  }
+
+  const versionKey = `${data.linkedEntityType}:${data.linkedEntityId}:${data.docType}`;
+  const now = new Date().toISOString();
+
+  const newDoc = await db.runTransaction(async (tx: firestore.Transaction) => {
+    const activeQuery = await tx.get(
+      documentsCol(tenantId)
+        .where("versionKey", "==", versionKey)
+        .where("status", "==", "active")
+        .limit(1)
+    );
+
+    let nextVersion = 1;
+    if (!activeQuery.empty) {
+      const activeDoc = activeQuery.docs[0];
+      const current = activeDoc.data() as RealEstateDocument;
+      nextVersion = (current.version || 1) + 1;
+      tx.update(activeDoc.ref, {
+        status: "archived",
+        updatedAt: now,
+        updatedBy: user.uid,
+      });
+    }
+
+    const docRef = documentsCol(tenantId).doc();
+    const document: RealEstateDocument = {
+      id: docRef.id,
+      tenantId,
+      linkedEntityType: data.linkedEntityType,
+      linkedEntityId: data.linkedEntityId,
+      title: data.title,
+      docType: data.docType,
+      tags: data.tags || [],
+      validUntil: data.validUntil ?? null,
+      version: nextVersion,
+      status: "active",
+      storagePath: data.storagePath,
+      fileName: data.fileName,
+      mimeType: data.mimeType,
+      sizeBytes: data.sizeBytes,
+      checksum: data.checksum ?? null,
+      createdAt: now,
+      createdBy: user.uid,
+      updatedAt: now,
+      updatedBy: user.uid,
+      versionKey,
+    };
+
+    tx.set(docRef, document);
+    tx.delete(sessionRef);
+
+    return document;
+  });
+
+  return newDoc;
+}
+
+export async function listDocuments(
+  tenantId: string,
+  query: unknown
+): Promise<RealEstateDocument[]> {
+  const params = documentListQuerySchema.parse(query);
+  let ref: FirebaseFirestore.Query = documentsCol(tenantId);
+
+  if (params.linkedEntityType) {
+    ref = ref.where("linkedEntityType", "==", params.linkedEntityType);
+  }
+  if (params.linkedEntityId) {
+    ref = ref.where("linkedEntityId", "==", params.linkedEntityId);
+  }
+  if (params.docType) {
+    ref = ref.where("docType", "==", params.docType);
+  }
+  if (params.status) {
+    ref = ref.where("status", "==", params.status);
+  }
+  if (params.validBefore || params.validAfter) {
+    ref = ref.orderBy("validUntil");
+  } else {
+    ref = ref.orderBy("createdAt", "desc");
+  }
+  if (params.validBefore) {
+    ref = ref.where("validUntil", "<=", params.validBefore);
+  }
+  if (params.validAfter) {
+    ref = ref.where("validUntil", ">=", params.validAfter);
+  }
+
+  const limit = params.limit ?? 20;
+  ref = ref.limit(limit);
+
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+}
+
+// ============================================================
+// 💰 Receivables & Aging
+// ============================================================
+
+type StatementTotals = {
+  income: number;
+  expenses: number;
+  fees: number;
+  net: number;
+};
+
+function parsePeriodRange(period: string): { start: Date; end: Date } {
+  const [yearStr, monthStr] = period.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr) - 1;
+  const start = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59));
+  return { start, end };
+}
+
+function formatBRL(n: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+  }).format(n);
+}
+
+async function buildStatementHtml(
+  ownerId: string,
+  period: string,
+  totals: StatementTotals,
+  transactions: Array<{ date: string; description: string; amount: number }>
+): Promise<string> {
+  const rows = transactions
+    .map(
+      (t) => `<tr>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${t.date}</td>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0;">${t.description}</td>
+        <td style="padding:8px;border-bottom:1px solid #e2e8f0; text-align:right;">${formatBRL(
+        t.amount
+      )}</td>
+      </tr>`
+    )
+    .join("");
+
+  return `
+  <html>
+    <head>
+      <meta charset="UTF-8" />
+      <title>Extrato ${period} - ${ownerId}</title>
+    </head>
+    <body style="font-family: Inter, Arial, sans-serif; background: #0f172a; padding: 24px; color: #0f172a;">
+      <div style="max-width: 960px; margin: 0 auto; background: #f8fafc; border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(15,23,42,0.15);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+          <div>
+            <p style="text-transform: uppercase; font-size: 11px; color: #64748b; letter-spacing: 1px; margin: 0;">Momentum • Real Estate</p>
+            <h1 style="font-size: 20px; margin: 4px 0 0 0; color: #0f172a;">Extrato do Proprietário</h1>
+            <p style="color: #475569; margin: 4px 0 0 0;">Período: ${period}</p>
+          </div>
+          <div style="height: 40px; width: 40px; border-radius: 12px; background: #0ea5e9; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800;">M</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 12px; margin-bottom: 20px;">
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Receitas</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0;">${formatBRL(
+              totals.income
+            )}</p>
+          </div>
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Despesas</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#ef4444;">${formatBRL(
+              totals.expenses
+            )}</p>
+          </div>
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Taxa de Administração</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#f97316;">${formatBRL(
+              totals.fees
+            )}</p>
+          </div>
+          <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
+            <p style="font-size: 12px; color: #64748b; margin:0;">Repasse Líquido</p>
+            <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#0ea5e9;">${formatBRL(
+              totals.net
+            )}</p>
+          </div>
+        </div>
+
+        <table style="width:100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <thead style="background: #f1f5f9; text-align: left;">
+            <tr>
+              <th style="padding:10px; font-size:12px; color:#475569;">Data</th>
+              <th style="padding:10px; font-size:12px; color:#475569;">Descrição</th>
+              <th style="padding:10px; font-size:12px; color:#475569; text-align:right;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    </body>
+  </html>
+  `;
+}
+
+export async function generateOwnerStatement(
+  tenantId: string,
+  ownerId: string,
+  period: string,
+  generatedBy?: string
+): Promise<OwnerStatement & { htmlUrl?: string }> {
+  generateStatementSchema.parse({ ownerId, period });
+  const { start, end } = parsePeriodRange(period);
+  const unitsSnap = await unitsCol(tenantId).where("ownerId", "==", ownerId).get();
+  const unitIds = unitsSnap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => d.id);
+
+  const existingSnap = await statementsCol(tenantId)
+    .where("idempotencyKey", "==", `${tenantId}:${ownerId}:${period}`)
+    .limit(1)
+    .get();
+
+  const bucket = storage.bucket();
+
+  if (!existingSnap.empty) {
+    const existing = existingSnap.docs[0].data() as OwnerStatement;
+    const file = bucket.file(existing.htmlPath || "");
+    const [url] = existing.htmlPath
+      ? await file.getSignedUrl({ version: "v4", action: "read", expires: Date.now() + 15 * 60 * 1000 })
+      : [undefined];
+    return { ...existing, htmlUrl: url };
+  }
+
+  const transactionsQuery = transactionsCol(tenantId)
+    .orderBy("date", "desc")
+    .where("date", ">=", start.toISOString().slice(0, 10))
+    .where("date", "<=", end.toISOString().slice(0, 10));
+
+  const txSnap = await transactionsQuery.get().catch(async () => {
+    const fallback = await transactionsCol(tenantId).orderBy("date", "desc").limit(500).get();
+    return fallback;
+  });
+
+  const filtered: Array<{ date: string; description: string; amount: number; unitId?: string }> = [];
+  txSnap.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+    const data = doc.data() as any;
+    if (unitIds.length && data.unitId && !unitIds.includes(data.unitId)) return;
+    const dateStr = data.date || data.dueDate || data.createdAt || doc.createTime?.toDate().toISOString();
+    if (!dateStr) return;
+    const iso = new Date(dateStr).toISOString().slice(0, 10);
+    if (iso < start.toISOString().slice(0, 10) || iso > end.toISOString().slice(0, 10)) return;
+    filtered.push({
+      date: iso,
+      description: data.description || data.title || "Transação",
+      amount: Number(data.amount ?? 0),
+      unitId: data.unitId,
+    });
+  });
+
+  let income = 0;
+  let expenses = 0;
+  filtered.forEach((t) => {
+    if (t.amount >= 0) income += t.amount;
+    else expenses += Math.abs(t.amount);
+  });
+  const fees = income * 0.1;
+  const net = income - expenses - fees;
+
+  const html = await buildStatementHtml(ownerId, period, { income, expenses, fees, net }, filtered);
+  const storagePath = `tenants/${tenantId}/statements/${ownerId}/${period}.html`;
+  const file = bucket.file(storagePath);
+  await file.save(html, { contentType: "text/html" });
+
+  const [htmlUrl] = await file.getSignedUrl({
+    version: "v4",
+    action: "read",
+    expires: Date.now() + 15 * 60 * 1000,
+  });
+
+  const now = new Date().toISOString();
+  const statement: OwnerStatement = {
+    id: `${ownerId}-${period}`,
+    tenantId,
+    ownerId,
+    period,
+    unitIds,
+    totals: { income, expenses, fees, net },
+    generatedAt: now,
+    generatedBy: generatedBy || "system",
+    htmlPath: storagePath,
+    pdfPath: undefined,
+    status: "ready",
+    idempotencyKey: `${tenantId}:${ownerId}:${period}`,
+  };
+
+  await statementsCol(tenantId).doc(statement.id).set(statement);
+  return { ...statement, htmlUrl };
+}
+
+export async function listOwnerStatements(
+  tenantId: string,
+  ownerId?: string
+): Promise<Array<OwnerStatement & { htmlUrl?: string }>> {
+  let ref = statementsCol(tenantId).orderBy("generatedAt", "desc") as FirebaseFirestore.Query;
+  if (ownerId) {
+    ref = ref.where("ownerId", "==", ownerId);
+  }
+  const snap = await ref.limit(50).get();
+  const bucket = storage.bucket();
+
+  const results: Array<OwnerStatement & { htmlUrl?: string }> = [];
+  for (let i = 0; i < snap.docs.length; i++) {
+    const doc = snap.docs[i] as FirebaseFirestore.QueryDocumentSnapshot<FirebaseFirestore.DocumentData>;
+    const data = doc.data() as OwnerStatement;
+    let htmlUrl: string | undefined;
+    if (data.htmlPath) {
+      const file = bucket.file(data.htmlPath);
+      const [url] = await file.getSignedUrl({
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 15 * 60 * 1000,
+      });
+      htmlUrl = url;
+    }
+    results.push({ ...data, htmlUrl });
+  }
+
+  return results;
+}
+
+export async function generateReceivablesBatch(
+  tenantId: string,
+  period: string
+): Promise<{ created: number }> {
+  const { start, end } = parsePeriodRange(period);
+  const unitsSnap = await unitsCol(tenantId).get();
+  const unitsById = new Map<string, Unit>();
+  unitsSnap.forEach((u: FirebaseFirestore.QueryDocumentSnapshot) =>
+    unitsById.set(u.id, { id: u.id, ...(u.data() as any) })
+  );
+  const contractsSnap = await contractsCol(tenantId).get();
+  const receivablesRef = receivablesCol(tenantId);
+  const now = new Date().toISOString();
+
+  let created = 0;
+  for (const contractDoc of contractsSnap.docs) {
+    const contract = contractDoc.data() as Contract;
+    const contractStart = new Date(contract.startDate);
+    const contractEnd = new Date(contract.endDate);
+    if (contractStart > end || contractEnd < start) continue;
+
+    const existing = await receivablesRef
+      .where("contractId", "==", contractDoc.id)
+      .where("period", "==", period)
+      .limit(1)
+      .get();
+    if (!existing.empty) continue;
+
+    const dueDate = `${period}-10`;
+    const unit = unitsById.get(contract.unitId);
+    const payload: Omit<RealEstateReceivable, "id"> = {
+      tenantId,
+      contractId: contractDoc.id,
+      unitId: contract.unitId,
+      ownerId: unit?.ownerId || "",
+      tenantName: contract.tenantName,
+      period,
+      dueDate,
+      amount: contract.rentAmount,
+      amountPaid: 0,
+      status: "open",
+      paidAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await receivablesRef.add(payload);
+    created += 1;
+  }
+
+  return { created };
+}
+
+export async function recordPayment(
+  tenantId: string,
+  receivableId: string,
+  amount: number,
+  paidAt: string
+): Promise<RealEstateReceivable> {
+  const ref = receivablesCol(tenantId).doc(receivableId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw Object.assign(new Error("receivable_not_found"), { statusCode: 404 });
+  }
+  const data = snap.data() as RealEstateReceivable;
+  const newAmountPaid = (data.amountPaid || 0) + amount;
+  const status = newAmountPaid >= data.amount ? "paid" : "partial";
+  const updated: Partial<RealEstateReceivable> = {
+    amountPaid: newAmountPaid,
+    status,
+    paidAt,
+    updatedAt: new Date().toISOString(),
+  };
+  await ref.update(updated);
+  return { ...data, ...updated, id: receivableId };
+}
+
+type AgingBuckets = {
+  d0_30: { total: number; count: number };
+  d31_60: { total: number; count: number };
+  d61_90: { total: number; count: number };
+  d90_plus: { total: number; count: number };
+};
+
+export async function calculateAgingSnapshot(
+  tenantId: string
+): Promise<{ asOfDate: string; buckets: AgingBuckets }> {
+  const snap = await receivablesCol(tenantId)
+    .where("status", "in", ["open", "overdue", "partial"])
+    .get();
+
+  const buckets: AgingBuckets = {
+    d0_30: { total: 0, count: 0 },
+    d31_60: { total: 0, count: 0 },
+    d61_90: { total: 0, count: 0 },
+    d90_plus: { total: 0, count: 0 },
+  };
+
+  const today = new Date();
+  snap.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
+    const data = doc.data() as RealEstateReceivable;
+    const outstanding = Math.max(0, data.amount - (data.amountPaid || 0));
+    if (outstanding <= 0) return;
+    const due = new Date(data.dueDate);
+    const diffDays = Math.max(
+      0,
+      Math.floor((today.getTime() - due.getTime()) / (1000 * 60 * 60 * 24))
+    );
+
+    let bucketKey: keyof AgingBuckets = "d0_30";
+    if (diffDays > 90) bucketKey = "d90_plus";
+    else if (diffDays > 60) bucketKey = "d61_90";
+    else if (diffDays > 30) bucketKey = "d31_60";
+
+    buckets[bucketKey].count += 1;
+    buckets[bucketKey].total += outstanding;
+  });
+
+  const asOfDate = today.toISOString().slice(0, 10);
+  await agingSnapshotDoc(tenantId).set({
+    asOfDate,
+    buckets,
+    updatedAt: new Date().toISOString(),
+  });
+
+  return { asOfDate, buckets };
+}
+
+export async function getAgingSnapshot(
+  tenantId: string
+): Promise<{ asOfDate: string; buckets: AgingBuckets } | null> {
+  const snap = await agingSnapshotDoc(tenantId).get();
+  if (!snap.exists) return null;
+  return snap.data() as { asOfDate: string; buckets: AgingBuckets };
+}
+
+export async function listReceivables(
+  tenantId: string,
+  filters: any
+): Promise<RealEstateReceivable[]> {
+  const parsed = receivableListQuerySchema.parse(filters);
+  let ref = receivablesCol(tenantId) as FirebaseFirestore.Query;
+  if (parsed.period) ref = ref.where("period", "==", parsed.period);
+  if (parsed.status) ref = ref.where("status", "==", parsed.status);
+  if (parsed.ownerId) ref = ref.where("ownerId", "==", parsed.ownerId);
+  if (parsed.unitId) ref = ref.where("unitId", "==", parsed.unitId);
+  if (parsed.contractId) ref = ref.where("contractId", "==", parsed.contractId);
+
+  ref = ref.orderBy("dueDate", "desc").limit(parsed.limit ?? 100);
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as RealEstateReceivable[];
+}
+
+// ============================================================
+// 📄 Contracts CRUD
+// ============================================================
+
+export async function listContracts(
+  tenantId: string,
+  unitId?: string
+): Promise<Contract[]> {
+  let ref = contractsCol(tenantId).orderBy("updatedAt", "desc") as FirebaseFirestore.Query;
+  if (unitId) {
+    ref = ref.where("unitId", "==", unitId);
+  }
+  const snap = await ref.get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })) as Contract[];
+}
+
+export async function createContract(
+  tenantId: string,
+  data: Omit<Contract, "id" | "createdAt" | "updatedAt">
+): Promise<Contract> {
+  const timestamp = new Date().toISOString();
+  const payload = {
+    ...data,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+  const doc = await contractsCol(tenantId).add(payload);
+  return { id: doc.id, ...payload };
+}
+
+export async function updateContract(
+  tenantId: string,
+  id: string,
+  data: Partial<Omit<Contract, "id" | "createdAt">>
+): Promise<void> {
+  const payload = { ...data, updatedAt: new Date().toISOString() };
+  await contractsCol(tenantId).doc(id).update(payload);
+}
+
+export async function deleteContract(tenantId: string, id: string): Promise<void> {
+  await contractsCol(tenantId).doc(id).delete();
 }
 
 // ============================================================

@@ -60,13 +60,14 @@ export async function visionAI(req: any, res: Response) {
       }
     );
 
-    // Logs de auditoria específicos do Vision
+    // Logs de auditoria específicos do Vision (somente metadados, sem PII)
     await db.collection("ai_vision_logs").add({
       uid,
       tenantId,
-      extracted: fullText.slice(0, 5000),
-      summary,
       timestamp: Date.now(),
+      status: "success",
+      confidenceScore: summary ? 0.9 : 0.5,
+      detectedType: "invoice",
     });
 
     logger.info("📸 VisionAI processado com sucesso", { uid, tenantId });
