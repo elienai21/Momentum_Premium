@@ -5,8 +5,18 @@ import * as os from "os";
 import * as path from "path";
 import { logger } from "../utils/logger";
 
-// Inicializa OpenAI (garanta que a chave esteja no .env ou config)
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy-init do OpenAI para evitar quebras no deploy se a chave nĂŁo estiver no env
+let openaiClient: OpenAI | null = null;
+function getOpenAIClient(): OpenAI {
+  if (!openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY nĂŁo encontrada no ambiente.");
+    }
+    openaiClient = new OpenAI({ apiKey });
+  }
+  return openaiClient;
+}
 
 export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
   // Cria arquivo temporário preservando uma extensão compatível
@@ -16,6 +26,7 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
   try {
     await fs.writeFile(tempFilePath, audioBuffer);
 
+    const openai = getOpenAIClient();
     const response = await openai.audio.transcriptions.create({
       file: createReadStream(tempFilePath),
       model: "whisper-1",

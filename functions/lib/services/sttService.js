@@ -43,14 +43,25 @@ const fs_1 = require("fs");
 const os = __importStar(require("os"));
 const path = __importStar(require("path"));
 const logger_1 = require("../utils/logger");
-// Inicializa OpenAI (garanta que a chave esteja no .env ou config)
-const openai = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy-init do OpenAI para evitar quebras no deploy se a chave nĂŁo estiver no env
+let openaiClient = null;
+function getOpenAIClient() {
+    if (!openaiClient) {
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+            throw new Error("OPENAI_API_KEY nĂŁo encontrada no ambiente.");
+        }
+        openaiClient = new openai_1.default({ apiKey });
+    }
+    return openaiClient;
+}
 async function transcribeAudio(audioBuffer, mimeType) {
     // Cria arquivo temporário preservando uma extensão compatível
     const ext = mimeType.includes("mp4") ? "mp4" : "webm";
     const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.${ext}`);
     try {
         await fs.writeFile(tempFilePath, audioBuffer);
+        const openai = getOpenAIClient();
         const response = await openai.audio.transcriptions.create({
             file: (0, fs_1.createReadStream)(tempFilePath),
             model: "whisper-1",
