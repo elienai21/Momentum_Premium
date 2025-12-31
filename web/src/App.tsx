@@ -9,6 +9,7 @@ import { ToastProvider } from "./components/Toast";
 import { NoCreditsProvider } from "./components/NoCreditsProvider";
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
+import { InstallPwaModal } from "./components/InstallPwaModal";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Insights = lazy(() => import("./pages/Insights"));
@@ -78,6 +79,7 @@ export default function App() {
           <AuthProvider>
             <NoCreditsProvider>
               {import.meta.env.DEV && <AuthDevHelper />}
+              <InstallPwaModal />
 
               <Suspense
                 fallback={

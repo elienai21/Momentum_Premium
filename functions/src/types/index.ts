@@ -4,6 +4,7 @@ import { db } from "src/services/firebase";
 import 'express';
 
 export * from "./multi-tenancy";
+export * from "./realEstate";
 
 
 export interface TemplateConfig {
@@ -154,5 +155,4 @@ export interface Account {
   dualValidation: boolean;
   notes?: string | null;
 }
-
 
