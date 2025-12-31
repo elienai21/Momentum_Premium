@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.enqueueEvent = enqueueEvent;
 exports.dispatchPending = dispatchPending;
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 // src/core/outbox.ts
 const logger_1 = require("../utils/logger");
 const OUTBOX = "outbox";
