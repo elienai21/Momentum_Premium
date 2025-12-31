@@ -18,3 +18,4 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // Global Express Request augmentations are in `express.d.ts`.
 require("express");
 __exportStar(require("./multi-tenancy"), exports);
+__exportStar(require("./realEstate"), exports);

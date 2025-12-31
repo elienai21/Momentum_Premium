@@ -10,6 +10,7 @@ import { NoCreditsProvider } from "./components/NoCreditsProvider";
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import { InstallPwaModal } from "./components/InstallPwaModal";
+import { RequireRole } from "./components/RequireRole";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Insights = lazy(() => import("./pages/Insights"));
@@ -122,7 +123,11 @@ export default function App() {
                     <Route path="alerts" element={<AlertsCenter />} />
                     <Route path="imports" element={<Imports />} />
 
-                    <Route path="admin" element={<AdminLayout />}>
+                    <Route path="admin" element={
+                      <RequireRole>
+                        <AdminLayout />
+                      </RequireRole>
+                    }>
                       <Route index element={<AdminDashboard />} />
                       <Route path="plans" element={<AdminPlans />} />
                       <Route path="voice" element={<AdminVoice />} />

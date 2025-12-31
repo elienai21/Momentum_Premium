@@ -4,6 +4,7 @@
 // ============================
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logger = void 0;
+exports.logError = logError;
 function normalizeMeta(metaOrTrace, extraMeta, req) {
     const meta = typeof metaOrTrace === "string"
         ? { traceId: metaOrTrace, ...extraMeta }
@@ -38,3 +39,32 @@ exports.logger = {
         console.error(JSON.stringify({ level: "error", message, ...base }));
     },
 };
+async function logError(error, severity = "LOW", meta = {}, traceId) {
+    const message = typeof error === "string" ? error : error.message;
+    const payload = normalizeMeta({ severity, error: message, traceId, ...meta }, {}, undefined);
+    console.error(JSON.stringify({ level: "error", message, ...payload }));
+    const shouldAlert = severity === "HIGH" || severity === "CRITICAL";
+    const webhookUrl = process.env.ERROR_WEBHOOK_URL;
+    if (!shouldAlert || !webhookUrl)
+        return;
+    try {
+        await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                service: "Momentum",
+                error: message,
+                traceId: payload.traceId,
+            }),
+        });
+    }
+    catch (err) {
+        console.error(JSON.stringify({
+            level: "error",
+            message: "Failed to post error webhook",
+            severity,
+            traceId: payload.traceId,
+            error: err?.message,
+        }));
+    }
+}
