@@ -10,6 +10,7 @@ import { NoCreditsProvider } from "./components/NoCreditsProvider";
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import { InstallPwaModal } from "./components/InstallPwaModal";
+import { RequireRole } from "./components/RequireRole";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Insights = lazy(() => import("./pages/Insights"));

@@ -58,13 +58,6 @@ export default function Dashboard() {
     );
   }
 
-  if (!tenantId) {
-    return (
-      <div className="p-8 text-sm text-momentum-muted">
-        Selecione ou crie um tenant para acessar o painel financeiro.
-      </div>
-    );
-  }
 
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const [simulateOpen, setSimulateOpen] = useState(false);
@@ -90,7 +83,7 @@ export default function Dashboard() {
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
   const { data, loading, error: pulseError, refetch } = usePulseSummary({
-    tenantId,
+    tenantId: tenantId as string,
     periodStart: iso(periodStart),
     periodEnd: iso(periodEnd),
   });
@@ -144,7 +137,7 @@ export default function Dashboard() {
   };
 
   const friendlyError = error ? getFriendlyError(error) : null;
-  const kpis = data?.kpis;
+  const kpis = data?.kpis || { cashBalance: 0, revenueMonth: 0, expenseMonth: 0, runwayMonths: 0 };
 
   // Fetch recent transactions (mirroring Transactions.tsx but compact)
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
@@ -181,6 +174,15 @@ export default function Dashboard() {
 
   return (
     <div className="pt-24 space-y-8 pb-24 fade-in" aria-live="polite">
+      {!tenantId && (
+        <EmptyStateCard
+          title="Ambiente não configurado"
+          description="Crie uma empresa para começar a visualizar seu painel financeiro."
+          actionLabel="Criar Empresa"
+          onActionClick={() => navigate("/onboarding")}
+          icon="🏢"
+        />
+      )}
       {/* 1. Greeting Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

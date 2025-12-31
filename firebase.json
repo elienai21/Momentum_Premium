@@ -11,7 +11,7 @@
       "storage-debug.log"
     ],
     "predeploy": [
-      "npm --prefix \"$RESOURCE_DIR\" run build"
+      "npm.cmd --prefix \"$RESOURCE_DIR\" run build"
     ]
   },
   "firestore": {
@@ -24,6 +24,9 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "predeploy": [
+      "npm.cmd run build:web"
     ],
     "rewrites": [
       {
@@ -70,7 +73,7 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline'; connect-src 'self' https://firestore.googleapis.com https://firebasestorage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; upgrade-insecure-requests"
+            "value": "default-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.google-analytics.com https://*.googletagmanager.com; upgrade-insecure-requests"
           },
           {
             "key": "Referrer-Policy",

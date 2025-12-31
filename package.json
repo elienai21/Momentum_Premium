@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json && vite build",
     "serve": "vite preview",
     "functions:build": "cd functions && npm run build",
+    "build:web": "npm --prefix web run build",
     "deploy": "firebase deploy --only functions,hosting",
     "deploy:emulate": "firebase emulators:start --only hosting,functions,firestore,auth",
     "lint": "node tools/check-no-raw-api-fetch.js",
@@ -21,8 +22,7 @@
     "ci:web": "npm --prefix web ci && npm run lint:api-headers && npm run verify:web",
     "ci:all": "npm run ci:functions && npm run ci:web",
     "test": "npm run test:all"
-    },
-
+  },
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5",

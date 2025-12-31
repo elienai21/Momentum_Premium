@@ -432,7 +432,7 @@ export default function RealEstateDashboard() {
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-bold text-slate-800">Contrato Ativo</h4>
                   {isExpiringSoon && (
-                    <Badge variant="warning">Vencendo em breve</Badge>
+                    <Badge variant="warn">Vencendo em breve</Badge>
                   )}
                 </div>
                 {activeContract ? (
@@ -556,3 +556,4 @@ export default function RealEstateDashboard() {
       )}
     </div>
   );
+}
