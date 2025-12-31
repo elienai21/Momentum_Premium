@@ -21,7 +21,8 @@
     "test": "jest --config ./jest.config.js",
     "test:watch": "jest --config ./jest.config.js --watch",
     "test:e2e": "jest --config ./jest.config.js --runInBand --forceExit",
-    "smoke": "node ./scripts/smoke.js"
+    "smoke": "node ./scripts/smoke.js",
+    "backfill:analytics": "ts-node scripts/backfillAnalytics.ts"
   },
   "dependencies": {
     "@google-cloud/pubsub": "^5.2.0",
@@ -69,6 +70,7 @@
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.5",
     "tsc-alias": "^1.8.16",
+    "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
   }
 }
