@@ -1,71 +1,55 @@
 // functions/src/services/sttService.ts
-import speech from "@google-cloud/speech";
-import { Storage } from "@google-cloud/storage";
-// import { logger } from "../utils/logger";
+import OpenAI from "openai";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { logger } from "../utils/logger";
 
-// Lazy init dos clients de STT (Speech-to-Text) e Storage
-let speechClient: any | null = null;
-let storageClient: Storage | null = null;
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-function getSttClients() {
-  if (!speechClient) {
-    speechClient = new speech.SpeechClient();
-  }
-  if (!storageClient) {
-    storageClient = new Storage();
-  }
-  return { client: speechClient, storage: storageClient };
-}
-
-const bucketName = process.env.VOICE_BUCKET || "";
-
-function ensureBucket() {
-  if (!bucketName) {
-    // logger?.warn?.("VOICE_BUCKET não configurado; STT desativado neste ambiente");
-    throw Object.assign(
-      new Error("STT não configurado (VOICE_BUCKET ausente)"),
-      {
-        code: "VOICE_DISABLED",
-        status: 503,
-      }
-    );
-  }
-  return bucketName;
-}
-
-// 🔧 Incluí tenantId como opcional para compatibilizar com src/routes/voice.ts
-export type SttParams = {
-  gcsUri: string;
-  languageCode?: string;
-  tenantId?: string;
-};
-
-export async function transcribeFromGcs(params: SttParams) {
-  const { gcsUri, languageCode = "pt-BR" } = params;
-
-  if (!gcsUri) {
-    throw new Error("gcsUri é obrigatório para STT");
+export async function transcribeAudio(
+  audioBuffer: Buffer,
+  originalMimeType: string | undefined,
+  languageCode = "pt"
+): Promise<{ text: string }> {
+  if (!process.env.OPENAI_API_KEY) {
+    const err = Object.assign(new Error("OPENAI_API_KEY não configurada"), {
+      status: 503,
+      code: "VOICE_DISABLED",
+    });
+    throw err;
   }
 
-  ensureBucket(); // só valida config; se quiser, pode validar prefixo do gcsUri também
+  const tempFilePath = path.join(os.tmpdir(), `upload_${Date.now()}.webm`);
 
-  const { client } = getSttClients();
+  try {
+    fs.writeFileSync(tempFilePath, audioBuffer);
 
-  const [operation] = await client.longRunningRecognize({
-    audio: { uri: gcsUri },
-    config: {
-      languageCode,
-      encoding: "WEBM_OPUS",
-      enableAutomaticPunctuation: true,
-    },
-  });
+    const response = await openai.audio.transcriptions.create({
+      file: fs.createReadStream(tempFilePath),
+      model: "whisper-1",
+      language: languageCode,
+      temperature: 0.2,
+      // Whisper aceita múltiplos formatos; mimetype aqui é apenas para logging
+      // mas mantemos para rastrear auditoria se necessário.
+    });
 
-  const [response] = await operation.promise();
-  const transcription = (response.results || [])
-    .flatMap((r: any) => r.alternatives || [])
-    .map((a: any) => a.transcript)
-    .join(" ")
-    .trim();
-
-  return { text: transcription };
+    return { text: response.text || "" };
+  } catch (error: any) {
+    logger.error("❌ Erro no STT (Whisper)", {
+      error: error?.message,
+      stack: error?.stack,
+      mimeType: originalMimeType,
+    });
+    throw Object.assign(new Error("Falha ao processar áudio"), {
+      status: 500,
+      code: "STT_ERROR",
+    });
+  } finally {
+    if (fs.existsSync(tempFilePath)) {
+      fs.unlinkSync(tempFilePath);
+    }
+  }
 }

@@ -8,16 +8,7 @@ import { checkPlanLimit } from "../middleware/checkPlan";
 import { logger } from "../utils/logger";
 import { db } from "src/services/firebase";
 import { aiClient } from "../utils/aiClient";
-
-// Lazy load — evita timeout no deploy
-let speechClient: any;
-async function getSpeechClient() {
-  if (!speechClient) {
-    const speech = await import("@google-cloud/speech");
-    speechClient = new speech.SpeechClient();
-  }
-  return speechClient;
-}
+import { transcribeAudio } from "./sttService";
 
 // Upload handler (áudio em memória)
 export const upload = multer({ storage: multer.memoryStorage() });
@@ -27,33 +18,22 @@ export const upload = multer({ storage: multer.memoryStorage() });
 // ============================================================
 export async function voiceHandler(req: Request, res: Response) {
   try {
-    const uid = req.user?.uid;
+    const uid = (req as any).user?.uid;
     if (!uid) throw new Error("Usuário não autenticado.");
 
-    const file = (req as any).file;
-    if (!file) throw new Error("Nenhum áudio enviado.");
+    const file = (req as any).file as { buffer?: Buffer; mimetype?: string } | undefined;
+    if (!file?.buffer) throw new Error("Nenhum áudio enviado.");
 
     // 💳 Controle de cota
     await checkPlanLimit(uid, 150, "voiceAI");
 
-    const client = await getSpeechClient();
-    const audioBytes = file.buffer.toString("base64");
+    const sttResult = await transcribeAudio(
+      file.buffer as Buffer,
+      file.mimetype,
+      "pt"
+    );
 
-    const [sttResponse] = await client.recognize({
-      audio: { content: audioBytes },
-      config: {
-        encoding: "WEBM_OPUS",
-        languageCode: "pt-BR",
-        enableAutomaticPunctuation: true,
-      },
-    });
-
-    const rawText =
-      sttResponse.results
-        ?.map((r: any) => r.alternatives?.[0]?.transcript)
-        .join(" ")
-        .trim() || "";
-
+    const rawText = sttResult.text?.trim() || "";
     if (!rawText) throw new Error("Falha na transcrição do áudio.");
 
     // ✨ Reescreve a fala com pontuação natural via Gemini
@@ -89,4 +69,3 @@ export async function voiceHandler(req: Request, res: Response) {
     });
   }
 }
-

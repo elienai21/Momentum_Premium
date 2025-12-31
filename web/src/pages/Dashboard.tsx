@@ -8,6 +8,7 @@ import { useCredits } from "../hooks/useCredits";
 import { track } from "../lib/analytics";
 import { useToast } from "../components/Toast";
 import { useAuth } from "../context/AuthContext";
+import { useTenant } from "../context/TenantContext";
 import { getFriendlyError } from "../lib/errorMessages";
 import { cn } from "../lib/utils";
 import { computeHealthFromKpis } from "../services/pulseApi";
@@ -39,6 +40,7 @@ import { RefreshCw, Download, FileText, ChevronRight } from "lucide-react";
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { tenantId } = useTenant();
 
   if (authLoading) {
     return (
@@ -56,12 +58,17 @@ export default function Dashboard() {
     );
   }
 
+  if (!tenantId) {
+    return (
+      <div className="p-8 text-sm text-momentum-muted">
+        Selecione ou crie um tenant para acessar o painel financeiro.
+      </div>
+    );
+  }
+
   const [advisorOpen, setAdvisorOpen] = useState(false);
   const [simulateOpen, setSimulateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-
-  const tenantId =
-    import.meta.env.VITE_DEFAULT_TENANT_ID?.trim?.() || "demo-tenant-001";
 
   const userName =
     user.displayName || (user.email ? user.email.split("@")[0] : "Você");

@@ -1,4 +1,3 @@
-import { db } from "src/services/firebase";
 import { Router } from "express";
 import { ApiError } from "../middleware/errors";
 import {
@@ -12,21 +11,32 @@ import type {
   BillingCreditsApiResponse,
   CreditsStateDTO,
 } from "../types/billing";
+import { requireAuth } from "../middleware/requireAuth";
+import { withTenant } from "../middleware/withTenant";
+import { subscriptionItemBelongsToTenant } from "../utils/subscriptionItemGuard";
 
 export const router = Router();
 export const billingRouter = router;
 
+router.use(requireAuth as any, withTenant as any);
+
 // POST /api/billing/report-usage
 router.post("/report-usage", async (req, res, next) => {
   try {
-    if (!req.tenant) {
-      const tenantId = req.user?.tenantId || "test-tenant";
-      req.tenant = { info: { id: tenantId, plan: "starter" } } as any;
-    }
-    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    if (!req.tenant || !req.user) throw new ApiError(400, "Tenant context required");
     const dto = BillingUsageSchema.parse(req.body);
 
-    const out = await reportUsage(req.tenant.info.id, dto);
+    const tenantId = req.tenant.info.id as string;
+    const belongsToTenant = await subscriptionItemBelongsToTenant(
+      tenantId,
+      dto.subscriptionItemId
+    );
+
+    if (!belongsToTenant) {
+      throw new ApiError(403, "Subscription item does not belong to tenant");
+    }
+
+    const out = await reportUsage(tenantId, dto);
     const safe = BillingResponseSchema.safeParse(out);
     if (!safe.success)
       throw new ApiError(500, "Invalid billing response format");
@@ -40,7 +50,7 @@ router.post("/report-usage", async (req, res, next) => {
 // GET /api/billing/credits
 router.get("/credits", async (req: any, res, next) => {
   try {
-    if (!req.tenant) {
+    if (!req.tenant || !req.user) {
       throw new ApiError(400, "Tenant context required", req.traceId);
     }
 
@@ -75,4 +85,3 @@ router.get("/credits", async (req: any, res, next) => {
     );
   }
 });
-
