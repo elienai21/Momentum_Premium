@@ -82,6 +82,13 @@ service firebase.storage {
       allow read: if belongsToTenant(tenantId);
       allow delete: if belongsToTenant(tenantId);
     }
+
+    // ============================================
+    // REAL ESTATE DOCUMENTS (GED)
+    // ============================================
+    match /tenants/{tenantId}/docs/{allPaths=**} {
+      allow read, write: if belongsToTenant(tenantId);
+    }
     
     // ============================================
     // BLOQUEIO PADRÃO

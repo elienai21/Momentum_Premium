@@ -7,6 +7,7 @@ import { SectionHeader } from "../components/ui/SectionHeader";
 import { StatsCard } from "../components/ui/StatsCard";
 import { Badge } from "../components/ui/Badge";
 import { cn } from "../lib/utils";
+import { useTenant } from "../context/TenantContext";
 
 interface Client {
   id: string;
@@ -18,12 +19,17 @@ interface Client {
 }
 
 const Clients: React.FC = () => {
-  const tenantId = import.meta.env.VITE_DEFAULT_TENANT_ID || "demo-tenant-001";
+  const { tenantId } = useTenant();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
+    if (!tenantId) {
+      setClients([]);
+      setLoading(false);
+      return;
+    }
     async function loadClients() {
       setLoading(true);
       try {
@@ -73,7 +79,11 @@ const Clients: React.FC = () => {
       />
 
       {/* Stats Grid */}
-      {loading ? (
+      {!tenantId ? (
+        <div className="p-12 text-center text-momentum-muted">
+          Selecione um tenant para visualizar os clientes.
+        </div>
+      ) : loading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[1, 2, 3].map(i => <GlassPanel key={i} className="h-32 animate-pulse bg-current/5"><div /></GlassPanel>)}
         </div>
