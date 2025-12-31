@@ -1,28 +1,16 @@
-// functions/src/services/sttService.ts
 import OpenAI from "openai";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { logger } from "../utils/logger";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Inicializa OpenAI (garanta que a chave esteja no .env ou config)
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function transcribeAudio(
-  audioBuffer: Buffer,
-  originalMimeType: string | undefined,
-  languageCode = "pt"
-): Promise<{ text: string }> {
-  if (!process.env.OPENAI_API_KEY) {
-    const err = Object.assign(new Error("OPENAI_API_KEY não configurada"), {
-      status: 503,
-      code: "VOICE_DISABLED",
-    });
-    throw err;
-  }
-
-  const tempFilePath = path.join(os.tmpdir(), `upload_${Date.now()}.webm`);
+export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
+  // Cria arquivo temporário preservando uma extensão compatível
+  const ext = mimeType?.includes("mp4") ? "mp4" : "webm";
+  const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.${ext}`);
 
   try {
     fs.writeFileSync(tempFilePath, audioBuffer);
@@ -30,26 +18,15 @@ export async function transcribeAudio(
     const response = await openai.audio.transcriptions.create({
       file: fs.createReadStream(tempFilePath),
       model: "whisper-1",
-      language: languageCode,
+      language: "pt",
       temperature: 0.2,
-      // Whisper aceita múltiplos formatos; mimetype aqui é apenas para logging
-      // mas mantemos para rastrear auditoria se necessário.
     });
 
-    return { text: response.text || "" };
+    return response.text || "";
   } catch (error: any) {
-    logger.error("❌ Erro no STT (Whisper)", {
-      error: error?.message,
-      stack: error?.stack,
-      mimeType: originalMimeType,
-    });
-    throw Object.assign(new Error("Falha ao processar áudio"), {
-      status: 500,
-      code: "STT_ERROR",
-    });
+    logger.error("❌ Erro no Whisper STT:", error);
+    throw new Error("Não foi possível transcrever o áudio.");
   } finally {
-    if (fs.existsSync(tempFilePath)) {
-      fs.unlinkSync(tempFilePath);
-    }
+    if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
   }
 }

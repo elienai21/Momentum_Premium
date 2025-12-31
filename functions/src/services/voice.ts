@@ -29,11 +29,10 @@ export async function voiceHandler(req: Request, res: Response) {
 
     const sttResult = await transcribeAudio(
       file.buffer as Buffer,
-      file.mimetype,
-      "pt"
+      file.mimetype || "audio/webm"
     );
 
-    const rawText = sttResult.text?.trim() || "";
+    const rawText = sttResult?.trim() || "";
     if (!rawText) throw new Error("Falha na transcrição do áudio.");
 
     // ✨ Reescreve a fala com pontuação natural via Gemini

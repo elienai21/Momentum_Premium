@@ -111,7 +111,6 @@ voiceRouter.post(
   "/stt",
   upload.single("file"),
   async (req: AuthedRequest, res: Response): Promise<void> => {
-    const { languageCode = "pt" } = req.body || {};
     const file = (req as any).file as { buffer?: Buffer; mimetype?: string } | undefined;
 
     const tenantId = req.tenant?.info?.id || "anon";
@@ -134,14 +133,12 @@ voiceRouter.post(
         async () => {
           return await transcribeAudio(
             file.buffer as Buffer,
-            file.mimetype,
-            languageCode
+            file.mimetype || "audio/webm"
           );
         }
       );
 
-      // result esperado: { text: string }
-      res.status(200).json({ transcript: result.text });
+      res.status(200).json({ transcript: result });
     } catch (err: any) {
       const code = err?.code || "STT_ERROR";
       const status = err?.status || (code === "VOICE_DISABLED" ? 503 : 500);

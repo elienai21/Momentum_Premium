@@ -71,7 +71,7 @@ export async function visionAI(req: any, res: Response) {
     });
 
     logger.info("📸 VisionAI processado com sucesso", { uid, tenantId });
-    res.json({ ok: true, extracted: fullText, summary });
+    res.json({ ok: true, summary });
   } catch (error: any) {
     logger.error("❌ VisionAI falhou", { error: error.message });
     res.status(error.status || 500).json({
