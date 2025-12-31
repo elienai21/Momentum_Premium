@@ -32,4 +32,12 @@ try {
 export const expressApp = createExpressApp();
 
 // Entrypoint HTTP
-export const apiV2 = onRequest(expressApp);
+export const apiV2 = onRequest(
+  {
+    timeoutSeconds: 300,
+    memory: "1GiB",
+    cors: true,
+    region: "southamerica-east1",
+  },
+  expressApp
+);
