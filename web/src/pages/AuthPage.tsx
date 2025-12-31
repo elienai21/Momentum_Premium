@@ -6,6 +6,7 @@ import { auth } from "../services/firebase";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
 import { Loader2, Lock, Mail } from "lucide-react";
+import { ResetPasswordModal } from "../components/auth/ResetPasswordModal";
 
 const AuthPage: React.FC = () => {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ const AuthPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
   const from = location.state?.from || "/";
 
@@ -31,7 +33,6 @@ const AuthPage: React.FC = () => {
     if (!email || !password) {
       notify({
         type: "error",
-        title: "Dados incompletos",
         message: "Preencha e-mail e senha para continuar.",
       });
       return;
@@ -42,7 +43,6 @@ const AuthPage: React.FC = () => {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       notify({
         type: "success",
-        title: "Bem-vindo(a)!",
         message: "Login realizado com sucesso.",
       });
       navigate(from, { replace: true });
@@ -56,7 +56,6 @@ const AuthPage: React.FC = () => {
       }
       notify({
         type: "error",
-        title: "Falha no login",
         message,
       });
     } finally {
@@ -65,11 +64,7 @@ const AuthPage: React.FC = () => {
   }
 
   function handleForgotPassword() {
-    notify({
-      type: "info",
-      title: "Esqueceu a senha?",
-      message: "Fale com o suporte para redefinir seu acesso.",
-    });
+    setIsResetModalOpen(true);
   }
 
   return (
@@ -200,6 +195,11 @@ const AuthPage: React.FC = () => {
           </p>
         </div>
       </div>
+
+      <ResetPasswordModal
+        isOpen={isResetModalOpen}
+        onClose={() => setIsResetModalOpen(false)}
+      />
     </div>
   );
 };

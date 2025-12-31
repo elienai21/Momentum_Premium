@@ -106,12 +106,12 @@ ESTRATÉGIA DE RESPOSTA:
             return res.status(402).json({
                 ok: false,
                 code: "NO_CREDITS",
-                message: "Saldo de créditos insuficiente para consulta ao consultor."
+                message: "Seu plano atual atingiu o limite de uso da IA. Faça um upgrade para continuar perguntando."
             });
         }
         return res.status(500).json({
             ok: false,
-            message: "Houve um erro interno ao processar sua consulta financeira."
+            message: "O Consultor está indisponível momentaneamente. Nossos engenheiros já foram notificados. Tente novamente em alguns minutos."
         });
     }
 }

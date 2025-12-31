@@ -52,7 +52,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     return next(
       new ApiError(
         401,
-        "Unauthorized: Missing or invalid Authorization/x-id-token header."
+        "Não foi possível identificar sua sessão. Por favor, faça login novamente para continuar."
       )
     );
   }
@@ -110,6 +110,6 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       traceId,
     });
 
-    return next(new ApiError(401, "Unauthorized: Invalid or expired token."));
+    return next(new ApiError(401, "Sua sessão expirou por segurança. Atualize a página ou entre novamente."));
   }
 };

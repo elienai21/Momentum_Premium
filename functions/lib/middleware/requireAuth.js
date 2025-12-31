@@ -66,7 +66,7 @@ const requireAuth = async (req, res, next) => {
     }
     if (!idToken) {
         logger_1.logger.warn("Auth header missing", { traceId });
-        return next(new errors_1.ApiError(401, "Unauthorized: Missing or invalid Authorization/x-id-token header."));
+        return next(new errors_1.ApiError(401, "Não foi possível identificar sua sessão. Por favor, faça login novamente para continuar."));
     }
     try {
         // ? Deixe o Firebase Admin validar o token (inclui aud/iss internamente)
@@ -116,7 +116,7 @@ const requireAuth = async (req, res, next) => {
             errorType: err?.name,
             traceId,
         });
-        return next(new errors_1.ApiError(401, "Unauthorized: Invalid or expired token."));
+        return next(new errors_1.ApiError(401, "Sua sessão expirou por segurança. Atualize a página ou entre novamente."));
     }
 };
 exports.requireAuth = requireAuth;
