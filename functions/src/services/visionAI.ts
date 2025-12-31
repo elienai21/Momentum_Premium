@@ -1,27 +1,18 @@
 // ============================================================
-// 👁️ Vision AI — OCR + Inteligência Contábil Momentum (v9.5 Stable)
+// 👁️ Vision AI — OCR + Inteligência Contábil Momentum (v10.0 Gemini Build)
 // ============================================================
 
-import { Response } from "express";
+import { Response, Request } from "express";
 import { db } from "src/services/firebase";
 import { logger } from "../utils/logger";
 import { chargeCredits } from "../billing/chargeCredits";
 import type { PlanTier } from "../billing/creditsTypes";
-
-// Lazy-load do Vision evita travar deploys
-let visionClient: any;
-async function getVisionClient() {
-  if (!visionClient) {
-    const vision = await import("@google-cloud/vision");
-    visionClient = new vision.ImageAnnotatorClient();
-  }
-  return visionClient;
-}
+import { analyzeReceiptImage } from "../ai/vision";
 
 // ============================================================
 // 🔍 OCR Inteligente — Notas, Faturas, Recibos, Boletos
 // ============================================================
-export async function visionAI(req: any, res: Response) {
+export async function visionAI(req: Request, res: Response) {
   try {
     const uid = req.user?.uid;
     const tenantId = req.tenant?.info?.id;
@@ -31,10 +22,10 @@ export async function visionAI(req: any, res: Response) {
     if (!uid || !tenantId) throw new Error("Usuário ou Tenant não autenticado.");
     if (!imageBase64) throw new Error("Imagem não enviada.");
 
-    const client = await getVisionClient();
+    // Converte uma única vez para buffer para evitar duplicatas em memória
     const buffer = Buffer.from(imageBase64, "base64");
 
-    const { fullText, summary } = await chargeCredits(
+    const result = await chargeCredits(
       {
         tenantId,
         plan,
@@ -43,20 +34,27 @@ export async function visionAI(req: any, res: Response) {
         idempotencyKey: req.header("x-idempotency-key"),
       },
       async () => {
-        const [result] = await client.textDetection({ image: { content: buffer } });
-        const text = result.fullTextAnnotation?.text || "";
+        // Usa o motor de Visão do Gemini (Multimodal) via analyzeReceiptImage
+        // Isso substitui Regex e melhora drasticamente a precisão
+        const aiResponse = (await analyzeReceiptImage(buffer, {
+          fileName: fileId || "upload.jpg",
+          uid,
+        })) as any;
 
-        if (!text.trim()) {
-          return { fullText: "", summary: "Nenhum texto detectado na imagem." };
-        }
+        const txn = aiResponse.transaction || {};
 
-        const lines = text
-          .split("\n")
-          .map((l: string) => l.trim())
-          .filter((l: string) => l.length > 0);
+        // Constrói resumo formatado a partir dos dados estruturados da IA
+        const summaryParts: string[] = [];
+        if (txn.description) summaryParts.push(`Estabelecimento: ${txn.description}`);
+        if (txn.date) summaryParts.push(`Data: ${txn.date}`);
+        if (txn.amount) summaryParts.push(`Valor: R$ ${Number(txn.amount).toFixed(2)}`);
+        if (txn.category) summaryParts.push(`Categoria sugerida: ${txn.category}`);
 
-        const summaryText = buildFinanceSummary(lines);
-        return { fullText: text, summary: summaryText };
+        const summary = summaryParts.length > 0
+          ? summaryParts.join("\n")
+          : "Não foi possível extrair dados financeiros claros desta imagem.";
+
+        return { summary, raw: aiResponse };
       }
     );
 
@@ -66,38 +64,19 @@ export async function visionAI(req: any, res: Response) {
       tenantId,
       timestamp: Date.now(),
       status: "success",
-      confidenceScore: summary ? 0.9 : 0.5,
+      confidenceScore: result.summary.includes("Não foi possível") ? 0.5 : 0.9,
       detectedType: "invoice",
+      model: "gemini-2.5-flash",
     });
 
-    logger.info("📸 VisionAI processado com sucesso", { uid, tenantId });
-    res.json({ ok: true, summary });
+    logger.info("📸 VisionAI processado com sucesso via Gemini", { uid, tenantId, traceId: req.traceId });
+    res.json({ ok: true, summary: result.summary });
   } catch (error: any) {
-    logger.error("❌ VisionAI falhou", { error: error.message });
+    logger.error("❌ VisionAI falhou", { error: error.message, traceId: req.traceId });
     res.status(error.status || 500).json({
       ok: false,
       code: error.code || "VISION_ERROR",
       message: error.message
     });
   }
-}
-
-// ============================================================
-// 🧠 Mini interpretador contábil
-// ============================================================
-function buildFinanceSummary(lines: string[]): string {
-  const summaryParts: string[] = [];
-
-  const totalLine = lines.find((l) => /total|valor/i.test(l));
-  const cnpj = lines.find((l) => /(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/.test(l));
-  const date = lines.find((l) => /\d{2}\/\d{2}\/\d{4}/.test(l));
-
-  if (cnpj) summaryParts.push(`CNPJ detectado: ${cnpj}`);
-  if (date) summaryParts.push(`Data da nota: ${date}`);
-  if (totalLine) summaryParts.push(`Possível valor total: ${totalLine}`);
-
-  if (summaryParts.length === 0)
-    return "Texto detectado, mas sem informações contábeis relevantes.";
-
-  return summaryParts.join("\n");
 }

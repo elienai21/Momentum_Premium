@@ -10,7 +10,7 @@ import "../types";
 import { z } from "zod";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
-import { processChatMessage } from "../ai/chatAgent";
+import { runAdvisor } from "../ai/advisor";
 import { ApiError } from "../utils/errors";
 
 
@@ -21,19 +21,7 @@ const chatSchema = z.object({
 });
 
 // Endpoint to send a new message and get a response
-chatRouter.post("/session", requireAuth, withTenant, async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        if (!req.tenant) throw new ApiError(400, "Tenant context is required.");
-        
-        const { message } = chatSchema.parse(req.body);
-        // Pass the full request object for context (locale, traceId)
-        const responseText = await processChatMessage(req.user!.uid, req.tenant.info, message, req);
-        
-        res.json({ status: "success", data: { text: responseText } });
-    } catch (error) {
-        next(error);
-    }
-});
+chatRouter.post("/session", requireAuth, withTenant, runAdvisor);
 
 // Endpoint to retrieve chat history
 chatRouter.get("/history", requireAuth, async (req: Request, res: Response, next: NextFunction) => {

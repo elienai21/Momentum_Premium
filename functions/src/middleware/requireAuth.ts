@@ -8,15 +8,21 @@ import "../types";
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   ensureTraceId(req);
-  const traceId = (req as any).traceId || null;
+  const traceId = req.traceId || null;
 
   // SECURITY: Only bypass auth in emulator or explicit test mode
   // Never rely on NODE_ENV alone - can be accidentally set in production
-  const allowBypass =
-    process.env.FUNCTIONS_EMULATOR === "true" ||
-    process.env.ALLOW_AUTH_BYPASS_FOR_TESTS === "true";
+  // ADDED: Project ID check to ensure bypass NEVER happens in production project
+  const projectId = admin.instanceId().app.options.projectId;
+  const isProduction = projectId === "momentum-premium" || projectId === "momentum-v2-prod";
 
-  if (allowBypass && (req as any).user?.uid) {
+  const allowBypass =
+    !isProduction && (
+      process.env.FUNCTIONS_EMULATOR === "true" ||
+      process.env.ALLOW_AUTH_BYPASS_FOR_TESTS === "true"
+    );
+
+  if (allowBypass && req.user?.uid) {
     return next();
   }
 
@@ -42,9 +48,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
   }
 
   if (!idToken) {
-    logger.warn("Auth header missing", {
-      traceId: (req as any).traceId || null,
-    });
+    logger.warn("Auth header missing", { traceId });
     return next(
       new ApiError(
         401,
@@ -83,7 +87,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
       email: decoded.email || "unknown",
       tenantId: (decoded as any).tenantId || (decoded as any).tenant_id,
       isAdmin,
-    } as any;
+    };
 
     if (typeof googleAccessToken === "string") {
       req.googleAccessToken = googleAccessToken;

@@ -28,12 +28,12 @@ function requireRole(allowed) {
             logger_1.logger.warn("requireRole: missing tenant in request", { traceId, uid: req.user.uid });
             return next(new errors_1.ApiError(400, "Tenant context required"));
         }
-        const role = (req.tenant.role || "member");
+        const role = (req.tenant?.role || "member");
         if (!allowedRoles.includes(role)) {
             logger_1.logger.warn("requireRole: forbidden", {
                 traceId,
                 uid: req.user.uid,
-                tenantId: req.tenant.id || req.tenant.info?.id,
+                tenantId: req.tenant?.id || req.tenant?.info?.id,
                 role,
                 allowedRoles,
             });

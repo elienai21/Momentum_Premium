@@ -45,8 +45,11 @@ const requireAuth = async (req, res, next) => {
     const traceId = req.traceId || null;
     // SECURITY: Only bypass auth in emulator or explicit test mode
     // Never rely on NODE_ENV alone - can be accidentally set in production
-    const allowBypass = process.env.FUNCTIONS_EMULATOR === "true" ||
-        process.env.ALLOW_AUTH_BYPASS_FOR_TESTS === "true";
+    // ADDED: Project ID check to ensure bypass NEVER happens in production project
+    const projectId = admin.instanceId().app.options.projectId;
+    const isProduction = projectId === "momentum-premium" || projectId === "momentum-v2-prod";
+    const allowBypass = !isProduction && (process.env.FUNCTIONS_EMULATOR === "true" ||
+        process.env.ALLOW_AUTH_BYPASS_FOR_TESTS === "true");
     if (allowBypass && req.user?.uid) {
         return next();
     }
@@ -62,9 +65,7 @@ const requireAuth = async (req, res, next) => {
         idToken = authorization.slice("Bearer ".length).trim();
     }
     if (!idToken) {
-        logger_1.logger.warn("Auth header missing", {
-            traceId: req.traceId || null,
-        });
+        logger_1.logger.warn("Auth header missing", { traceId });
         return next(new errors_1.ApiError(401, "Unauthorized: Missing or invalid Authorization/x-id-token header."));
     }
     try {

@@ -35,13 +35,13 @@ export function requireRole(allowed: Role[] | Role) {
       return next(new ApiError(400, "Tenant context required"));
     }
 
-    const role = (req.tenant.role || "member") as Role;
+    const role = (req.tenant?.role || "member") as Role;
 
     if (!allowedRoles.includes(role)) {
       logger.warn("requireRole: forbidden", {
         traceId,
         uid: req.user.uid,
-        tenantId: req.tenant.id || req.tenant.info?.id,
+        tenantId: req.tenant?.id || req.tenant?.info?.id,
         role,
         allowedRoles,
       });

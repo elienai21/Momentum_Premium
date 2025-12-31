@@ -185,15 +185,15 @@ export async function withTenant(req: Request, res: Response, next: NextFunction
 
     if (tenantDebug) {
       console.log("[TENANT_OK]", {
-        tenantId: req.tenant.info.id,
+        tenantId: (req.tenant as any).info.id,
         uid: req.user?.uid || null,
-        traceId: (req as any).traceId || null,
+        traceId: req.traceId || null,
       });
     }
 
     return next();
   } catch (e) {
-    logError("withTenant_failure", e, { path: req.path, uid: req.user?.uid, traceId: (req as any).traceId || null });
+    logError("withTenant_failure", e, { path: req.path, uid: req.user?.uid, traceId: req.traceId || null });
     return res.status(500).json({ error: "Tenant resolution error" });
   }
 }

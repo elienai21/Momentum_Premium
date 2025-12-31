@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Response, Request } from "express";
 import { buildUserContext } from "./context";
 import { aiClient } from "../utils/aiClient";
 import { logger } from "../utils/logger";
@@ -20,11 +20,11 @@ export type AdvisorReply = {
   voice?: boolean;
 };
 
-export async function advisorReply(message: string): Promise<AdvisorReply> {
-  return { answer: "Estou indisponível no momento.", voice: false };
-}
-
-export async function runAdvisor(req: any, res: Response) {
+/**
+ * Ponto de entrada principal para o Advisor (CFO AI).
+ * Processa a mensagem do usuário, injeta contexto financeiro profundo e retorna a resposta.
+ */
+export async function runAdvisor(req: Request, res: Response) {
   const userId = req.user?.uid;
   const tenantId = req.tenant?.info?.id || "default";
   const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
@@ -34,28 +34,32 @@ export async function runAdvisor(req: any, res: Response) {
   if (!message) return res.status(400).json({ ok: false, error: "Mensagem vazia." });
 
   try {
-    // 2. BUSCA DE CONTEXTO FINANCEIRO (PULSE)
+    // 1. BUSCA DE CONTEXTO FINANCEIRO (PULSE)
+    // Em vez de pegar apenas os últimos 100, usamos o dashboard que analisa até 1000
     let financialContext = "";
     try {
       const adapter = new FirestoreAdapter(tenantId);
-      const { currentBalance } = await adapter.getDashboardData();
-      const { items: transactions } = await adapter.getRecords({ limit: 100 });
+      const dashboard = await adapter.getDashboardData();
 
-      const health = calculateFinancialHealthMath(currentBalance, transactions);
+      // Busca registros para o cálculo de saúde (limitado a 500 para não estourar contexto agora, mas expansível)
+      const { items: transactions } = await adapter.getRecords({ limit: 500 });
+      const health = calculateFinancialHealthMath(dashboard.currentBalance, transactions);
 
       financialContext = `
-DADOS FINANCEIROS ATUAIS DA EMPRESA:
-- Saldo em Caixa: R$ ${currentBalance.toFixed(2)}
-- Runway (Vida útil do caixa): ${health.runwayMonths.toFixed(1)} meses
-- Média de Receita Mensal: R$ ${(health.netCashFlow + health.avgBurnRate).toFixed(2)}
-- Média de Despesa Mensal (Burn): R$ ${health.avgBurnRate.toFixed(2)}
-- Status de Saúde: ${health.status}
+DADOS FINANCEIROS REAIS DO TENANT (Momento: ${new Date().toISOString()}):
+- Saldo Atual em Caixa: R$ ${dashboard.currentBalance.toFixed(2)}
+- Receita Mensal Realizada: R$ ${dashboard.monthlyIncome.toFixed(2)}
+- Despesa Mensal Realizada: R$ ${dashboard.monthlyExpense.toFixed(2)}
+- Balanço do Mês: R$ ${(dashboard.monthlyIncome - dashboard.monthlyExpense).toFixed(2)}
+- Runway Estimado: ${health.runwayMonths.toFixed(1)} meses
+- Saúde Financeira: ${health.score}/100 [${health.status}]
+- Top Categorias de Gasto: ${dashboard.categoryTotals.slice(0, 5).map(c => `${c.category}: R$ ${c.total.toFixed(2)}`).join(", ")}
 `;
     } catch (err) {
-      logger.warn("Failed to load financial context for advisor", { tenantId });
+      logger.warn("Failed to load enriched financial context for advisor", { tenantId, traceId: req.traceId });
     }
 
-    // 3. Construção do Prompt
+    // 2. Construção do Prompt do Sistema
     const { systemPrompt: baseSystemPrompt } = await buildUserContext(userId);
 
     const enrichedSystemPrompt = `
@@ -63,14 +67,14 @@ ${baseSystemPrompt}
 
 ${financialContext}
 
-INSTRUÇÃO IMPORTANTE:
-Você é um CFO experiente analisando os dados acima.
-Responda à pergunta do usuário considerando estritamente esses números.
-Se o runway for baixo (menos de 6 meses), alerte o usuário em sua resposta.
-Seja conciso, prático e numérico quando possível.
+ESTRATÉGIA DE RESPOSTA:
+1. Você é o Momentum CFO, um conselheiro financeiro de elite.
+2. Seja direto, numérico e baseado em FATOS extraídos do contexto acima.
+3. Se o usuário perguntar algo que não está nos dados, peça clareza ou informe a limitação.
+4. Se identificar riscos (Runway < 6 meses), seja consultivo e sugira cortes ou novas receitas.
 `;
 
-    // 4. Execução IA (Com cobrança de créditos transacional e idempotente)
+    // 3. Execução da IA com controle de créditos
     const result = await chargeCredits(
       {
         tenantId,
@@ -80,7 +84,7 @@ Seja conciso, prático e numérico quando possível.
         idempotencyKey: req.header("x-idempotency-key"),
       },
       async () => {
-        return await aiClient(enrichedSystemPrompt, {
+        return await aiClient(`MENSAGEM DO USUÁRIO: ${message}\n\n${enrichedSystemPrompt}`, {
           tenantId,
           userId,
           model: "gemini",
@@ -90,15 +94,14 @@ Seja conciso, prático e numérico quando possível.
       }
     );
 
-    const answerText = result.text?.trim() || "Não consegui gerar uma resposta agora.";
+    const answerText = result.text?.trim() || "Não consegui analisar seus dados agora. Por favor, tente em alguns instantes.";
 
-    // 5. Analisa Ações
+    // 4. Inteligência de Próximos Passos (Trigger de Ações)
     const actions: AdvisorAction[] = [];
-    if (/alerta/i.test(answerText) || /alert/i.test(answerText)) {
+    if (/reduzir gasto|economizar|cortar/i.test(answerText)) {
       actions.push({
-        name: "create-alert",
-        args: { message: "Alerta sugerido pela IA" },
-        confirmText: "Deseja criar este alerta?",
+        name: "analyze-expenses",
+        confirmText: "Deseja que eu analise onde você pode economizar mais?"
       });
     }
 
@@ -108,33 +111,33 @@ Seja conciso, prático e numérico quando possível.
       voice: true,
     };
 
-    // 6. Histórico
+    // 5. Histórico e Auditoria
     await db.collection("ai_conversations").add({
       uid: userId,
+      tenantId,
       message,
       response: answerText,
       contextUsed: !!financialContext,
       timestamp: Date.now(),
-      tenantId,
+      traceId: req.traceId,
     });
 
     return res.json({ ok: true, reply });
 
   } catch (error: any) {
-    logger.error("Advisor execution failed", { userId, error: error.message });
+    logger.error("Advisor execution failed", { userId, error: error.message, traceId: req.traceId });
 
-    // Se for erro de créditos, propaga o status 402
     if (error.status === 402 || error.code === "NO_CREDITS") {
       return res.status(402).json({
         ok: false,
         code: "NO_CREDITS",
-        message: "Você não possui créditos de IA suficientes."
+        message: "Saldo de créditos insuficiente para consulta ao consultor."
       });
     }
 
-    const fallback = await advisorReply(message);
-    return res.json({ ok: true, reply: fallback });
+    return res.status(500).json({
+      ok: false,
+      message: "Houve um erro interno ao processar sua consulta financeira."
+    });
   }
 }
-
-export const processChatMessage = advisorReply;
