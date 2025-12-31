@@ -47,7 +47,7 @@ const logger_1 = require("../utils/logger");
 const openai = new openai_1.default({ apiKey: process.env.OPENAI_API_KEY });
 async function transcribeAudio(audioBuffer, mimeType) {
     // Cria arquivo temporário preservando uma extensão compatível
-    const ext = mimeType?.includes("mp4") ? "mp4" : "webm";
+    const ext = mimeType.includes("mp4") ? "mp4" : "webm";
     const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.${ext}`);
     try {
         await fs.writeFile(tempFilePath, audioBuffer);

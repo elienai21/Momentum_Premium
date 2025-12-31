@@ -10,7 +10,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
   // Cria arquivo temporário preservando uma extensão compatível
-  const ext = mimeType?.includes("mp4") ? "mp4" : "webm";
+  const ext = mimeType.includes("mp4") ? "mp4" : "webm";
   const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.${ext}`);
 
   try {
