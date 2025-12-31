@@ -1,8 +1,9 @@
 // functions/src/routes/voice.ts
 import { Request, Response, Router } from "express";
 import { z } from "zod";
+import multer from "multer";
 import { synthesizeToGcs } from "../services/ttsService";
-import { transcribeFromGcs } from "../services/sttService";
+import { transcribeAudio } from "../services/sttService";
 import { runGemini } from "../utils/aiClient";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
@@ -14,6 +15,7 @@ import { chargeCredits } from "../billing/chargeCredits";
 import type { PlanTier } from "../billing/creditsTypes";
 
 const voiceRouter = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // 🔒 Flag de ambiente: voz só em DEV (ou se VOICE_FEATURE_ENABLED=true)
 const VOICE_ENABLED =
@@ -103,20 +105,21 @@ voiceRouter.post(
 
 // -----------------------------
 // POST /api/voice/stt
-// Body: { gcsUri: string; languageCode?: string }
+// Body: multipart/form-data com field "file"; languageCode opcional
 // -----------------------------
 voiceRouter.post(
   "/stt",
+  upload.single("file"),
   async (req: AuthedRequest, res: Response): Promise<void> => {
-    const { gcsUri, languageCode = "pt-BR" } = req.body || {};
-
-    if (!gcsUri || typeof gcsUri !== "string") {
-      res.status(400).json({ error: "Campo 'gcsUri' é obrigatório." });
-      return;
-    }
+    const file = (req as any).file as { buffer?: Buffer; mimetype?: string } | undefined;
 
     const tenantId = req.tenant?.info?.id || "anon";
     const plan = (req.tenant?.info?.plan || "starter") as PlanTier;
+
+    if (!file?.buffer) {
+      res.status(400).json({ error: "Arquivo de áudio é obrigatório." });
+      return;
+    }
 
     try {
       const result = await chargeCredits(
@@ -128,16 +131,14 @@ voiceRouter.post(
           idempotencyKey: req.header("x-idempotency-key"),
         },
         async () => {
-          return await transcribeFromGcs({
-            tenantId,
-            gcsUri,
-            languageCode,
-          });
+          return await transcribeAudio(
+            file.buffer as Buffer,
+            file.mimetype || "audio/webm"
+          );
         }
       );
 
-      // result esperado: { text: string }
-      res.status(200).json({ transcript: result.text });
+      res.status(200).json({ transcript: result });
     } catch (err: any) {
       const code = err?.code || "STT_ERROR";
       const status = err?.status || (code === "VOICE_DISABLED" ? 503 : 500);

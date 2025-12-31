@@ -1,21 +1,24 @@
 // functions/src/routes/billing.ts
 import { Router } from "express";
+import { z } from "zod";
 import { ApiError } from "../utils/errors";
 import { getCredits } from "../billing/creditsService";
 import { PlanTier } from "../billing/creditsTypes";
-import { z } from "zod";
 import { reportUsageToStripe } from "src/utils/usageTracker";
 import { db } from "src/services/firebase";
 import { getStripeClient } from "../billing/stripeBilling";
+import { requireAuth } from "../middleware/requireAuth";
+import { withTenant } from "../middleware/withTenant";
+import { subscriptionItemBelongsToTenant } from "../utils/subscriptionItemGuard";
 
 export const billingRouter = Router();
 
-// ... existing code ...
+billingRouter.use(requireAuth, withTenant);
 
 // GET /api/billing/portal - Redirect to Stripe Customer Portal
 billingRouter.get("/portal", async (req: any, res, next) => {
   try {
-    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    if (!req.tenant || !req.user) throw new ApiError(400, "Tenant context required");
 
     const tenantId = req.tenant.info.id;
     const tenantDoc = await db.collection("tenants").doc(tenantId).get();
@@ -52,6 +55,7 @@ billingRouter.get("/portal", async (req: any, res, next) => {
 // POST /api/billing/report (Stripe usage)
 const handleReportUsage = async (req: any, res: any, next: any) => {
   try {
+    if (!req.tenant || !req.user) throw new ApiError(400, "Tenant context required");
     const schema = z.union([
       z.object({
         subscriptionItemId: z.string().min(1),
@@ -74,6 +78,16 @@ const handleReportUsage = async (req: any, res: any, next: any) => {
     const amountCents =
       "amountCents" in parsed.data ? parsed.data.amountCents : parsed.data.tokens;
 
+    const tenantId = req.tenant.info.id as string;
+    const belongsToTenant = await subscriptionItemBelongsToTenant(tenantId, subscriptionItemId);
+    if (!belongsToTenant) {
+      return res.status(403).json({
+        ok: false,
+        error: "Subscription item does not belong to tenant",
+        code: "INVALID_SUBSCRIPTION_ITEM",
+      });
+    }
+
     await reportUsageToStripe(subscriptionItemId, amountCents);
     return res.status(200).json({ status: "ok" });
   } catch (err) {
@@ -88,7 +102,7 @@ billingRouter.post("/report", handleReportUsage);
 // GET /api/billing/credits
 billingRouter.get("/credits", async (req: any, res, next) => {
   try {
-    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    if (!req.tenant || !req.user) throw new ApiError(400, "Tenant context required");
 
     const tenantId = req.tenant.info.id;
     const planId = (req.tenant.info.plan || "starter") as PlanTier;
@@ -119,7 +133,7 @@ billingRouter.get("/credits", async (req: any, res, next) => {
 // GET /api/billing/usage-logs - Lista logs de uso para exibição no Settings
 billingRouter.get("/usage-logs", async (req: any, res, next) => {
   try {
-    if (!req.tenant) throw new ApiError(400, "Tenant context required");
+    if (!req.tenant || !req.user) throw new ApiError(400, "Tenant context required");
 
     const tenantId = req.tenant.info.id;
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 100);
@@ -148,5 +162,4 @@ billingRouter.get("/usage-logs", async (req: any, res, next) => {
     );
   }
 });
-
 

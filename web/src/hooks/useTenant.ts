@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "../services/firebase";
 
 export interface TenantData {
@@ -7,10 +7,22 @@ export interface TenantData {
   logoUrl?: string;
 }
 
-export function useTenant(tenantId: string) {
+export function useTenant(tenantId: string | null) {
   const [tenant, setTenant] = useState<TenantData | null>(null);
+  const [role, setRole] = useState<string>("viewer");
 
   useEffect(() => {
+    const storedRole = localStorage.getItem("momentum:role");
+    if (storedRole) {
+      setRole(storedRole);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!tenantId) {
+      setTenant(null);
+      return;
+    }
     async function fetchTenant() {
       try {
         const docRef = doc(db, "tenants", tenantId);
@@ -23,5 +35,5 @@ export function useTenant(tenantId: string) {
     fetchTenant();
   }, [tenantId]);
 
-  return tenant;
+  return { tenant, role };
 }

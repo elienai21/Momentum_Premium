@@ -35,7 +35,12 @@ api.interceptors.request.use((config) => {
     headers["x-id-token"] = token;
   }
 
-  headers["x-tenant-id"] = getCurrentTenantId();
+  const tenantId = getCurrentTenantId();
+  if (!tenantId) {
+    return Promise.reject(new Error("Tenant not selected"));
+  }
+
+  headers["x-tenant-id"] = tenantId;
   config.headers = headers;
 
   return config;

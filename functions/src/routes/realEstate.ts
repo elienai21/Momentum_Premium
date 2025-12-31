@@ -9,11 +9,37 @@ import {
   listOwners,
   createOwner,
   listUnits,
-  createUnit
+  createUnit,
+  listContracts,
+  createContract,
+  updateContract,
+  deleteContract,
+  initDocumentUpload,
+  commitDocument,
+  listDocuments,
+  generateOwnerStatement,
+  listOwnerStatements,
+  generateReceivablesBatch,
+  recordPayment,
+  listReceivables,
+  calculateAgingSnapshot,
+  getAgingSnapshot,
 } from "../services/realEstateService";
 import { requireAuth } from "../middleware/requireAuth";
 import { withTenant } from "../middleware/withTenant";
+import { requireRole } from "../middleware/requireRole";
 import { z } from "zod";
+import { logActionFromRequest } from "../modules/audit/auditService";
+import {
+  documentCommitSchema,
+  documentInitUploadSchema,
+  documentListQuerySchema,
+  generateStatementSchema,
+  statementListQuerySchema,
+  receivableGenerateBatchSchema,
+  receivableListQuerySchema,
+  agingAnalyticsQuerySchema,
+} from "../types/realEstate";
 
 export const realEstateRouter = Router();
 
@@ -93,6 +119,15 @@ const unitSchema = z.object({
   nightlyRate: z.number().optional(),
 });
 
+const contractSchema = z.object({
+  unitId: z.string().min(1),
+  tenantName: z.string().min(1),
+  startDate: z.string().min(1),
+  endDate: z.string().min(1),
+  rentAmount: z.number().positive(),
+  readjustmentIndex: z.string().optional(),
+});
+
 realEstateRouter.get("/units", async (req: any, res) => {
   const tenantId = req.tenant.info.id;
   const units = await listUnits(tenantId);
@@ -106,5 +141,160 @@ realEstateRouter.post("/units", async (req: any, res) => {
   res.json({ ok: true, unit });
 });
 
-export default realEstateRouter;
+// Contracts
+realEstateRouter.get("/contracts", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const unitId = (req.query.unitId as string) || undefined;
+  const contracts = await listContracts(tenantId, unitId);
+  res.json({ ok: true, contracts });
+});
 
+realEstateRouter.post("/contracts", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = contractSchema.parse(req.body);
+  const contract = await createContract(tenantId, data);
+  res.json({ ok: true, contract });
+});
+
+realEstateRouter.put("/contracts/:id", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  const data = contractSchema.partial().parse(req.body);
+  await updateContract(tenantId, req.params.id, data);
+  res.json({ ok: true });
+});
+
+realEstateRouter.delete("/contracts/:id", async (req: any, res) => {
+  const tenantId = req.tenant.info.id;
+  await deleteContract(tenantId, req.params.id);
+  res.json({ ok: true });
+});
+
+// Documents (stubs)
+realEstateRouter.post("/documents/init-upload", requireRole(["admin", "finance", "editor"]), async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentInitUploadSchema.parse(req.body);
+    const result = await initDocumentUpload(tenantId, parsed, req.user);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.post("/documents/commit", requireRole(["admin", "finance", "editor"]), async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentCommitSchema.parse(req.body);
+    const document = await commitDocument(tenantId, parsed, req.user);
+    await logActionFromRequest(req, "realestate.document.upload", {
+      entityId: parsed.linkedEntityId,
+      docType: parsed.docType,
+    });
+    res.json({ ok: true, document });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.get("/documents", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = documentListQuerySchema.parse(req.query);
+    const documents = await listDocuments(tenantId, parsed);
+    res.json({ ok: true, documents });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Statements (stubs)
+realEstateRouter.post("/statements/generate", requireRole(["admin", "finance"]), async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = generateStatementSchema.parse(req.body);
+    const statement = await generateOwnerStatement(
+      tenantId,
+      parsed.ownerId,
+      parsed.period,
+      req.user?.uid
+    );
+    await logActionFromRequest(req, "realestate.statement.generated", {
+      ownerId: parsed.ownerId,
+      period: parsed.period,
+    });
+    res.json({ ok: true, statement });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.get("/statements", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = statementListQuerySchema.parse(req.query);
+    const statements = await listOwnerStatements(tenantId, parsed.ownerId);
+    res.json({ ok: true, statements });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Receivables & analytics (stubs)
+realEstateRouter.post("/receivables/generate-batch", requireRole(["admin", "finance"]), async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = receivableGenerateBatchSchema.parse(req.body);
+    const result = await generateReceivablesBatch(tenantId, parsed.period);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.get("/receivables", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const parsed = receivableListQuerySchema.parse(req.query);
+    const receivables = await listReceivables(tenantId, parsed);
+    res.json({ ok: true, receivables });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.post("/receivables/:id/payment", requireRole(["admin", "finance"]), async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    const bodySchema = z.object({
+      amount: z.number().positive(),
+      date: z.string().min(1),
+    });
+    const parsed = bodySchema.parse(req.body);
+    const receivable = await recordPayment(tenantId, req.params.id, parsed.amount, parsed.date);
+    await logActionFromRequest(req, "realestate.payment.recorded", {
+      receivableId: req.params.id,
+      amount: parsed.amount,
+    });
+    res.json({ ok: true, receivable });
+  } catch (err) {
+    next(err);
+  }
+});
+
+realEstateRouter.get("/analytics/aging", async (req: any, res, next) => {
+  try {
+    const tenantId = req.tenant.info.id;
+    agingAnalyticsQuerySchema.parse(req.query ?? {});
+    const existing = await getAgingSnapshot(tenantId);
+    if (existing) {
+      res.json({ ok: true, aging: existing });
+      return;
+    }
+    const aging = await calculateAgingSnapshot(tenantId);
+    res.json({ ok: true, aging });
+  } catch (err) {
+    next(err);
+  }
+});
+
+export default realEstateRouter;
