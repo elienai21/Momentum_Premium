@@ -2,6 +2,14 @@
 import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
 import { setGlobalOptions } from "firebase-functions/v2/options";
+
+// ⚠️ IMPORTANTE: Configuração global Functions v2 deve vir ANTES dos exports
+setGlobalOptions({
+  region: "southamerica-east1",
+  timeoutSeconds: 120,
+  memory: "512MiB",
+});
+
 import { createExpressApp } from "./app/createExpressApp";
 
 // Exports de schedulers/triggers
@@ -19,13 +27,6 @@ try {
 } catch {
   admin.initializeApp();
 }
-
-// Configuração global Functions v2
-setGlobalOptions({
-  region: "southamerica-east1",
-  timeoutSeconds: 120,
-  memory: "512MiB",
-});
 
 // Express app (puro, sem side-effects extra)
 export const expressApp = createExpressApp();
