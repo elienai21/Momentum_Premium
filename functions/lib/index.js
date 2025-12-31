@@ -33,11 +33,17 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.apiV2 = exports.expressApp = exports.stripeWebhook = exports.calculateRealEstateFees = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
+exports.apiV2 = exports.expressApp = exports.dailyAging = exports.analyticsAggregator = exports.stripeWebhook = exports.calculateRealEstateFees = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
 // functions/src/index.ts
 const admin = __importStar(require("firebase-admin"));
 const https_1 = require("firebase-functions/v2/https");
 const options_1 = require("firebase-functions/v2/options");
+// ⚠️ IMPORTANTE: Configuração global Functions v2 deve vir ANTES dos exports
+(0, options_1.setGlobalOptions)({
+    region: "southamerica-east1",
+    timeoutSeconds: 120,
+    memory: "512MiB",
+});
 const createExpressApp_1 = require("./app/createExpressApp");
 // Exports de schedulers/triggers
 var cfoCron_1 = require("./scheduler/cfoCron");
@@ -51,6 +57,10 @@ var calculateRealEstateFees_1 = require("./cron/calculateRealEstateFees");
 Object.defineProperty(exports, "calculateRealEstateFees", { enumerable: true, get: function () { return calculateRealEstateFees_1.calculateRealEstateFees; } });
 var subscriptionManager_1 = require("./billing/subscriptionManager");
 Object.defineProperty(exports, "stripeWebhook", { enumerable: true, get: function () { return subscriptionManager_1.stripeWebhook; } });
+var analyticsAggregator_1 = require("./triggers/analyticsAggregator");
+Object.defineProperty(exports, "analyticsAggregator", { enumerable: true, get: function () { return analyticsAggregator_1.analyticsAggregator; } });
+var dailyAging_1 = require("./triggers/dailyAging");
+Object.defineProperty(exports, "dailyAging", { enumerable: true, get: function () { return dailyAging_1.dailyAging; } });
 // Firebase Admin init
 try {
     admin.app();
@@ -58,13 +68,12 @@ try {
 catch {
     admin.initializeApp();
 }
-// Configuração global Functions v2
-(0, options_1.setGlobalOptions)({
-    region: "southamerica-east1",
-    timeoutSeconds: 120,
-    memory: "512MiB",
-});
 // Express app (puro, sem side-effects extra)
 exports.expressApp = (0, createExpressApp_1.createExpressApp)();
 // Entrypoint HTTP
-exports.apiV2 = (0, https_1.onRequest)(exports.expressApp);
+exports.apiV2 = (0, https_1.onRequest)({
+    timeoutSeconds: 300,
+    memory: "1GiB",
+    cors: true,
+    region: "southamerica-east1",
+}, exports.expressApp);

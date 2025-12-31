@@ -10,7 +10,7 @@ exports.voiceNeural = voiceNeural;
 const checkPlan_1 = require("../middleware/checkPlan");
 const text_to_speech_1 = __importDefault(require("@google-cloud/text-to-speech"));
 const logger_1 = require("../utils/logger");
-const firebase_1 = require("src/services/firebase");
+const firebase_1 = require("../services/firebase");
 // Lazy init do cliente de TTS (Text-to-Speech)
 let ttsClient = null;
 async function getTtsClient() {
