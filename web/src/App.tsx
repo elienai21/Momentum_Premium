@@ -37,6 +37,7 @@ const AlertsCenter = lazy(() => import("./pages/AlertsCenter"));
 const DesignSystem = lazy(() => import("./pages/_DesignSystem"));
 const Imports = lazy(() => import("./pages/Imports"));
 const CfoSimulationPage = lazy(() => import("./pages/CfoSimulationPage"));
+const CfoSimulation = lazy(() => import("./pages/CfoSimulation"));
 const MarketNews = lazy(() => import("./pages/MarketNews").then((m) => ({ default: m.MarketNews })));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
@@ -122,6 +123,7 @@ export default function App() {
                     <Route path="cfo/deep-dive" element={<DeepDiveFinanceiroPage />} />
                     <Route path="advisor/deep-dive" element={<DeepDiveFinanceiroPage />} />
                     <Route path="cfo/simulation" element={<CfoSimulationPage />} />
+                    <Route path="simulation" element={<CfoSimulation />} />
                     <Route path="alerts" element={<AlertsCenter />} />
                     <Route path="imports" element={<Imports />} />
 

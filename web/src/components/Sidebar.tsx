@@ -1,7 +1,7 @@
 ﻿// web/src/components/Sidebar.tsx
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Calculator } from "lucide-react";
 
 type SidebarProps = {
   open?: boolean;
@@ -22,6 +22,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
     { label: "IA & Insights", path: "/insights", icon: "psychology", badge: "NEW" },
     { label: "Mercado", path: "/market-news", icon: <TrendingUp size={22} /> },
     { label: "Deep Dive Financeiro", path: "/cfo/deep-dive", icon: "finance_mode" },
+    { label: "Simulador", path: "/simulation", icon: <Calculator size={22} /> },
   ];
 
   const menuGerenciamento = [
