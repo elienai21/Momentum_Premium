@@ -445,26 +445,26 @@ async function buildStatementHtml(
           <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
             <p style="font-size: 12px; color: #64748b; margin:0;">Receitas</p>
             <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0;">${formatBRL(
-              totals.income
-            )}</p>
+    totals.income
+  )}</p>
           </div>
           <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
             <p style="font-size: 12px; color: #64748b; margin:0;">Despesas</p>
             <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#ef4444;">${formatBRL(
-              totals.expenses
-            )}</p>
+    totals.expenses
+  )}</p>
           </div>
           <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
             <p style="font-size: 12px; color: #64748b; margin:0;">Taxa de Administração</p>
             <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#f97316;">${formatBRL(
-              totals.fees
-            )}</p>
+    totals.fees
+  )}</p>
           </div>
           <div style="background: white; border-radius: 12px; padding: 12px; border: 1px solid #e2e8f0;">
             <p style="font-size: 12px; color: #64748b; margin:0;">Repasse Líquido</p>
             <p style="font-size: 18px; font-weight: 800; margin:4px 0 0 0; color:#0ea5e9;">${formatBRL(
-              totals.net
-            )}</p>
+    totals.net
+  )}</p>
           </div>
         </div>
 
@@ -1217,10 +1217,11 @@ export async function getPortfolioSummary(
   const netRevenue = grossRevenue - totalExpenses;
   const staysCount = stays.length;
 
-  // 3. Billing Preview (Estimativa simbólica)
-  // R$ 10 por proprietário ativo + R$ 2 por unidade ativa
-  const ownerFee = activeOwnersCount * 10;
-  const unitFee = activeUnitsCount * 2;
+  // 3. Billing Preview
+  // REMOVED: Hardcoded placeholder values (R$ 10 per owner, R$ 2 per unit)
+  // These values were symbolic and did NOT reflect actual plan pricing.
+  // When real billing is implemented, read pricing from tenant.plan or marketConfigService.
+  // For now, potentialCharges is omitted to avoid misleading customers.
 
   const summary: PortfolioSummary = {
     totals: {
@@ -1236,11 +1237,7 @@ export async function getPortfolioSummary(
       start: startIso,
       end: endIso
     },
-    potentialCharges: {
-      ownerFee,
-      unitFee,
-      total: ownerFee + unitFee
-    }
+    // potentialCharges: undefined - removed to avoid showing fake pricing
   };
 
   // Cache por 15 minutos

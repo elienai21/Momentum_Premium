@@ -828,10 +828,11 @@ async function getPortfolioSummary(tenantId, days = 30) {
     const totalExpenses = staysFees + expensesAmount;
     const netRevenue = grossRevenue - totalExpenses;
     const staysCount = stays.length;
-    // 3. Billing Preview (Estimativa simbólica)
-    // R$ 10 por proprietário ativo + R$ 2 por unidade ativa
-    const ownerFee = activeOwnersCount * 10;
-    const unitFee = activeUnitsCount * 2;
+    // 3. Billing Preview
+    // REMOVED: Hardcoded placeholder values (R$ 10 per owner, R$ 2 per unit)
+    // These values were symbolic and did NOT reflect actual plan pricing.
+    // When real billing is implemented, read pricing from tenant.plan or marketConfigService.
+    // For now, potentialCharges is omitted to avoid misleading customers.
     const summary = {
         totals: {
             activeOwners: activeOwnersCount,
@@ -846,11 +847,7 @@ async function getPortfolioSummary(tenantId, days = 30) {
             start: startIso,
             end: endIso
         },
-        potentialCharges: {
-            ownerFee,
-            unitFee,
-            total: ownerFee + unitFee
-        }
+        // potentialCharges: undefined - removed to avoid showing fake pricing
     };
     // Cache por 15 minutos
     SUMMARY_CACHE[cacheKey] = {
