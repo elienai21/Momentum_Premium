@@ -1,7 +1,7 @@
 // functions/src/index.ts
 import * as admin from "firebase-admin";
 import { onRequest } from "firebase-functions/v2/https";
-import { setGlobalOptions } from "firebase-functions/v2/options";
+import { setGlobalOptions } from "firebase-functions/v2";
 import { createExpressApp } from "./app/createExpressApp";
 
 // Exports de schedulers/triggers
@@ -10,6 +10,8 @@ export { pulseAggregateOnWrite } from "./triggers/pulseAggregate";
 export { cleanupExpiredLogs, cleanupExpiredLogsHttp } from "./cron/cleanupExpiredLogs";
 export { calculateRealEstateFees } from "./cron/calculateRealEstateFees";
 export { stripeWebhook } from "./billing/subscriptionManager";
+export { analyticsAggregator } from "./triggers/analyticsAggregator";
+export { dailyAging } from "./triggers/dailyAging";
 
 // Firebase Admin init
 try {
@@ -23,10 +25,19 @@ setGlobalOptions({
   region: "southamerica-east1",
   timeoutSeconds: 120,
   memory: "512MiB",
+  maxInstances: 10,
 });
 
 // Express app (puro, sem side-effects extra)
 export const expressApp = createExpressApp();
 
 // Entrypoint HTTP
-export const apiV2 = onRequest(expressApp);
+export const apiV2 = onRequest(
+  {
+    timeoutSeconds: 300,
+    memory: "1GiB",
+    cors: true,
+    region: "southamerica-east1",
+  },
+  expressApp
+);

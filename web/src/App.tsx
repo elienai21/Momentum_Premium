@@ -9,6 +9,7 @@ import { ToastProvider } from "./components/Toast";
 import { NoCreditsProvider } from "./components/NoCreditsProvider";
 import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
+import { InstallPwaModal } from "./components/InstallPwaModal";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Insights = lazy(() => import("./pages/Insights"));
@@ -34,7 +35,7 @@ const DeepDiveFinanceiroPage = lazy(() => import("./pages/DeepDiveFinanceiroPage
 const AlertsCenter = lazy(() => import("./pages/AlertsCenter"));
 const DesignSystem = lazy(() => import("./pages/_DesignSystem"));
 const Imports = lazy(() => import("./pages/Imports"));
-const CfoSimulationPage = lazy(() => import("./pages/CfoSimulationPage"));
+const CfoSimulation = lazy(() => import("./pages/CfoSimulation"));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -78,6 +79,7 @@ export default function App() {
           <AuthProvider>
             <NoCreditsProvider>
               {import.meta.env.DEV && <AuthDevHelper />}
+              <InstallPwaModal />
 
               <Suspense
                 fallback={
@@ -116,7 +118,8 @@ export default function App() {
                     <Route path="real-estate" element={<RealEstateDashboard />} />
                     <Route path="cfo/deep-dive" element={<DeepDiveFinanceiroPage />} />
                     <Route path="advisor/deep-dive" element={<DeepDiveFinanceiroPage />} />
-                    <Route path="cfo/simulation" element={<CfoSimulationPage />} />
+                    <Route path="simulation" element={<CfoSimulation />} />
+                    <Route path="cfo/simulation" element={<CfoSimulation />} />
                     <Route path="alerts" element={<AlertsCenter />} />
                     <Route path="imports" element={<Imports />} />
 

@@ -110,8 +110,8 @@ export default function Onboarding() {
         horizon: form.horizon,
       });
       setSubmitOk(true);
-      // Pequeno atraso para feedback visual, depois redireciona
-      setTimeout(() => navigate("/"), 400);
+      // Pequeno atraso para feedback visual, depois redireciona para o fluxo de importação
+      setTimeout(() => navigate("/imports", { state: { fromOnboarding: true } }), 400);
     } catch (err: any) {
       setSubmitError(
         err?.message?.toString?.() || "Não foi possível salvar. Tente novamente."

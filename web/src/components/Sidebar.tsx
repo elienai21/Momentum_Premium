@@ -1,10 +1,19 @@
 ﻿// web/src/components/Sidebar.tsx
 import React from "react";
 import { NavLink } from "react-router-dom";
+import { Calculator } from "lucide-react";
 
 type SidebarProps = {
   open?: boolean;
   onClose?: () => void;
+};
+
+type NavItem = {
+  label: string;
+  path: string;
+  icon?: string;
+  iconNode?: React.ReactNode;
+  badge?: string;
 };
 
 const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
@@ -14,21 +23,22 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
     }
   };
 
-  const menuPrincipal = [
+  const menuPrincipal: NavItem[] = [
     { label: "Dashboard", path: "/", icon: "dashboard" },
     { label: "Transações", path: "/transactions", icon: "receipt_long" },
     { label: "Auditoria & Limpeza", path: "/data-cleaning", icon: "verified_user" },
     { label: "IA & Insights", path: "/insights", icon: "psychology", badge: "NEW" },
     { label: "Deep Dive Financeiro", path: "/cfo/deep-dive", icon: "finance_mode" },
+    { label: "Simulador", path: "/simulation", iconNode: <Calculator className="w-5 h-5" /> },
   ];
 
-  const menuGerenciamento = [
+  const menuGerenciamento: NavItem[] = [
     { label: "Clientes", path: "/clients", icon: "people" },
     { label: "Real Estate", path: "/real-estate", icon: "domain" },
     { label: "Configurações", path: "/settings", icon: "settings" },
   ];
 
-  const renderNavItems = (items: typeof menuPrincipal) => {
+  const renderNavItems = (items: NavItem[]) => {
     return items.map((item) => (
       <NavLink
         key={item.path}
@@ -43,9 +53,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
           ].join(" ")
         }
       >
-        <span className="material-symbols-outlined text-[22px] transition-colors">
-          {item.icon}
-        </span>
+        {item.iconNode
+          ? React.cloneElement(item.iconNode as React.ReactElement, {
+            className: "w-5 h-5 text-current",
+          })
+          : (
+            <span className="material-symbols-outlined text-[22px] transition-colors">
+              {item.icon}
+            </span>
+          )}
         <span className="text-[14px] font-medium">{item.label}</span>
         {item.badge && (
           <span className="ml-auto bg-gradient-to-r from-primary to-secondary text-[10px] px-1.5 py-0.5 rounded text-white font-bold">
