@@ -12,6 +12,7 @@ import {
   Legend,
   PieController,
   DoughnutController,
+  Filler,
 } from "chart.js";
 import { useThemeWatcher } from "../hooks/useThemeWatcher";
 import api from "../services/api";
@@ -36,6 +37,7 @@ Chart.register(
   Legend,
   PieController,
   DoughnutController,
+  Filler,
 );
 
 type KPI = {
@@ -48,9 +50,15 @@ type KPI = {
 };
 
 type Charts = {
-  months: string[];
-  incomeSeries: number[];
-  expenseSeries: number[];
+  months: string[];              // Ex: ["Jan", "Fev", "Mar", "Abr (Proj)", "Mai (Proj)"]
+  incomeSeries: (number | null)[];
+  expenseSeries: (number | null)[];
+  // Dados de Projeção
+  forecastIncome: (number | null)[];
+  forecastExpense: (number | null)[];
+  // Intervalos de Confiança (O túnel de probabilidade)
+  confidenceUpper: (number | null)[];
+  confidenceLower: (number | null)[];
   categories: { category: string; amount: number }[];
 };
 
@@ -84,6 +92,100 @@ export const AnalyticsDashboard: React.FC = () => {
   ];
   const labelColor = isDark ? "#94a3b8" : "#64748b";
 
+  // ============================================
+  // HYBRID PROJECTION ENGINE (Cold Start Logic)
+  // ============================================
+  type ForecastResult = {
+    forecastValues: (number | null)[];
+    upper: (number | null)[];
+    lower: (number | null)[];
+    extendedMonths: string[];
+  };
+
+  function generateHybridForecast(
+    historicalData: (number | null)[],
+    months: string[],
+    projectionMonths: number = 3
+  ): ForecastResult {
+    // Filter out nulls for calculations
+    const validData = historicalData.filter((v): v is number => v !== null && v > 0);
+    const dataCount = validData.length;
+
+    // Determine confidence factor based on data availability
+    let confidenceFactor: number;
+    let growthRate: number;
+
+    if (dataCount < 3) {
+      // COLD START: Very few data points - use wide confidence band
+      confidenceFactor = 0.40; // 40% variance
+      growthRate = 0.02; // Conservative 2% assumed growth
+    } else if (dataCount < 6) {
+      // PARTIAL DATA: Use simple linear trend
+      confidenceFactor = 0.25; // 25% variance
+      const recentAvg = validData.slice(-3).reduce((a, b) => a + b, 0) / 3;
+      const olderAvg = validData.slice(0, Math.min(3, validData.length)).reduce((a, b) => a + b, 0) / Math.min(3, validData.length);
+      growthRate = olderAvg > 0 ? (recentAvg - olderAvg) / olderAvg / dataCount : 0.02;
+    } else {
+      // FULL DATA: Use weighted moving average with tighter confidence
+      confidenceFactor = 0.15; // 15% variance
+      const weights = [0.1, 0.15, 0.2, 0.25, 0.3];
+      const recentData = validData.slice(-5);
+      let weightedSum = 0;
+      let totalWeight = 0;
+      recentData.forEach((val, i) => {
+        const weight = weights[i] || 0.3;
+        weightedSum += val * weight;
+        totalWeight += weight;
+      });
+      const weightedAvg = weightedSum / totalWeight;
+      const previousAvg = validData.slice(-6, -3).reduce((a, b) => a + b, 0) / 3;
+      growthRate = previousAvg > 0 ? (weightedAvg - previousAvg) / previousAvg / 3 : 0.01;
+    }
+
+    // Clamp growth rate to reasonable bounds
+    growthRate = Math.max(-0.15, Math.min(0.15, growthRate));
+
+    // Get base value for projections
+    const baseValue = validData.length > 0
+      ? validData.slice(-3).reduce((a, b) => a + b, 0) / Math.min(3, validData.length)
+      : 5000; // Default for complete cold start
+
+    // Build projection arrays
+    const forecastValues: (number | null)[] = [...historicalData.map(() => null)];
+    const upper: (number | null)[] = [...historicalData.map(() => null)];
+    const lower: (number | null)[] = [...historicalData.map(() => null)];
+    const extendedMonths = [...months];
+
+    // Connect forecast to last real data point
+    if (validData.length > 0) {
+      const lastRealIndex = historicalData.length - 1;
+      forecastValues[lastRealIndex] = validData[validData.length - 1];
+      upper[lastRealIndex] = validData[validData.length - 1];
+      lower[lastRealIndex] = validData[validData.length - 1];
+    }
+
+    // Generate projections
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const currentMonthIndex = months.length > 0 ? monthNames.indexOf(months[months.length - 1]?.substring(0, 3)) : new Date().getMonth();
+
+    for (let i = 1; i <= projectionMonths; i++) {
+      const projectedValue = baseValue * Math.pow(1 + growthRate, i);
+      const variance = projectedValue * confidenceFactor * (1 + i * 0.1); // Variance increases over time
+
+      forecastValues.push(Math.round(projectedValue));
+      upper.push(Math.round(projectedValue + variance));
+      lower.push(Math.round(Math.max(0, projectedValue - variance)));
+
+      const nextMonthIndex = (currentMonthIndex + i) % 12;
+      extendedMonths.push(`${monthNames[nextMonthIndex]} (Proj)`);
+    }
+
+    return { forecastValues, upper, lower, extendedMonths };
+  }
+
+  // ============================================
+  // DATA LOADING
+  // ============================================
   async function loadAll() {
     setLoading(true);
     try {
@@ -94,7 +196,38 @@ export const AnalyticsDashboard: React.FC = () => {
       setKpis(safeKpis);
       setMeta(forecast?.meta || { categories: [], cards: [] });
 
-      const charts: Charts = forecast?.charts || { months: [], incomeSeries: [], expenseSeries: [], categories: [] };
+      // Get raw charts or default empty structure
+      const rawCharts = forecast?.charts || {
+        months: [],
+        incomeSeries: [],
+        expenseSeries: [],
+        forecastIncome: [],
+        forecastExpense: [],
+        confidenceUpper: [],
+        confidenceLower: [],
+        categories: []
+      };
+
+      // Apply hybrid projection engine if backend didn't provide forecasts
+      let charts: Charts;
+      if (!rawCharts.forecastIncome || rawCharts.forecastIncome.length === 0) {
+        const incomeProj = generateHybridForecast(rawCharts.incomeSeries, rawCharts.months, 3);
+        const expenseProj = generateHybridForecast(rawCharts.expenseSeries, rawCharts.months, 3);
+
+        charts = {
+          ...rawCharts,
+          months: incomeProj.extendedMonths,
+          incomeSeries: [...rawCharts.incomeSeries, ...Array(3).fill(null)],
+          expenseSeries: [...rawCharts.expenseSeries, ...Array(3).fill(null)],
+          forecastIncome: incomeProj.forecastValues,
+          forecastExpense: expenseProj.forecastValues,
+          confidenceUpper: incomeProj.upper,
+          confidenceLower: incomeProj.lower,
+        };
+      } else {
+        charts = rawCharts;
+      }
+
       renderCharts(charts);
 
       const hasKpis = (safeKpis.balance || 0) !== 0 || (safeKpis.income || 0) !== 0 || (safeKpis.expense || 0) !== 0;
@@ -115,6 +248,9 @@ export const AnalyticsDashboard: React.FC = () => {
     } catch { /* ignore */ }
   }
 
+  // ============================================
+  // CHART RENDERING WITH FORECAST VISUALIZATION
+  // ============================================
   function renderCharts(ch: Charts) {
     const ctx1 = lineRef.current?.getContext("2d");
     const ctx2 = pieRef.current?.getContext("2d");
@@ -123,40 +259,157 @@ export const AnalyticsDashboard: React.FC = () => {
     lineChart.current?.destroy();
     pieChart.current?.destroy();
 
+    // Create gradient for confidence tunnel
+    const tunnelGradient = ctx1.createLinearGradient(0, 0, 0, 280);
+    tunnelGradient.addColorStop(0, isDark ? "rgba(139, 92, 246, 0.15)" : "rgba(139, 92, 246, 0.1)");
+    tunnelGradient.addColorStop(1, "rgba(139, 92, 246, 0)");
+
     lineChart.current = new Chart(ctx1, {
       type: "line",
       data: {
         labels: ch.months,
         datasets: [
+          // Confidence Upper Bound (invisible line, just for fill)
+          {
+            label: "Limite Superior",
+            data: ch.confidenceUpper,
+            borderColor: "transparent",
+            backgroundColor: tunnelGradient,
+            fill: "+1", // Fill to next dataset (lower bound)
+            pointRadius: 0,
+            tension: 0.4,
+            order: 3,
+          },
+          // Confidence Lower Bound
+          {
+            label: "Limite Inferior",
+            data: ch.confidenceLower,
+            borderColor: "transparent",
+            backgroundColor: "transparent",
+            fill: false,
+            pointRadius: 0,
+            tension: 0.4,
+            order: 4,
+          },
+          // Historical Income (solid line)
           {
             label: "Receitas",
             data: ch.incomeSeries,
             borderColor: chartColors[0],
             backgroundColor: isDark ? "rgba(16, 185, 129, 0.1)" : "rgba(16, 185, 129, 0.05)",
-            borderWidth: 2,
+            borderWidth: 2.5,
             tension: 0.4,
             fill: true,
+            pointRadius: 4,
+            pointBackgroundColor: chartColors[0],
+            order: 1,
           },
+          // Historical Expense (solid line)
           {
             label: "Despesas",
             data: ch.expenseSeries,
             borderColor: chartColors[1],
             backgroundColor: "transparent",
-            borderWidth: 2,
+            borderWidth: 2.5,
             tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: chartColors[1],
+            order: 2,
+          },
+          // Forecast Income (dashed line)
+          {
+            label: "Receitas (Proj)",
+            data: ch.forecastIncome,
+            borderColor: chartColors[0],
+            backgroundColor: "transparent",
+            borderWidth: 2,
+            borderDash: [6, 4],
+            tension: 0.4,
+            pointRadius: 3,
+            pointStyle: "circle",
+            pointBackgroundColor: isDark ? "#1e293b" : "#ffffff",
+            pointBorderColor: chartColors[0],
+            pointBorderWidth: 2,
+            order: 1,
+          },
+          // Forecast Expense (dashed line)
+          {
+            label: "Despesas (Proj)",
+            data: ch.forecastExpense,
+            borderColor: chartColors[1],
+            backgroundColor: "transparent",
+            borderWidth: 2,
+            borderDash: [6, 4],
+            tension: 0.4,
+            pointRadius: 3,
+            pointStyle: "circle",
+            pointBackgroundColor: isDark ? "#1e293b" : "#ffffff",
+            pointBorderColor: chartColors[1],
+            pointBorderWidth: 2,
+            order: 2,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
         plugins: {
-          legend: { display: true, position: 'top', align: 'end', labels: { color: labelColor, boxWidth: 10, usePointStyle: true, font: { size: 10, weight: 'bold' } } },
-          tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.9)', padding: 12, cornerRadius: 8 },
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: labelColor,
+              boxWidth: 12,
+              usePointStyle: true,
+              font: { size: 10, weight: 'bold' },
+              filter: (legendItem) => {
+                // Hide confidence bounds from legend
+                return !legendItem.text?.includes("Limite");
+              },
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            padding: 14,
+            cornerRadius: 10,
+            titleFont: { size: 12, weight: 'bold' },
+            bodyFont: { size: 11 },
+            callbacks: {
+              label: (context) => {
+                const value = context.raw as number;
+                if (value === null) return '';
+                const formatted = value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+                const isProjection = context.dataset.label?.includes("Proj");
+                return `${context.dataset.label}: ${formatted}${isProjection ? " ⚡" : ""}`;
+              }
+            }
+          },
         },
         scales: {
-          y: { grid: { color: "rgba(226, 232, 240, 0.05)" }, ticks: { color: labelColor, font: { size: 10 } } },
-          x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 10 } } },
+          y: {
+            grid: { color: isDark ? "rgba(226, 232, 240, 0.05)" : "rgba(0, 0, 0, 0.05)" },
+            ticks: {
+              color: labelColor,
+              font: { size: 10 },
+              callback: (value) => `R$ ${(Number(value) / 1000).toFixed(0)}k`
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: labelColor,
+              font: { size: 10, weight: 'bold' },
+              callback: function (val, index) {
+                const label = ch.months[index];
+                return label?.includes("(Proj)") ? `📈 ${label.replace(" (Proj)", "")}` : label;
+              }
+            }
+          },
         },
       },
     });
