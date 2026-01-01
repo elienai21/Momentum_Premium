@@ -13,21 +13,25 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
-      - name: Install Dependencies
+      - name: Install Dependencies (functions)
         run: npm ci
+        working-directory: functions
+
+      - name: Install Dependencies (web)
+        run: npm ci
+        working-directory: web
 
       # --- AQUI ESTA A CORREÇÃO QUE FALTA ---
-      - name: Create Firebase Service Account Key
+      - name: Build and test functions (best effort)
         run: |
           cd functions
-          npm ci || npm i
           npm run build || true
           npm test -- --runInBand --detectOpenHandles || true
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.FIREBASE_TOKEN != ''
-    needs: test
+    needs: test-and-deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
