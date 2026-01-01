@@ -1,1 +1,0 @@
-import{c as n}from"./index-D_u31hn4.js";const t=[["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["path",{d:"m19 9-5 5-4-4-3 3",key:"2osh9i"}]],c=n("chart-line",t);const o=[["path",{d:"M16 17h6v-6",key:"t6n2it"}],["path",{d:"m22 17-8.5-8.5-5 5L2 7",key:"x473p"}]],a=n("trending-down",o);export{c as C,a as T};

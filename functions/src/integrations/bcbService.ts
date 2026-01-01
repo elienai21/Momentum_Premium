@@ -48,11 +48,16 @@ export const bcbService = {
             logger.info("Economic indicators fetched successfully", indicators);
             return indicators;
         } catch (error: any) {
-            logger.error("Error fetching economic indicators", { error: error.message });
-            // Return zeroed data on failure to avoid breaking consumers, or throw? 
-            // Better to throw so we know the job failed, but let's return a fallback if it's just one service failing?
-            // For now we assume all or nothing for simplicity as per requirements.
-            throw error;
+            logger.error("Error fetching economic indicators (returning default 0s)", { error: error.message });
+
+            // Return zeroed data on failure to ensure system robustness
+            return {
+                selic: 0,
+                ipca: 0,
+                igpm: 0,
+                usd: 0,
+                updatedAt: new Date().toISOString(),
+            };
         }
     },
 };

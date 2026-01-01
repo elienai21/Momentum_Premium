@@ -1,6 +1,7 @@
 ﻿// web/src/components/Sidebar.tsx
 import React from "react";
 import { NavLink } from "react-router-dom";
+import { TrendingUp } from "lucide-react";
 
 type SidebarProps = {
   open?: boolean;
@@ -19,7 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
     { label: "Transações", path: "/transactions", icon: "receipt_long" },
     { label: "Auditoria & Limpeza", path: "/data-cleaning", icon: "verified_user" },
     { label: "IA & Insights", path: "/insights", icon: "psychology", badge: "NEW" },
-    { label: "Market Intelligence", path: "/market-news", icon: "newspaper" },
+    { label: "Mercado", path: "/market-news", icon: <TrendingUp size={22} /> },
     { label: "Deep Dive Financeiro", path: "/cfo/deep-dive", icon: "finance_mode" },
   ];
 
@@ -44,9 +45,15 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
           ].join(" ")
         }
       >
-        <span className="material-symbols-outlined text-[22px] transition-colors">
-          {item.icon}
-        </span>
+        {typeof item.icon === "string" ? (
+          <span className="material-symbols-outlined text-[22px] transition-colors">
+            {item.icon}
+          </span>
+        ) : (
+          <span className="transition-colors flex items-center justify-center">
+            {item.icon}
+          </span>
+        )}
         <span className="text-[14px] font-medium">{item.label}</span>
         {item.badge && (
           <span className="ml-auto bg-gradient-to-r from-primary to-secondary text-[10px] px-1.5 py-0.5 rounded text-white font-bold">
