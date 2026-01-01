@@ -3,7 +3,13 @@ import { db } from "./firebase";
 import { aiClient } from "../utils/aiClient";
 import { logger } from "../utils/logger";
 
-const RSS_URL = "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWvfSkdnUV8yMDIxXzAyXzE1XzEzXzAwXzAwXzS0AQ?hl=pt-BR&gl=BR&ceid=BR%3Apt-419";
+const RSS_FEEDS = [
+    // Query 1: Focada em REUTERS e INFO MONEY (Hard News Financeiro)
+    "https://news.google.com/rss/search?q=site:reuters.com+OR+site:infomoney.com.br+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+
+    // Query 2: Focada em AGÊNCIA BRASIL (Regulatório/Governo Neutro)
+    "https://news.google.com/rss/search?q=site:agenciabrasil.ebc.com.br+(economia+OR+mercado)&hl=pt-BR&gl=BR&ceid=BR:pt-419"
+];
 
 export interface NewsItem {
     title: string;
@@ -22,20 +28,45 @@ export interface MarketDailyUpdate {
 
 export const newsService = {
     /**
-     * Fetches news from RSS, summarizes via AI, and saves to Firestore.
+     * Fetches news from curated RSS feeds, summarizes via AI, and saves to Firestore.
      */
     async fetchMarketNews(): Promise<MarketDailyUpdate> {
-        logger.info("Fetching market news from RSS...");
+        logger.info("Fetching market news from RSS feeds...");
         const parser = new Parser();
+        const allNews: NewsItem[] = [];
 
         try {
-            const feed = await parser.parseURL(RSS_URL);
-            const topNews = feed.items.slice(0, 5).map((item) => ({
-                title: item.title || "",
-                link: item.link || "",
-                pubDate: item.pubDate || new Date().toISOString(),
-                source: item.creator || "Google News",
-            }));
+            // Fetch all feeds in parallel
+            const feedPromises = RSS_FEEDS.map(async (url) => {
+                try {
+                    const feed = await parser.parseURL(url);
+                    return feed.items.map((item) => ({
+                        title: item.title || "",
+                        link: item.link || "",
+                        pubDate: item.pubDate || new Date().toISOString(),
+                        source: item.creator || item.source || "Google News",
+                    }));
+                } catch (err: any) {
+                    logger.warn(`Failed to fetch RSS feed provided: ${url}`, { error: err.message });
+                    return [];
+                }
+            });
+
+            const results = await Promise.all(feedPromises);
+            results.forEach(items => allNews.push(...items));
+
+            // Deduplicate by link or title to avoid potential overlaps if queries intersect
+            const uniqueNews = Array.from(new Map(allNews.map(item => [item.link, item])).values());
+
+            // Sort by date descending (newest first)
+            uniqueNews.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+
+            // Take top 5
+            const topNews = uniqueNews.slice(0, 5);
+
+            if (topNews.length === 0) {
+                logger.warn("No news found from any feed.");
+            }
 
             // Generate AI Summary
             const headlines = topNews.map((n) => `- ${n.title}`).join("\n");
