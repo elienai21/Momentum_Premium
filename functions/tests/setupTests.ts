@@ -1,3 +1,4 @@
+import { jest, afterEach, afterAll } from "@jest/globals";
 import "./setupFirebaseMock";
 
 // Em CI/Windows, inicialização do app + mocks pode levar mais de 5s.
@@ -52,8 +53,8 @@ if (!REAL_AUTH) {
 
 afterEach(() => {
   try {
-    const mockFb = require("src/services/firebase");
-    mockFb.__resetMocks?.();
+    const mockAdmin = require("firebase-admin");
+    mockAdmin.__resetMocks?.();
   } catch {
     // ignore if mock not loaded
   }

@@ -1,0 +1,791 @@
+﻿
+> momentum-platform@9.6.0 test:all
+> npm --prefix functions run test -- --runInBand --detectOpenHandles
+
+
+> momentum-functions@1.0.0 test
+> jest --config ./jest.config.js --runInBand --detectOpenHandles
+
+npm : 
+ts-jest[ts-jest-transformer] 
+(WARN) Define `ts-jest` config 
+under `globals` is deprecated. 
+Please do
+No linha:1 caractere:1
++ npm run test:all > 
+test_results.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo              : 
+NotSpecified: (ts-jest    
+[ts-jest...ated. Please     
+do:String) [], RemoteExc    eption
+    + FullyQualifiedErrorId     : 
+NativeCommandError
+ 
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest config 
+goes here in Jest */ }],
+},
+See more at https://kulshekhar.git
+hub.io/ts-jest/docs/getting-starte
+d/presets#advanced
+FAIL tests/cfo-summary.test.ts 
+(7.629 s)
+  ÔùÅ GET /api/cfo/summary ÔÇ║ 
+retorna KPIs e DRE com sucesso
+
+    RangeError: Maximum call 
+stack size exceeded
+
+    [0m[31m[1m>[22m[39m[90m 
+1 |[39m jest[33m.[39mmock([32m
+"src/services/firebase"[39m[33m,
+[39m () [33m=>[39m require([32
+m"./mocks/firebase"[39m))[33m;[
+39m
+     [90m   |[39m               
+                           
+[31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.[39
+mmock([32m"firebase-admin"[39m[
+33m,[39m () [33m=>[39m require(
+[32m"./mocks/firebase"[39m))[33
+m;[39m
+     [90m 3 |[39m[0m
+
+      at 
+Runtime.requireModuleOrMock (node_
+modules/jest-runtime/build/index.j
+s:1052:32)
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+
+FAIL tests/compliance.test.ts
+  ÔùÅ Compliance ÔÇ║ registra 
+consentimento
+
+    RangeError: Maximum call 
+stack size exceeded
+        at JSON.stringify 
+(<anonymous>)
+
+    [0m[31m[1m>[22m[39m[90m 
+1 |[39m jest[33m.[39mmock([32m
+"src/services/firebase"[39m[33m,
+[39m () [33m=>[39m require([32
+m"./mocks/firebase"[39m))[33m;[
+39m
+     [90m   |[39m               
+                           
+[31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.[39
+mmock([32m"firebase-admin"[39m[
+33m,[39m () [33m=>[39m require(
+[32m"./mocks/firebase"[39m))[33
+m;[39m
+     [90m 3 |[39m[0m
+
+      at Resolver.getModuleID (nod
+e_modules/jest-resolve/build/resol
+ver.js:523:47)
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+
+FAIL tests/billing.test.ts
+  ÔùÅ Billing ÔÇ║ reporta uso com 
+sucesso
+
+    RangeError: Maximum call 
+stack size exceeded
+        at JSON.stringify 
+(<anonymous>)
+
+    [0m[31m[1m>[22m[39m[90m 
+1 |[39m jest[33m.[39mmock([32m
+"src/services/firebase"[39m[33m,
+[39m () [33m=>[39m require([32
+m"./mocks/firebase"[39m))[33m;[
+39m
+     [90m   |[39m               
+                           
+[31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.[39
+mmock([32m"firebase-admin"[39m[
+33m,[39m () [33m=>[39m require(
+[32m"./mocks/firebase"[39m))[33
+m;[39m
+     [90m 3 |[39m[0m
+
+      at Resolver.getModuleID (nod
+e_modules/jest-resolve/build/resol
+ver.js:523:47)
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+
+FAIL tests/ai.test.ts
+  ÔùÅ AI Insights ÔÇ║ gera 
+insights v├ílidos
+
+    RangeError: Maximum call 
+stack size exceeded
+        at JSON.stringify 
+(<anonymous>)
+
+    [0m[31m[1m>[22m[39m[90m 
+1 |[39m jest[33m.[39mmock([32m
+"src/services/firebase"[39m[33m,
+[39m () [33m=>[39m require([32
+m"./mocks/firebase"[39m))[33m;[
+39m
+     [90m   |[39m               
+                           
+[31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.[39
+mmock([32m"firebase-admin"[39m[
+33m,[39m () [33m=>[39m require(
+[32m"./mocks/firebase"[39m))[33
+m;[39m
+     [90m 3 |[39m[0m
+
+      at Resolver.getModuleID (nod
+e_modules/jest-resolve/build/resol
+ver.js:523:47)
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+
+FAIL tests/public-signup.test.ts
+  ÔùÅ Public signup ÔÇ║ cria 
+tenant + member com status active 
+e email
+
+    RangeError: Maximum call 
+stack size exceeded
+        at JSON.stringify 
+(<anonymous>)
+
+    [0m[31m[1m>[22m[39m[90m 
+1 |[39m jest[33m.[39mmock([32m
+"src/services/firebase"[39m[33m,
+[39m () [33m=>[39m require([32
+m"./mocks/firebase"[39m))[33m;[
+39m
+     [90m   |[39m               
+                           
+[31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.[39
+mmock([32m"firebase-admin"[39m[
+33m,[39m () [33m=>[39m require(
+[32m"./mocks/firebase"[39m))[33
+m;[39m
+     [90m 3 |[39m[0m
+
+      at Resolver.getModuleID (nod
+e_modules/jest-resolve/build/resol
+ver.js:523:47)
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+
+PASS tests/withTenant-legacy-statu
+s.test.ts
+  ÔùÅ Console
+
+    console.warn
+      
+[TENANT_MEMBER_MISSING_STATUS] { 
+tenantId: 't1', uid: 'u1', 
+traceId: null }
+
+    [0m [90m 168 |[39m
+     [90m 169 |[39m     
+[36mif[39m 
+([33m![39mmemberStatus) {
+    [31m[1m>[22m[39m[90m 170 
+|[39m       console[33m.[39mwar
+n([32m"[TENANT_MEMBER_MISSING_STA
+TUS]"[39m[33m,[39m {
+     [90m     |[39m             
+  [31m[1m^[22m[39m
+     [90m 171 |[39m         
+tenantId[33m,[39m
+     [90m 172 |[39m         
+uid[33m:[39m req[33m.[39muser
+[33m?[39m[33m.[39muid 
+[33m||[39m 
+[36mnull[39m[33m,[39m
+     [90m 173 |[39m         
+traceId[33m:[39m (req 
+[36mas[39m 
+any)[33m.[39mtraceId 
+[33m||[39m 
+[36mnull[39m[33m,[39m[0m
+
+      at withTenant (src/middlewar
+e/withTenant.ts:170:15)
+
+PASS tests/utils.test.ts
+FAIL tests/rateLimit.test.ts
+  ÔùÅ Test suite failed to run
+
+    [96mtests/rateLimit.test.ts[
+0m:[93m7[0m:[93m7[0m - 
+[91merror[0m[90m TS2322: 
+[0mType 'Mock<(<T>(fn: (tx: any) 
+=> Promise<T>) => Promise<T>)>' 
+is not assignable to type 
+'MockedFunction<RunTransaction>'.
+      Type 'Mock<(<T>(fn: (tx: 
+any) => Promise<T>) => 
+Promise<T>)>' is not assignable 
+to type 'RunTransaction'.
+        Type 'Promise<unknown>' 
+is not assignable to type 
+'Promise<T>'.
+          Type 'unknown' is not 
+assignable to type 'T'.
+            'T' could be 
+instantiated with an arbitrary 
+type which could be unrelated to 
+'unknown'.
+
+    [7m7[0m const 
+runTransactionMock: jest.MockedFun
+ction<RunTransaction> = 
+jest.fn(async (fn) => fn({
+    [7m [0m [91m      
+~~~~~~~~~~~~~~~~~~[0m
+
+FAIL tests/cfo-ai-report.test.ts
+  ÔùÅ Test suite failed to run
+
+    [96mtests/mocks/firebase.ts[
+0m:[93m18[0m:[93m7[0m - 
+[91merror[0m[90m TS7023: 
+[0m'makeDocRef' implicitly has 
+return type 'any' because it does 
+not have a return type annotation 
+and is referenced directly or 
+indirectly in one of its return 
+expressions.
+
+    [7m18[0m const makeDocRef = 
+(path: string) => ({
+    [7m  [0m [91m      
+~~~~~~~~~~[0m
+    [96mtests/mocks/firebase.ts[
+0m:[93m33[0m:[93m23[0m - 
+[91merror[0m[90m TS7024: 
+[0mFunction implicitly has 
+return type 'any' because it does 
+not have a return type annotation 
+and is referenced directly or 
+indirectly in one of its return 
+expressions.
+
+    [7m33[0m   collection: 
+jest.fn((sub: string) => 
+makeCollection(`${path}/${sub}`)),
+    [7m  [0m [91m              
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96mtests/mocks/firebase.ts[
+0m:[93m36[0m:[93m7[0m - 
+[91merror[0m[90m TS7023: 
+[0m'makeQuery' implicitly has 
+return type 'any' because it does 
+not have a return type annotation 
+and is referenced directly or 
+indirectly in one of its return 
+expressions.
+
+    [7m36[0m const makeQuery = 
+(paths: string[]) => ({
+    [7m  [0m [91m      
+~~~~~~~~~[0m
+    [96mtests/mocks/firebase.ts[
+0m:[93m37[0m:[93m18[0m - 
+[91merror[0m[90m TS7024: 
+[0mFunction implicitly has 
+return type 'any' because it does 
+not have a return type annotation 
+and is referenced directly or 
+indirectly in one of its return 
+expressions.
+
+    [7m37[0m   where: 
+jest.fn(() => makeQuery(paths)),
+    [7m  [0m [91m              
+   ~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96mtests/mocks/firebase.ts[
+0m:[93m38[0m:[93m20[0m - 
+[91merror[0m[90m TS7024: 
+[0mFunction implicitly has 
+return type 'any' because it does 
+not have a return type annotation 
+and is referenced directly or 
+indirectly in one of its return 
+expressions.
+
+    [7m38[0m   orderBy: 
+jest.fn(() => makeQuery(paths)),
+    [7m  [0m [91m              
+     ~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96mtests/mocks/firebase.ts[
+0m:[93m39[0m:[93m18[0m - 
+[91merror[0m[90m TS7024: 
+[0mFunction implicitly has 
+return type 'any' because it does 
+not have a return type annotation 
+and is referenced directly or 
+indirectly in one of its return 
+expressions.
+
+    [7m39[0m   limit: 
+jest.fn(() => makeQuery(paths)),
+    [7m  [0m [91m              
+   ~~~~~~~~~~~~~~~~~~~~~~[0m
+    [96mtests/mocks/firebase.ts[
+0m:[93m46[0m:[93m7[0m - 
+[91merror[0m[90m TS7023: 
+[0m'makeCollection' implicitly 
+has return type 'any' because it 
+does not have a return type 
+annotation and is referenced 
+directly or indirectly in one of 
+its return expressions.
+
+    [7m46[0m const 
+makeCollection = (path: string) 
+=> {
+    [7m  [0m [91m      
+~~~~~~~~~~~~~~[0m
+    [96mtests/mocks/firebase.ts[
+0m:[93m50[0m:[93m18[0m - 
+[91merror[0m[90m TS7024: 
+[0mFunction implicitly has 
+return type 'any' because it does 
+not have a return type annotation 
+and is referenced directly or 
+indirectly in one of its return 
+expressions.
+
+    [7m50[0m     doc: 
+jest.fn((id?: string) => 
+makeDocRef(`${path}/${id || 
+nextId()}`)),
+    [7m  [0m [91m              
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+FAIL tests/billing-usage.test.ts
+  ÔùÅ Test suite failed to run
+
+    RangeError: Maximum call 
+stack size exceeded
+        at JSON.stringify 
+(<anonymous>)
+
+    [0m[31m[1m>[22m[39m[90m 
+1 |[39m jest[33m.[39mmock([32m
+"src/services/firebase"[39m[33m,
+[39m () [33m=>[39m require([32
+m"./mocks/firebase"[39m))[33m;[
+39m
+     [90m   |[39m               
+                           
+[31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.[39
+mmock([32m"firebase-admin"[39m[
+33m,[39m () [33m=>[39m require(
+[32m"./mocks/firebase"[39m))[33
+m;[39m
+     [90m 3 |[39m[0m
+
+      at Resolver.getModuleID (nod
+e_modules/jest-resolve/build/resol
+ver.js:523:47)
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+      at 
+tests/setupFirebaseMock.ts:1:42
+
+Test Suites: 8 failed, 2 passed, 
+10 total
+Tests:       5 failed, 2 passed, 
+7 total
+Snapshots:   0 total
+Time:        9.325 s
+Ran all test suites.

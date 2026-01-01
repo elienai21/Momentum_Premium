@@ -4,7 +4,8 @@ import { createRateLimit } from "../src/middleware/rateLimit"; // Adjust import 
 import { Request, Response } from "express";
 
 type RunTransaction = <T>(fn: (tx: any) => Promise<T>) => Promise<T>;
-const runTransactionMock: jest.MockedFunction<RunTransaction> = jest.fn(async (fn) => fn({
+const runTransactionMock = jest.fn() as unknown as jest.MockedFunction<RunTransaction>;
+runTransactionMock.mockImplementation(async (fn: any) => fn({
     get: jest.fn(),
     set: jest.fn(),
     update: jest.fn(),

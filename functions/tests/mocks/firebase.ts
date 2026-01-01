@@ -1,39 +1,45 @@
 /* Mock Firebase Admin services for Jest (no real admin init). */
+import { jest } from "@jest/globals";
 
 const store = new Map<string, any>();
 let idSeq = 0;
 const nextId = () => `mock-id-${++idSeq}`;
 
-const makeSnapshot = (path: string) => {
-  const data = store.get(path);
-  const id = path.split("/").pop() || "mock-id";
+const makeSnapshot = (path: any): any => {
+  const pathStr = typeof path === "string" ? path : (path?.path || "mock-path");
+  const data = store.get(pathStr);
+  const id = pathStr.split("/").pop() || "mock-id";
   return {
     id,
-    exists: store.has(path),
+    ref: { path: pathStr },
+    exists: store.has(pathStr),
     data: () => data,
     get: (field?: string) => (data ? data[field as keyof typeof data] : undefined),
   };
 };
 
-const makeDocRef = (path: string) => ({
-  path,
-  id: path.split("/").pop() || "mock-id",
-  set: jest.fn(async (data: any, opts?: any) => {
-    const existing = store.get(path) || {};
-    store.set(path, opts?.merge ? { ...existing, ...data } : data);
-  }),
-  update: jest.fn(async (data: any) => {
-    const existing = store.get(path) || {};
-    store.set(path, { ...existing, ...data });
-  }),
-  delete: jest.fn(async () => {
-    store.delete(path);
-  }),
-  get: jest.fn(async () => makeSnapshot(path)),
-  collection: jest.fn((sub: string) => makeCollection(`${path}/${sub}`)),
-});
+const makeDocRef = (path: any): any => {
+  const pathStr = typeof path === "string" ? path : (path?.path || "mock-path");
+  return {
+    path: pathStr,
+    id: pathStr.split("/").pop() || "mock-id",
+    set: jest.fn(async (data: any, opts?: any) => {
+      const existing = store.get(pathStr) || {};
+      store.set(pathStr, opts?.merge ? { ...existing, ...data } : data);
+    }),
+    update: jest.fn(async (data: any) => {
+      const existing = store.get(pathStr) || {};
+      store.set(pathStr, { ...existing, ...data });
+    }),
+    delete: jest.fn(async () => {
+      store.delete(pathStr);
+    }),
+    get: jest.fn(async () => makeSnapshot(pathStr)),
+    collection: jest.fn((sub: string) => makeCollection(`${pathStr}/${sub}`)),
+  };
+};
 
-const makeQuery = (paths: string[]) => ({
+const makeQuery = (paths: string[]): any => ({
   where: jest.fn(() => makeQuery(paths)),
   orderBy: jest.fn(() => makeQuery(paths)),
   limit: jest.fn(() => makeQuery(paths)),
@@ -43,7 +49,7 @@ const makeQuery = (paths: string[]) => ({
   }),
 });
 
-const makeCollection = (path: string) => {
+export const makeCollection = (path: string): any => {
   const listPaths = Array.from(store.keys()).filter((k) => k.startsWith(`${path}/`));
   return {
     __path: path,
@@ -63,26 +69,26 @@ const makeCollection = (path: string) => {
   };
 };
 
-export const db = {
+export const db: any = {
   collection: jest.fn((path: string) => makeCollection(path)),
   doc: jest.fn((path: string) => makeDocRef(path)),
   runTransaction: jest.fn(async (fn: any) => {
     const tx = {
-      get: async (ref: any) => makeSnapshot(ref.path || ref.__path || ref),
-      set: async (ref: any, data: any, opts?: any) => {
+      get: jest.fn(async (ref: any) => makeSnapshot(ref.path || ref.__path || ref)),
+      set: jest.fn(async (ref: any, data: any, opts?: any) => {
         const path = ref.path || ref.__path || ref;
         const existing = store.get(path) || {};
         store.set(path, opts?.merge ? { ...existing, ...data } : data);
-      },
-      update: async (ref: any, data: any) => {
+      }),
+      update: jest.fn(async (ref: any, data: any) => {
         const path = ref.path || ref.__path || ref;
         const existing = store.get(path) || {};
         store.set(path, { ...existing, ...data });
-      },
-      delete: async (ref: any) => {
+      }),
+      delete: jest.fn(async (ref: any) => {
         const path = ref.path || ref.__path || ref;
         store.delete(path);
-      },
+      }),
     };
     const result = await fn(tx);
     (db as any).__lastTransaction = tx;
@@ -91,43 +97,48 @@ export const db = {
   __store: store,
 };
 
-export const auth = {
-  verifyIdToken: jest.fn(async () => ({ uid: "mock-user" })),
+const authMock: any = {
+  verifyIdToken: jest.fn(async () => ({ uid: "mock-user", email: "mock@example.com" })),
   getUser: jest.fn(async (uid: string) => ({ uid, email: `${uid}@example.com` })),
   setCustomUserClaims: jest.fn(async () => undefined),
 };
 
 const Timestamp = {
   fromMillis: (ms: number) => ({ toMillis: () => ms }),
+  now: () => ({ toMillis: () => Date.now() }),
 };
 
 const FieldValue = {
   serverTimestamp: () => new Date().toISOString(),
 };
 
-const firestoreFn: any = jest.fn(() => db);
-firestoreFn.FieldValue = FieldValue;
-firestoreFn.Timestamp = Timestamp;
+// Export as functions to match firebase-admin expectation
+export const firestore: any = jest.fn(() => db);
+firestore.FieldValue = FieldValue;
+firestore.Timestamp = Timestamp;
 
-export const admin = {
-  firestore: firestoreFn,
-  auth: jest.fn(() => auth),
-};
+export const auth: any = jest.fn(() => authMock);
+export const storage: any = jest.fn(() => ({
+  bucket: jest.fn(() => ({
+    file: jest.fn(() => ({
+      getSignedUrl: async () => ["https://mock-url.com"],
+      save: async () => undefined,
+      exists: async () => [true],
+    })),
+  })),
+}));
 
-export const storage = {};
+export const apps = [];
+export const initializeApp = jest.fn();
+export const app = jest.fn(() => ({}));
 
+// For __resetMocks and other test utilities
+export const __store = store;
 export const __resetMocks = () => {
   store.clear();
   idSeq = 0;
-  (db.collection as jest.Mock).mockClear();
-  (db.doc as jest.Mock).mockClear();
-  (db.runTransaction as jest.Mock).mockClear();
-  auth.verifyIdToken.mockClear();
-  auth.getUser.mockClear();
-  auth.setCustomUserClaims.mockClear();
-  delete (db as any).__lastTransaction;
+  jest.clearAllMocks();
 };
-
 export const __setDoc = (path: string, data: any) => {
   store.set(path, data);
 };

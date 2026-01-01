@@ -1,3 +1,4 @@
+import { jest, describe, it, expect } from "@jest/globals";
 import "./setupFirebaseMock";
 import request from "supertest";
 import { makeTestApp, debugIfNotOk } from "./helpers/testApp";
@@ -5,7 +6,7 @@ import { makeTestApp, debugIfNotOk } from "./helpers/testApp";
 jest.mock("stripe", () => {
   return jest.fn().mockImplementation(() => ({
     usageRecords: {
-      create: jest.fn().mockResolvedValue({ id: "ur_123" }),
+      create: (jest.fn() as any).mockResolvedValue({ id: "ur_123" }),
     },
   }));
 });
@@ -16,7 +17,7 @@ jest.mock("src/utils/usageTracker", () => ({
 
 describe("Billing", () => {
   it("reporta uso com sucesso", async () => {
-    const { __setDoc } = require("src/services/firebase");
+    const { __setDoc } = require("firebase-admin") as any;
     __setDoc("tenants/test-tenant", { billing: { subscriptionItemId: "si_123" } });
 
     const app = makeTestApp();

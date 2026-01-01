@@ -19,9 +19,9 @@ module.exports = {
   },
   setupFilesAfterEnv: ["<rootDir>/tests/setupTests.ts"],
   moduleNameMapper: {
-    "^src/services/firebase$": "<rootDir>/tests/mocks/firebase.ts",
     "^src/(.*)$": "<rootDir>/src/$1",
     "^firebase-functions/params$": "<rootDir>/tests/mocks/paramsMock.ts",
+    "^firebase-admin$": "<rootDir>/tests/mocks/firebase.ts",
   },
   testPathIgnorePatterns: ["/node_modules/", "/tests/e2e/"],
 };

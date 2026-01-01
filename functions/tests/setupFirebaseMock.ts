@@ -1,2 +1,2 @@
-jest.mock("src/services/firebase", () => require("./mocks/firebase"));
-jest.mock("firebase-admin", () => require("./mocks/firebase"));
+// This file is currently empty because mocks are handled via moduleNameMapper in jest.config.js
+// to avoid circular dependencies and hoisting issues.

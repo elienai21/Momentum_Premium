@@ -1,0 +1,319 @@
+﻿
+> momentum-platform@9.6.0 test:all
+> npm --prefix functions run test -- --runInBand --detectOpenHandles
+
+
+> momentum-functions@1.0.0 test
+> jest --config ./jest.config.js --runInBand --detectOpenHandles
+
+npm : 
+ts-jest[ts-jest-transformer] 
+(WARN) Define `ts-jest` config 
+under `globals` is deprecated. 
+Please do
+No linha:1 caractere:1
++ npm run test:all > 
+test_results_v12.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
+    + CategoryInfo          :   
+  NotSpecified: (ts-jest[t    
+s-jest...ated. Please do:    
+String) [], RemoteExcepti    on
+    + FullyQualifiedErrorId :   
+  NativeCommandError
+ 
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest config 
+goes here in Jest */ }],
+},
+See more at https://kulshekhar.g
+ithub.io/ts-jest/docs/getting-st
+arted/presets#advanced
+FAIL 
+tests/cfo-ai-report.test.ts 
+(85.457 s)
+  ÔùÅ Console
+
+    console.log
+      [TEST_DEBUG] status/body 
+403 {
+        ok: false,
+        error: 'Feature not 
+available in your plan.',
+        feature: 'cfo_premium',
+        plan: 'free',
+        code: 'UPGRADE_REQUIRED'
+      }
+
+      at debugIfNotOk 
+(tests/helpers/testApp.ts:16:13)
+
+  ÔùÅ POST /api/cfo/ai-report 
+ÔÇ║ executa AI report com 
+provider openai
+
+    thrown: "Exceeded timeout 
+of 30000 ms for a test.
+    Add a timeout value to this 
+test to increase the timeout, 
+if this is a long-running test. 
+See https://jestjs.io/docs/api#t
+estname-fn-timeout."
+
+    [0m [90m 49 |[39m   
+})[33m;[39m
+     [90m 50 |[39m
+    [31m[1m>[22m[39m[90m 
+51 |[39m   it([32m"executa AI 
+report com provider 
+openai"[39m[33m,[39m 
+[36masync[39m () [33m=>[39m 
+{
+     [90m    |[39m     
+[31m[1m^[22m[39m
+     [90m 52 |[39m     
+[36mconst[39m app [33m=[39m 
+makeTestApp()[33m;[39m
+     [90m 53 |[39m     
+[36mconst[39m res [33m=[39m 
+[36mawait[39m request(app)
+     [90m 54 |[39m       [33m
+.[39mpost([32m"/api/cfo/ai-rep
+ort"[39m)[0m
+
+      at 
+tests/cfo-ai-report.test.ts:51:5
+      at Object.<anonymous> (tes
+ts/cfo-ai-report.test.ts:23:9)
+
+  ÔùÅ POST /api/cfo/ai-report 
+ÔÇ║ executa AI report com 
+provider gemini
+
+    expect(jest.fn()).toHaveBeen
+Called()
+
+    Expected number of calls: 
+>= 1
+    Received number of calls:   
+ 0
+
+    [0m [90m 75 |[39m     exp
+ect(res[33m.[39mstatus)[33m.
+[39mtoBe([35m200[39m)[33m;[3
+9m
+     [90m 76 |[39m     expect(
+res[33m.[39mbody[33m.[39mrep
+ort)[33m.[39mtoBe([32m"mock-r
+eport"[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 
+77 |[39m     expect(mockAdd)[3
+3m.[39mtoHaveBeenCalled()[33m;
+[39m
+     [90m    |[39m            
+         [31m[1m^[22m[39m
+     [90m 78 |[39m   
+})[33m;[39m
+     [90m 79 |[39m
+     [90m 80 |[39m   
+it([32m"nega acesso quando 
+plano ├® free 
+(gating)"[39m[33m,[39m 
+[36masync[39m () [33m=>[39m 
+{[0m
+
+      at Object.<anonymous> (tes
+ts/cfo-ai-report.test.ts:77:21)
+
+PASS tests/billing-usage.test.ts
+PASS tests/public-signup.test.ts
+  ÔùÅ Console
+
+    console.log
+      {"level":"info","message":
+"Public signup created new tenan
+t","tenantId":"mock-id-1","uid":
+"mock-user","email":"mock@exampl
+e.com","mode":"new"}
+
+      at Object.info 
+(src/utils/logger.ts:48:13)
+
+PASS tests/compliance.test.ts
+  ÔùÅ Console
+
+    console.log
+      {"level":"info","message":
+"Consent accepted by test-uid","
+traceId":"40f9479d-7846-44ae-aaf
+5-5a19b4bc08b8"}
+
+      at Object.info 
+(src/utils/logger.ts:48:13)
+
+PASS tests/billing.test.ts
+PASS tests/ai.test.ts
+PASS tests/cfo-summary.test.ts
+PASS tests/withTenant-legacy-sta
+tus.test.ts
+  ÔùÅ Console
+
+    console.warn
+      
+[TENANT_MEMBER_MISSING_STATUS] 
+{ tenantId: 't1', uid: 'u1', 
+traceId: null }
+
+    [0m [90m 168 |[39m
+     [90m 169 |[39m     
+[36mif[39m 
+([33m![39mmemberStatus) {
+    [31m[1m>[22m[39m[90m 
+170 |[39m       console[33m.[
+39mwarn([32m"[TENANT_MEMBER_MIS
+SING_STATUS]"[39m[33m,[39m {
+     [90m     |[39m           
+    [31m[1m^[22m[39m
+     [90m 171 |[39m         
+tenantId[33m,[39m
+     [90m 172 |[39m         
+uid[33m:[39m req[33m.[39muse
+r[33m?[39m[33m.[39muid 
+[33m||[39m 
+[36mnull[39m[33m,[39m
+     [90m 173 |[39m         
+traceId[33m:[39m (req 
+[36mas[39m 
+any)[33m.[39mtraceId 
+[33m||[39m 
+[36mnull[39m[33m,[39m[0m
+
+      at withTenant (src/middlew
+are/withTenant.ts:170:15)
+
+PASS tests/rateLimit.test.ts
+  ÔùÅ Console
+
+    console.error
+      {"level":"error","type":"r
+ate_limit_error","err":"Error: 
+Firestore unavailable"}
+
+    [0m [90m 151 |[39m       
+[36mreturn[39m 
+next()[33m;[39m
+     [90m 152 |[39m     } 
+[36mcatch[39m (e) {
+    [31m[1m>[22m[39m[90m 
+153 |[39m       console[33m.[
+39merror([33mJSON[39m[33m.[3
+9mstringify({ level[33m:[39m 
+[32m"error"[39m[33m,[39m 
+type[33m:[39m [32m"rate_limit
+_error"[39m[33m,[39m 
+err[33m:[39m 
+[33mString[39m(e) 
+}))[33m;[39m
+     [90m     |[39m           
+    [31m[1m^[22m[39m
+     [90m 154 |[39m
+     [90m 155 |[39m       
+[90m// FALLBACK STRATEGY:[39m
+     [90m 156 |[39m       
+[90m// Check if this is a 
+critical route that should 
+fail-closed[39m[0m
+
+      at rateLimit (src/middlewa
+re/rateLimit.ts:153:15)
+      at Object.<anonymous> 
+(tests/rateLimit.test.ts:72:9)
+
+    console.warn
+      {"level":"warn","type":"ra
+te_limit_fail_closed","path":"/a
+pi/billing/charge","reason":"Fir
+estore unavailable for critical 
+route"}
+
+    [0m [90m 159 |[39m       
+[36mif[39m (isCritical) {
+     [90m 160 |[39m         
+[90m// FAIL-CLOSED: Deny 
+request on critical routes when 
+Firestore fails[39m
+    [31m[1m>[22m[39m[90m 
+161 |[39m         console[33m.
+[39mwarn([33mJSON[39m[33m.[
+39mstringify({
+     [90m     |[39m           
+      [31m[1m^[22m[39m
+     [90m 162 |[39m           
+level[33m:[39m 
+[32m"warn"[39m[33m,[39m
+     [90m 163 |[39m           
+type[33m:[39m [32m"rate_limit
+_fail_closed"[39m[33m,[39m
+     [90m 164 |[39m           
+path[33m:[39m req[33m.[39mpa
+th[33m,[39m[0m
+
+      at rateLimit (src/middlewa
+re/rateLimit.ts:161:17)
+      at Object.<anonymous> 
+(tests/rateLimit.test.ts:72:9)
+
+    console.error
+      {"level":"error","type":"r
+ate_limit_error","err":"Error: 
+Firestore unavailable"}
+
+    [0m [90m 151 |[39m       
+[36mreturn[39m 
+next()[33m;[39m
+     [90m 152 |[39m     } 
+[36mcatch[39m (e) {
+    [31m[1m>[22m[39m[90m 
+153 |[39m       console[33m.[
+39merror([33mJSON[39m[33m.[3
+9mstringify({ level[33m:[39m 
+[32m"error"[39m[33m,[39m 
+type[33m:[39m [32m"rate_limit
+_error"[39m[33m,[39m 
+err[33m:[39m 
+[33mString[39m(e) 
+}))[33m;[39m
+     [90m     |[39m           
+    [31m[1m^[22m[39m
+     [90m 154 |[39m
+     [90m 155 |[39m       
+[90m// FALLBACK STRATEGY:[39m
+     [90m 156 |[39m       
+[90m// Check if this is a 
+critical route that should 
+fail-closed[39m[0m
+
+      at rateLimit (src/middlewa
+re/rateLimit.ts:153:15)
+      at Object.<anonymous> 
+(tests/rateLimit.test.ts:90:9)
+
+    console.info
+      {"level":"info","type":"ra
+te_limit_memory_fallback_ok","pa
+th":"/api/public/status"}
+
+      at rateLimit (src/middlewa
+re/rateLimit.ts:198:17)
+
+PASS tests/utils.test.ts
+
+Test Suites: 1 failed, 9 
+passed, 10 total
+Tests:       2 failed, 12 
+passed, 14 total
+Snapshots:   0 total
+Time:        95.665 s
+Ran all test suites.

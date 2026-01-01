@@ -1,3 +1,4 @@
+import { jest, describe, it, expect } from "@jest/globals";
 import "./setupFirebaseMock";
 jest.mock("src/utils/usageTracker", () => ({
   reportUsageToStripe: jest.fn(async () => Promise.resolve()),

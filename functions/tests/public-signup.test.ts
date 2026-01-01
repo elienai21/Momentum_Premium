@@ -1,3 +1,4 @@
+import { jest, describe, it, expect } from "@jest/globals";
 import "./setupFirebaseMock";
 import request from "supertest";
 import { makeTestApp, debugIfNotOk } from "./helpers/testApp";
@@ -14,18 +15,22 @@ describe("Public signup", () => {
     expect(res.status).toBe(201);
     expect(res.body?.data?.tenantId).toBeTruthy();
 
-    const { db } = require("src/services/firebase") as any;
+    const { db } = require("firebase-admin") as any;
     const tx = db.__lastTransaction;
     expect(tx).toBeTruthy();
     expect(tx.set).toHaveBeenCalled();
 
     const setCalls = (tx.set as jest.Mock).mock.calls;
-    const memberSet = setCalls.find((c: any[]) =>
-      String(c?.[0]?.__path || "").includes("/members/")
-    );
+    const memberSet = setCalls.find((c: any[]) => {
+      const ref = c?.[0];
+      const p = String(ref?.path || ref?.__path || (typeof ref === 'string' ? ref : ''));
+      return p.includes("/members/");
+    });
+
     expect(memberSet).toBeTruthy();
 
-    const memberPayload = memberSet?.[1] || {};
+    if (!memberSet) throw new Error("memberSet not found");
+    const memberPayload = memberSet[1] as any;
     expect(memberPayload.role).toBe("admin");
     expect(memberPayload.status).toBe("active");
     expect(memberPayload.email).toBeTruthy();
