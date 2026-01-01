@@ -87,3 +87,33 @@ export async function upsertMarketConfig(
   await ref.set(data, { merge: true });
   return data;
 }
+
+/**
+ * Retorna benchmarks de mercado para o setor.
+ * Implementa estratégia de Fallback: Dados Reais -> Dados Estáticos (Cold Start).
+ */
+export async function getBenchmarks(industry: string): Promise<any> {
+  const normalizedIndustry = industry.toLowerCase()
+    .replace(/\s+/g, "_")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Remove accents
+
+  // TODO: Implementar agregação real do Firestore aqui (pós-MVP)
+  // const realData = await aggregateSectorData(normalizedIndustry);
+  // if (realData) return realData;
+
+  // Fallback: Dados estáticos (Cold Start)
+  // Import dinâmico ou require para evitar lock de tsconfig se resolveJsonModule falhar
+  try {
+    const benchmarks = require("../config/industryBenchmarks.json");
+    const sectorData = benchmarks[normalizedIndustry] || benchmarks["small_business"];
+    return sectorData;
+  } catch (error) {
+    console.warn("Failed to load benchmarks config", error);
+    return {
+      vacancy_rate: 0,
+      profit_margin: 0.1,
+      cac: 0,
+      churn_rate: 0
+    };
+  }
+}

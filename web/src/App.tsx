@@ -37,6 +37,7 @@ const AlertsCenter = lazy(() => import("./pages/AlertsCenter"));
 const DesignSystem = lazy(() => import("./pages/_DesignSystem"));
 const Imports = lazy(() => import("./pages/Imports"));
 const CfoSimulationPage = lazy(() => import("./pages/CfoSimulationPage"));
+const MarketNews = lazy(() => import("./pages/MarketNews").then((m) => ({ default: m.MarketNews })));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -108,6 +109,7 @@ export default function App() {
                     }
                   >
                     <Route index element={<Dashboard />} />
+                    <Route path="market-news" element={<MarketNews />} />
                     <Route path="insights" element={<Insights />} />
                     <Route path="clients" element={<Clients />} />
                     <Route path="settings" element={<Settings />} />

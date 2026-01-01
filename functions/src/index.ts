@@ -21,6 +21,7 @@ export { calculateRealEstateFees } from "./cron/calculateRealEstateFees";
 export { stripeWebhook } from "./billing/subscriptionManager";
 export { analyticsAggregator } from "./triggers/analyticsAggregator";
 export { dailyAging } from "./triggers/dailyAging";
+export { marketUpdater } from "./scheduler/marketUpdater";
 
 // Firebase Admin init
 try {

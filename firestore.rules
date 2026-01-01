@@ -130,6 +130,19 @@ service cloud.firestore {
     }
 
     // =====================================================
+    // 📈 DADOS DE MERCADO (Público para usuários logados)
+    // =====================================================
+    match /market_indicators/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // somente via backend/admin
+    }
+
+    match /market_news/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // somente via backend/admin
+    }
+
+    // =====================================================
     // ❌ DEFAULT DENY (deixa SEMPRE POR ÚLTIMO)
     // =====================================================
     match /{document=**} {

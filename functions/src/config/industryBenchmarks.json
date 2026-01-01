@@ -1,0 +1,20 @@
+{
+    "real_estate": {
+        "vacancy_rate": 0.15,
+        "profit_margin": 0.20,
+        "cac": 500,
+        "churn_rate": 0.05
+    },
+    "small_business": {
+        "vacancy_rate": 0.0,
+        "profit_margin": 0.15,
+        "cac": 150,
+        "churn_rate": 0.08
+    },
+    "retail": {
+        "vacancy_rate": 0.0,
+        "profit_margin": 0.12,
+        "cac": 80,
+        "churn_rate": 0.10
+    }
+}

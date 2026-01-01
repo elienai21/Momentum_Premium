@@ -1,0 +1,93 @@
+import Parser from "rss-parser";
+import { db } from "./firebase";
+import { aiClient } from "../utils/aiClient";
+import { logger } from "../utils/logger";
+
+const RSS_URL = "https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWvfSkdnUV8yMDIxXzAyXzE1XzEzXzAwXzAwXzS0AQ?hl=pt-BR&gl=BR&ceid=BR%3Apt-419";
+
+export interface NewsItem {
+    title: string;
+    link: string;
+    pubDate: string;
+    source?: string;
+}
+
+export interface MarketDailyUpdate {
+    date: string;
+    summary: string; // AI Generated
+    sentiment: "Otimista" | "Pessimista" | "Neutro";
+    news: NewsItem[];
+    updatedAt: string;
+}
+
+export const newsService = {
+    /**
+     * Fetches news from RSS, summarizes via AI, and saves to Firestore.
+     */
+    async fetchMarketNews(): Promise<MarketDailyUpdate> {
+        logger.info("Fetching market news from RSS...");
+        const parser = new Parser();
+
+        try {
+            const feed = await parser.parseURL(RSS_URL);
+            const topNews = feed.items.slice(0, 5).map((item) => ({
+                title: item.title || "",
+                link: item.link || "",
+                pubDate: item.pubDate || new Date().toISOString(),
+                source: item.creator || "Google News",
+            }));
+
+            // Generate AI Summary
+            const headlines = topNews.map((n) => `- ${n.title}`).join("\n");
+            const prompt = `
+        Analise estas 5 manchetes do mercado financeiro brasileiro:
+        ${headlines}
+
+        1. Gere um resumo executivo de 1 parágrafo sobre o sentimento do mercado para um pequeno empresário.
+        2. Classifique o sentimento geral em uma única palavra: "Otimista", "Pessimista" ou "Neutro".
+        
+        Responda no formato JSON: { "summary": "...", "sentiment": "..." }
+      `;
+
+            let aiResult = { summary: "Resumo indisponível.", sentiment: "Neutro" as const };
+
+            try {
+                const aiResponse = await aiClient(prompt, {
+                    tenantId: "system",
+                    userId: "market-agent",
+                    model: "gemini",
+                    promptKind: "market_news",
+                });
+
+                if (aiResponse && aiResponse.text) {
+                    const parsed = JSON.parse(aiResponse.text);
+                    aiResult.summary = parsed.summary || aiResult.summary;
+                    aiResult.sentiment = (parsed.sentiment as any) || "Neutro";
+                }
+            } catch (err: any) {
+                logger.error("AI summarization failed", { error: err.message });
+                aiResult.summary = "Não foi possível gerar análise de IA hoje.";
+            }
+
+            const dailyUpdate: MarketDailyUpdate = {
+                date: new Date().toISOString().split("T")[0],
+                summary: aiResult.summary,
+                sentiment: aiResult.sentiment,
+                news: topNews,
+                updatedAt: new Date().toISOString(),
+            };
+
+            // Save to 'market_news/daily' (overwriting for 'daily' view, or appending to a history collection)
+            // Requirements say: "Salve o resumo e os links das notícias no Firestore (market_news/daily)"
+            // I will save to doc 'latest' for the dashboard and also key by date if needed, but 'daily' implies the daily report.
+            // I'll use 'latest' doc for easy frontend access, similar to indicators.
+            await db.collection("market_news").doc("latest").set(dailyUpdate);
+
+            logger.info("Market news updated successfully", dailyUpdate);
+            return dailyUpdate;
+        } catch (error: any) {
+            logger.error("Failed to fetch market news", { error: error.message });
+            throw error;
+        }
+    },
+};

@@ -19,6 +19,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open = false, onClose }) => {
     { label: "Transações", path: "/transactions", icon: "receipt_long" },
     { label: "Auditoria & Limpeza", path: "/data-cleaning", icon: "verified_user" },
     { label: "IA & Insights", path: "/insights", icon: "psychology", badge: "NEW" },
+    { label: "Market Intelligence", path: "/market-news", icon: "newspaper" },
     { label: "Deep Dive Financeiro", path: "/cfo/deep-dive", icon: "finance_mode" },
   ];
 
