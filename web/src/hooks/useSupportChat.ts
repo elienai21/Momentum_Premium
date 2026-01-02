@@ -184,6 +184,8 @@ export function useSupportChat(): UseSupportChatResult {
           // eslint-disable-next-line no-console
           console.warn("[Support] Falha ao enviar para /api/support/chat:", err);
         }
+
+        throw err;
       } finally {
         setIsSending(false);
       }
