@@ -17,6 +17,9 @@ import { useFeatures } from "../context/FeatureGateContext";
 import { resolveVoiceId } from "../lib/voice";
 import { useAuthToken } from "../hooks/useAuthToken";
 import { useSupportChat } from "../hooks/useSupportChat";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/services/firebase";
+import { getCurrentTenantId } from "@/context/TenantContext";
 
 export interface SupportDockProps {
   initialOpen?: boolean;
@@ -93,8 +96,37 @@ export default function SupportDock({ initialOpen = false }: SupportDockProps) {
     const trimmed = input.trim();
     if (!trimmed || isSending || !hasAuth || noCredits) return;
 
-    await sendMessage(trimmed);
-    setInput("");
+    try {
+      await sendMessage(trimmed);
+      setInput("");
+    } catch (err) {
+      console.error("[SupportDock] Falha ao enviar mensagem para o suporte:", err);
+      await persistFallback(trimmed, err as Error);
+    }
+  }
+
+  async function persistFallback(message: string, cause?: Error) {
+    try {
+      const user = auth.currentUser;
+      await addDoc(collection(db, "support_tickets"), {
+        message,
+        tenantId: getCurrentTenantId(),
+        uid: user?.uid ?? null,
+        email: user?.email ?? null,
+        status: "pending",
+        channel: "web-fallback",
+        error: cause
+          ? {
+              message: cause.message,
+              code: (cause as any)?.code ?? null,
+            }
+          : null,
+        createdAt: serverTimestamp(),
+      });
+      track?.("support_fallback_saved");
+    } catch (fallbackErr) {
+      console.error("[SupportDock] Falha ao registrar fallback no Firestore:", fallbackErr);
+    }
   }
 
   async function readLast() {

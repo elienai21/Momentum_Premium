@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import AdvisorChat from "./AdvisorChat";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useTenant } from "@/context/TenantContext";
 
 type AdvisorDockProps = {
   open: boolean;
@@ -12,6 +13,7 @@ type AdvisorDockProps = {
 export default function AdvisorDock({ open, onClose, title = "Advisor" }: AdvisorDockProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const { tenantId } = useTenant();
 
   // Focus trap ao abrir
   useFocusTrap(panelRef as any, open);
@@ -75,7 +77,7 @@ export default function AdvisorDock({ open, onClose, title = "Advisor" }: Adviso
         </div>
 
         <div className="h-[calc(100%-56px)]">
-          <AdvisorChat />
+          <AdvisorChat tenantId={tenantId} />
         </div>
       </div>
     </>

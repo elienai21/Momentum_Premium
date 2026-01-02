@@ -20,14 +20,26 @@ type AdvisorMessage = {
 
 type AdvisorChatProps = {
   onClose?: () => void;
+  tenantId?: string | null;
 };
 
-async function advisorSend(messages: Array<{ role: "user" | "assistant"; content: string }>) {
-  const r = await api.post("/advisor/session", { messages });
+async function advisorSend(
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  tenantId?: string | null,
+) {
+  const r = await api.post(
+    "/advisor/session",
+    { messages },
+    tenantId
+      ? {
+          headers: { "x-tenant-id": tenantId },
+        }
+      : undefined,
+  );
   return r.data as { reply: string };
 }
 
-export default function AdvisorChat({ onClose }: AdvisorChatProps) {
+export default function AdvisorChat({ onClose, tenantId }: AdvisorChatProps) {
   const { features, voiceProfiles } = useFeatures() as any;
   const effectiveFeatures = features || {
     advisor: true,
@@ -101,7 +113,9 @@ export default function AdvisorChat({ onClose }: AdvisorChatProps) {
         history.map((m) => ({
           role: m.role,
           content: m.content,
-        })));
+        })),
+        tenantId,
+      );
 
       const reply: AdvisorMessage = {
         role: "assistant",

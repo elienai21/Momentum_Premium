@@ -3,10 +3,11 @@
 // ============================================================
 
 import React, { useState } from "react";
-import { AIAdvisorPanel } from "../components/AIAdvisorPanel";
 import { AIUploadPanel } from "../components/AIUploadPanel";
+import AdvisorChat from "../components/AdvisorChat";
 import { getAuth } from "firebase/auth";
 import "../services/firebase";
+import { useTenant } from "@/context/TenantContext";
 
 // Simulação de níveis de plano — futuramente vem do Firestore
 type PlanLevel = "starter" | "pro" | "business" | "enterprise";
@@ -17,6 +18,7 @@ export const AIConsole: React.FC = () => {
 
   const auth = getAuth();
   const user = auth.currentUser;
+  const { tenantId } = useTenant();
 
   const planLabels: Record<PlanLevel, string> = {
     starter: "Starter",
@@ -83,14 +85,14 @@ export const AIConsole: React.FC = () => {
 
       {/* Conteúdo das abas */}
       <div className="min-h-[480px]">
-        {activeTab === "text" && <AIAdvisorPanel />}
+        {activeTab === "text" && <AdvisorChat tenantId={tenantId} />}
         {activeTab === "voice" && canUseVoice && (
           <div className="glass rounded-2xl p-4">
             <p className="opacity-70 text-sm mb-3">
               Fale com o CFO Virtual da Momentum — ele responde com voz neural e
               interpreta contexto financeiro.
             </p>
-            <AIAdvisorPanel />
+            <AdvisorChat tenantId={tenantId} />
           </div>
         )}
         {activeTab === "vision" && canUseVision && <AIUploadPanel />}
