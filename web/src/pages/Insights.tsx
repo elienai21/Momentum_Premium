@@ -3,8 +3,10 @@ import AdvisorChat from "../components/AdvisorChat";
 import { SectionHeader } from "../components/ui/SectionHeader";
 import { GlassPanel } from "../components/ui/GlassPanel";
 import { Sparkles } from "lucide-react";
+import { useTenant } from "@/context/TenantContext";
 
 const Insights: React.FC = () => {
+  const { tenantId } = useTenant();
   return (
     <div className="space-y-8 pb-20 fade-in">
       <SectionHeader
@@ -18,7 +20,7 @@ const Insights: React.FC = () => {
       />
 
       <GlassPanel className="p-0 overflow-hidden min-h-[calc(100vh-280px)] border-none shadow-2xl">
-        <AdvisorChat />
+        <AdvisorChat tenantId={tenantId} />
       </GlassPanel>
     </div>
   );

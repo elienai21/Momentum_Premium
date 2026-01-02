@@ -120,6 +120,7 @@ export function useVoiceCFO() {
         }
       };
     } catch (err: any) {
+      console.error("[useVoiceCFO] Falha ao iniciar sessão de voz:", err);
       setStatus("error");
       const msg =
         err?.message || "Não foi possível iniciar o CFO Live. Tente novamente.";
