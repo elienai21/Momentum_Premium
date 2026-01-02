@@ -17,14 +17,24 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: |
-            package-lock.json
             functions/package-lock.json
             web/package-lock.json
 
-      - name: Install (functions + web)
-        run: |
-          npm ci --prefix functions
-          npm ci --prefix web
+      - name: Install functions
+        run: npm ci
+        working-directory: functions
+
+      - name: Install web
+        run: npm ci
+        working-directory: web
+
+      - name: Build functions
+        run: npm run build
+        working-directory: functions
+
+      - name: Build web
+        run: npm run build
+        working-directory: web
 
       - name: Verify baseline
         run: npm run verify

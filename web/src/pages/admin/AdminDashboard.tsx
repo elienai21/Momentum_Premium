@@ -13,8 +13,10 @@ import { Bar } from 'react-chartjs-2';
 import { AsyncPanel } from "@/components/ui/AsyncPanel";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { getEconomics, EconomicsData } from "@/services/adminApi";
-import { BarChart3, DollarSign, Users, Activity, ExternalLink, ShieldAlert } from "lucide-react";
+import { BarChart3, DollarSign, Users, Activity, ShieldAlert, Plus, MessagesSquare } from "lucide-react";
 import { useToast } from "@/components/Toast";
+import { InviteMemberModal } from "@/components/settings/InviteMemberModal";
+import AdvisorDock from "@/components/AdvisorDock";
 
 // Register ChartJS components
 ChartJS.register(
@@ -30,6 +32,8 @@ export default function AdminDashboard() {
     const [data, setData] = useState<EconomicsData | null>(null);
     const [loading, setLoading] = useState(true);
     const { notify } = useToast();
+    const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [advisorOpen, setAdvisorOpen] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -101,8 +105,22 @@ export default function AdminDashboard() {
                     <h1 className="text-3xl font-bold text-slate-100 font-display">Unit Economics</h1>
                     <p className="text-slate-400 font-display">Monitoramento de custos de IA e saúde financeira.</p>
                 </div>
-                <div className="flex gap-2">
-                    <div className="px-3 py-1 bg-slate-800 rounded-full border border-slate-700 text-xs text-slate-400 font-mono">
+                <div className="flex gap-3 items-center">
+                    <button
+                        type="button"
+                        onClick={() => setCreateModalOpen(true)}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-600 text-white text-xs font-semibold shadow-glow hover:bg-violet-500 transition"
+                    >
+                        <Plus size={14} /> Criar Empresa
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setAdvisorOpen(true)}
+                        className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 text-slate-200 text-xs font-semibold hover:bg-slate-800 transition"
+                    >
+                        <MessagesSquare size={14} /> Falar com Advisor
+                    </button>
+                    <div className="px-3 py-1 bg-slate-800 rounded-full border border-slate-700 text-xs text-slate-400 font-mono hidden md:block">
                         v1.0.0
                     </div>
                 </div>
@@ -189,6 +207,14 @@ export default function AdminDashboard() {
                 </div>
 
             </AsyncPanel>
+
+            {isCreateModalOpen && (
+                <InviteMemberModal
+                    onClose={() => setCreateModalOpen(false)}
+                    onSuccess={() => setCreateModalOpen(false)}
+                />
+            )}
+            <AdvisorDock open={advisorOpen} onClose={() => setAdvisorOpen(false)} />
         </div>
     );
 }
