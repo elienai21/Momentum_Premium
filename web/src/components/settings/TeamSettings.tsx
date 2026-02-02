@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { GlassPanel } from "../ui/GlassPanel";
 import { AsyncPanel } from "../ui/AsyncPanel";
-import { api } from "@/services/api";
+import { authorizedFetch } from "@/services/authorizedFetch";
 import { User, Trash2, Mail, Shield, Plus, Clock } from "lucide-react";
 import { useToast } from "../Toast";
 import { InviteMemberModal } from "./InviteMemberModal";
@@ -31,17 +31,20 @@ interface TeamData {
 
 export function TeamSettings() {
     const { notify } = useToast();
-    const { tenant } = useTenant();
+    const { tenant } = useTenant() as any;
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState<TeamData>({ members: [], invites: [] });
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
             setLoading(true);
-            const res = await api.get<{ status: string; data: TeamData }>("/tenants/members");
-            setData(res.data.data);
+            const res = await authorizedFetch("/api/tenants/members");
+            if (!res.ok) throw new Error("Erro ao carregar");
+            const json = await res.json();
+            setData(json.data);
         } catch (err) {
             console.error(err);
             notify({ type: "error", message: "Erro ao carregar equipe." });
@@ -59,11 +62,12 @@ export function TeamSettings() {
 
         try {
             setDeletingId(uid);
-            await api.delete(`/tenants/members/${uid}`);
+            const res = await authorizedFetch(`/api/tenants/members/${uid}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Erro ao remover");
             notify({ type: "success", message: "Membro removido com sucesso." });
             setData(prev => ({ ...prev, members: prev.members.filter(m => m.id !== uid) }));
         } catch (err: any) {
-            notify({ type: "error", message: err.response?.data?.message || "Erro ao remover membro." });
+            notify({ type: "error", message: "Erro ao remover membro." });
         } finally {
             setDeletingId(null);
         }
@@ -74,13 +78,33 @@ export function TeamSettings() {
 
         try {
             setDeletingId(inviteId);
-            await api.delete(`/tenants/invites/${inviteId}`);
+            const res = await authorizedFetch(`/api/tenants/invites/${inviteId}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Erro ao cancelar");
             notify({ type: "success", message: "Convite cancelado." });
             setData(prev => ({ ...prev, invites: prev.invites.filter(i => i.id !== inviteId) }));
         } catch (err: any) {
             notify({ type: "error", message: "Erro ao cancelar convite." });
         } finally {
             setDeletingId(null);
+        }
+    };
+
+    const handleChangeRole = async (uid: string, newRole: string) => {
+        try {
+            setUpdatingRoleId(uid);
+            await authorizedFetch(`/api/tenants/members/${uid}`, {
+                method: "PATCH",
+                body: JSON.stringify({ role: newRole })
+            });
+            notify({ type: "success", message: "Cargo atualizado com sucesso." });
+            setData(prev => ({
+                ...prev,
+                members: prev.members.map(m => m.id === uid ? { ...m, role: newRole } : m)
+            }));
+        } catch (err: any) {
+            notify({ type: "error", message: "Erro ao atualizar cargo." });
+        } finally {
+            setUpdatingRoleId(null);
         }
     };
 
@@ -158,22 +182,36 @@ export function TeamSettings() {
                                     <div>
                                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300 font-display flex items-center gap-2">
                                             {member.name || member.email?.split('@')[0]}
-                                            {isOwner(member.id) && <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] uppercase">Dono</span>}
+                                            {isOwner(member.id) && <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] uppercase font-bold">Dono</span>}
                                             {member.id === data.members.find(m => m.email === tenant?.ownerEmail)?.id && <span className="text-xs text-slate-400">(Você)</span>}
                                         </p>
                                         <p className="text-[11px] text-slate-400 font-display">{member.email}</p>
                                     </div>
                                 </div>
-                                {!isOwner(member.id) && (
-                                    <button
-                                        onClick={() => handleRemoveMember(member.id)}
-                                        disabled={deletingId === member.id}
-                                        className="p-2 text-slate-400 hover:text-error hover:bg-error/10 rounded-lg transition-all"
-                                        title="Remover membro"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {!isOwner(member.id) && (
+                                        <select
+                                            value={member.role || 'member'}
+                                            onChange={e => handleChangeRole(member.id, e.target.value)}
+                                            disabled={updatingRoleId === member.id}
+                                            className="text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1.5 text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/50 focus:outline-none transition-all cursor-pointer disabled:opacity-50 disabled:cursor-wait"
+                                        >
+                                            <option value="admin">Admin</option>
+                                            <option value="member">Membro</option>
+                                            <option value="viewer">Visualizador</option>
+                                        </select>
+                                    )}
+                                    {!isOwner(member.id) && (
+                                        <button
+                                            onClick={() => handleRemoveMember(member.id)}
+                                            disabled={deletingId === member.id}
+                                            className="p-2 text-slate-400 hover:text-error hover:bg-error/10 rounded-lg transition-all"
+                                            title="Remover membro"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
+                                </div>
                             </GlassPanel>
                         ))}
                     </div>

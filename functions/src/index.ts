@@ -22,6 +22,7 @@ export { stripeWebhook } from "./billing/subscriptionManager";
 export { analyticsAggregator } from "./triggers/analyticsAggregator";
 export { dailyAging } from "./triggers/dailyAging";
 export { marketUpdater } from "./scheduler/marketUpdater";
+export { outboundWebhook } from "./triggers/outboundWebhook";
 
 // Firebase Admin init
 try {

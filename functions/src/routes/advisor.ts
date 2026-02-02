@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/", requireAuth, withTenant, runAdvisor);
 
 // POST /api/advisor/chat — versão sem restrição de plano
-router.post("/chat", requireAuth, withTenant, async (req, res) => {
+router.post("/chat", requireAuth, async (req, res) => {
   // Mantém compatibilidade: aceita { message } ou { text }
   const { message, text } = req.body || {};
   req.body.message = String(message || text || "").trim();
@@ -17,7 +17,7 @@ router.post("/chat", requireAuth, withTenant, async (req, res) => {
 });
 
 // POST /api/advisor/session — aceita histórico mas só envia última mensagem do usuário
-router.post("/session", requireAuth, withTenant, async (req, res) => {
+router.post("/session", requireAuth, async (req, res) => {
   const messages = Array.isArray(req.body?.messages) ? req.body.messages : [];
   const lastUserMessage =
     [...messages].reverse().find((m) => m?.role === "user")?.content || "";

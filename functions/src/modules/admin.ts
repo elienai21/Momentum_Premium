@@ -1,4 +1,5 @@
 import { db } from "src/services/firebase";
+import * as admin from "firebase-admin";
 
 import { Request, Response, NextFunction, Router } from "express";
 // FIX: Add import for type augmentations
@@ -9,11 +10,46 @@ import { requireAdmin } from "../middleware/requireAdmin";
 import { ApiError } from "../utils/errors";
 import { withTenant } from "../middleware/withTenant";
 import { FirestoreAdapter } from "../core/adapters/firestore";
+import { recordAudit } from "../core/audit";
 
 export const adminRouter = Router();
 
 // All admin routes require authentication and admin privileges
 adminRouter.use(requireAuth, requireAdmin);
+
+// POST /api/admin/impersonate/:uid - Generate custom token for impersonation
+// Restricted to platform admins only
+adminRouter.post("/impersonate/:uid", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { uid } = req.params;
+    const adminEmail = req.user?.email || "";
+
+    // Platform Admin Check - Replace with env var or specific logic in production
+    // defined in environment config
+    const PLATFORM_ADMINS = (process.env.PLATFORM_ADMINS || "").split(",").map(e => e.trim());
+
+    // Fallback security: if var not set, reject all
+    if (!PLATFORM_ADMINS.length || !PLATFORM_ADMINS.includes(adminEmail)) {
+      return res.status(403).json({ status: "error", message: "Platform Admin access required." });
+    }
+
+    const customToken = await admin.auth().createCustomToken(uid, {
+      impersonatedBy: adminEmail
+    });
+
+    await recordAudit(
+      "impersonateUser",
+      adminEmail,
+      `Impersonated user ${uid}`,
+      { targetUid: uid, traceId: req.traceId }
+    );
+
+    res.json({ status: "success", token: customToken });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 // GET /api/admin/economics - Detailed Unit Economics
 adminRouter.get("/economics", async (req: Request, res: Response, next: NextFunction) => {
