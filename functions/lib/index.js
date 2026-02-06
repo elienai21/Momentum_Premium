@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.apiV2 = exports.expressApp = exports.marketUpdater = exports.dailyAging = exports.analyticsAggregator = exports.stripeWebhook = exports.calculateRealEstateFees = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
+exports.apiV2 = exports.expressApp = exports.outboundWebhook = exports.marketUpdater = exports.dailyAging = exports.analyticsAggregator = exports.stripeWebhook = exports.calculateRealEstateFees = exports.cleanupExpiredLogsHttp = exports.cleanupExpiredLogs = exports.pulseAggregateOnWrite = exports.cfoNightly = void 0;
 // functions/src/index.ts
 const v2_1 = require("firebase-functions/v2");
 // Configuração global Regions v2 - Deve vir ANTES dos exports
@@ -64,6 +64,8 @@ var dailyAging_1 = require("./triggers/dailyAging");
 Object.defineProperty(exports, "dailyAging", { enumerable: true, get: function () { return dailyAging_1.dailyAging; } });
 var marketUpdater_1 = require("./scheduler/marketUpdater");
 Object.defineProperty(exports, "marketUpdater", { enumerable: true, get: function () { return marketUpdater_1.marketUpdater; } });
+var outboundWebhook_1 = require("./triggers/outboundWebhook");
+Object.defineProperty(exports, "outboundWebhook", { enumerable: true, get: function () { return outboundWebhook_1.outboundWebhook; } });
 // Firebase Admin init
 try {
     admin.app();

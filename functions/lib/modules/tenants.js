@@ -91,6 +91,10 @@ const inviteMemberSchema = zod_1.z.object({
     email: zod_1.z.string().email(),
     role: zod_1.z.enum(['admin', 'member', 'viewer']),
 });
+// Schema for updating member role
+const updateMemberRoleSchema = zod_1.z.object({
+    role: zod_1.z.enum(['admin', 'member', 'viewer']),
+});
 // POST /tenants/invite - Invite a user to the tenant
 exports.tenantsRouter.post('/invite', requireAuth_1.requireAuth, withTenant_1.withTenant, requireAdmin_1.requireAdmin, async (req, res, next) => {
     try {
@@ -157,6 +161,52 @@ exports.tenantsRouter.delete('/invites/:inviteId', requireAuth_1.requireAuth, wi
         const tenantId = req.tenant.info.id;
         await firebase_1.db.collection('tenants').doc(tenantId).collection('invites').doc(inviteId).delete();
         res.json({ status: 'success' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// PATCH /tenants/members/:uid - Update member role
+exports.tenantsRouter.patch('/members/:uid', requireAuth_1.requireAuth, withTenant_1.withTenant, requireAdmin_1.requireAdmin, async (req, res, next) => {
+    try {
+        const { uid } = req.params;
+        const { role } = updateMemberRoleSchema.parse(req.body);
+        const tenantId = req.tenant.info.id;
+        // Prevent changing owner role
+        if (uid === req.tenant.info.ownerUid) {
+            return res.status(400).json({ status: 'error', message: 'Cannot change owner role.' });
+        }
+        // Verify member exists
+        const memberRef = firebase_1.db.collection('tenants').doc(tenantId).collection('members').doc(uid);
+        const memberSnap = await memberRef.get();
+        if (!memberSnap.exists) {
+            return res.status(404).json({ status: 'error', message: 'Member not found.' });
+        }
+        // Update member role
+        await memberRef.update({ role });
+        // Invalidate tenant cache
+        (0, withTenant_1.invalidateTenantCache)(tenantId);
+        await (0, audit_1.recordAudit)("updateMemberRole", req.user.email, `Changed role of ${uid} to ${role}`, { tenantId, targetUid: uid, newRole: role, traceId: req.traceId });
+        logger_1.logger.info('Member role updated', { tenantId, targetUid: uid, newRole: role, traceId: req.traceId });
+        res.json({ status: 'success' });
+    }
+    catch (err) {
+        logger_1.logger.error('Failed to update member role', { error: err }, req);
+        next(err);
+    }
+});
+// GET /tenants/audit - List audit logs for the tenant
+exports.tenantsRouter.get('/audit', requireAuth_1.requireAuth, withTenant_1.withTenant, requireAdmin_1.requireAdmin, async (req, res, next) => {
+    try {
+        const tenantId = req.tenant.info.id;
+        const limit = parseInt(req.query.limit) || 50;
+        const snap = await firebase_1.db.collection('audit_logs')
+            .where('tenantId', '==', tenantId)
+            .orderBy('createdAt', 'desc')
+            .limit(limit)
+            .get();
+        const logs = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        res.json({ status: 'success', data: logs });
     }
     catch (err) {
         next(err);
