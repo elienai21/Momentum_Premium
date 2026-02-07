@@ -3,6 +3,7 @@ import { db } from "../services/firebase";
 import axios from "axios";
 import { logger } from "../utils/logger";
 import { loadTenant } from "../core/tenants";
+import * as crypto from "crypto";
 
 const OUTBOUND_TIMEOUT = 5000;
 
@@ -43,9 +44,18 @@ export const outboundWebhook = onDocumentCreated(
                 timestamp: new Date().toISOString(),
             };
 
+            // Calculate signature
+            const secret = process.env.WEBHOOK_SECRET || "";
+            let signature = "sha256=TODO";
+            if (secret) {
+                const hmac = crypto.createHmac("sha256", secret);
+                hmac.update(JSON.stringify(payload));
+                signature = `sha256=${hmac.digest("hex")}`;
+            }
+
             await axios.post(webhookUrl, payload, {
                 headers: {
-                    "X-Momentum-Signature": "sha256=TODO", // Add signature logic if needed
+                    "X-Momentum-Signature": signature,
                     "X-Tenant-ID": tenantId,
                     "User-Agent": "Momentum-Webhook-Bot/1.0"
                 },

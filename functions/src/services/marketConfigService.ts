@@ -88,18 +88,30 @@ export async function upsertMarketConfig(
   return data;
 }
 
+
 /**
- * Retorna benchmarks de mercado para o setor.
- * Implementa estratégia de Fallback: Dados Reais -> Dados Estáticos (Cold Start).
+ * Tries to fetch aggregated benchmarks from 'industry_benchmarks' collection.
+ * This collection should be updated by a scheduled job (e.g., nightly).
  */
+async function aggregateSectorData(industry: string): Promise<any> {
+  try {
+    const doc = await db.collection("industry_benchmarks").doc(industry).get();
+    if (doc.exists) {
+      return doc.data();
+    }
+  } catch (error) {
+    console.warn("Failed to fetch industry benchmarks", error);
+  }
+  return null;
+}
 export async function getBenchmarks(industry: string): Promise<any> {
   const normalizedIndustry = industry.toLowerCase()
     .replace(/\s+/g, "_")
     .normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Remove accents
 
-  // TODO: Implementar agregação real do Firestore aqui (pós-MVP)
-  // const realData = await aggregateSectorData(normalizedIndustry);
-  // if (realData) return realData;
+  // Real aggregation from pre-computed collection
+  const realData = await aggregateSectorData(normalizedIndustry);
+  if (realData) return realData;
 
   // Fallback: Dados estáticos (Cold Start)
   // Import dinâmico ou require para evitar lock de tsconfig se resolveJsonModule falhar

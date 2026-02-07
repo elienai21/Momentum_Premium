@@ -1,0 +1,4 @@
+﻿
+> momentum-functions@1.0.0 test
+> jest --config ./jest.config.js
+

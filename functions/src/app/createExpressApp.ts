@@ -136,6 +136,7 @@ export function createExpressApp(opts?: AppOptions): express.Express {
   const { alertsRouter } = require("../modules/alerts");
   const { dedupRouter } = require("../routes/dedup");
   const realEstateRouter = require("../routes/realEstate").default;
+  const { uploadsRouter } = require("../modules/uploads");
 
   app.use("/api/pulse", pulseRouter);
   app.use("/api/cfo", cfoRouter);
@@ -165,6 +166,7 @@ export function createExpressApp(opts?: AppOptions): express.Express {
   app.use("/api/alerts", alertsRouter);
   app.use("/api/dedup", dedupRouter);
   app.use("/api/realestate", realEstateRouter);
+  app.use("/api/uploads", uploadsRouter);
 
   // Alias simples para CFO summary (testes)
   app.get("/api/cfo/summary", (_req, res) => {
