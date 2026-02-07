@@ -146,6 +146,7 @@ export const db = {
         return transaction;
       }),
     };
+    (db as any).__lastTransaction = transaction;
     return updateFunction(transaction);
   }),
   getAll: jest.fn(async (...refs: any[]) => {

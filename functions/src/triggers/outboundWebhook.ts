@@ -2,7 +2,6 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { db } from "../services/firebase";
 import axios from "axios";
 import { logger } from "../utils/logger";
-import { loadTenant } from "../core/tenants";
 import * as crypto from "crypto";
 
 const OUTBOUND_TIMEOUT = 5000;
@@ -32,8 +31,8 @@ export const outboundWebhook = onDocumentCreated(
             const webhookUrl = settingsSnap.data()?.webhookUrl;
             if (!webhookUrl) return;
 
-            // 2. Load basic tenant info for headers/context
-            const tenant = await loadTenant(tenantId);
+            // 2. Load basic tenant info for headers/context (skipped as we only need ID)
+            // const tenant = await loadTenant(tenantId);
 
             // 3. Send Payload
             const payload = {
