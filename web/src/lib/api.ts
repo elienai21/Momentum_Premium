@@ -1,24 +1,21 @@
-import { getCurrentTenantId } from "@/context/TenantContext";
+import apiClient from "@/services/api";
 
 export async function api(
   path: string,
-  token?: string | null,
+  _token?: string | null,
   init?: RequestInit,
 ) {
-  const headers = new Headers(init?.headers || {});
+  const method = (init?.method ?? "GET").toUpperCase();
+  const data = init?.body;
+  const headers =
+    init?.headers && typeof init.headers === "object" ? init.headers : undefined;
 
-  // Nunca enviar Firebase ID token em Authorization para /api (Cloud Run IAM usa Authorization internamente).
-  headers.delete("Authorization");
-  headers.delete("authorization");
+  const response = await apiClient.request({
+    url: path,
+    method,
+    data,
+    headers,
+  });
 
-  if (token) {
-    headers.set("x-id-token", token);
-  }
-  if (!headers.has("x-tenant-id")) {
-    headers.set("x-tenant-id", getCurrentTenantId());
-  }
-
-  const res = await fetch(`/api${path}`, { ...init, headers });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return response.data;
 }
