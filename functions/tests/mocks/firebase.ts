@@ -74,8 +74,12 @@ const makeDocRef = (path: string): Partial<Firestore.DocumentReference> => ({
 // Mock helper to simulate Query
 const makeQuery = (basePath: string, constraints: any[] = []): any => {
   return {
-    where: jest.fn((...args: any[]) => makeQuery(basePath, [...constraints, { type: "where", args }])),
-    orderBy: jest.fn((...args: any[]) => makeQuery(basePath, [...constraints, { type: "orderBy", args }])),
+    where: jest.fn((fieldPath: any, opStr: any, value: any) =>
+      makeQuery(basePath, [...constraints, { type: "where", args: [fieldPath, opStr, value] }]),
+    ),
+    orderBy: jest.fn((...args: any[]) =>
+      makeQuery(basePath, [...constraints, { type: "orderBy", args }]),
+    ),
     limit: jest.fn((limit) => makeQuery(basePath, [...constraints, { type: "limit", limit }])),
     get: jest.fn(async () => {
       // Basic filtering simulation
@@ -112,7 +116,9 @@ const makeCollection = (path: string): Partial<Firestore.CollectionReference> =>
     return makeDocRef(docPath) as any;
   }) as any,
   // Query interface methods
-  where: jest.fn((...args: any[]) => makeQuery(path).where(...args)),
+  where: jest.fn((fieldPath: any, opStr: any, value: any) =>
+    makeQuery(path).where(fieldPath, opStr, value),
+  ),
   orderBy: jest.fn((...args: any[]) => makeQuery(path).orderBy(...args)),
   limit: jest.fn((val) => makeQuery(path).limit(val)),
   get: jest.fn(() => makeQuery(path).get()),
