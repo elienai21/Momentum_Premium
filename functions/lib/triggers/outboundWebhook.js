@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -8,7 +41,7 @@ const firestore_1 = require("firebase-functions/v2/firestore");
 const firebase_1 = require("../services/firebase");
 const axios_1 = __importDefault(require("axios"));
 const logger_1 = require("../utils/logger");
-const tenants_1 = require("../core/tenants");
+const crypto = __importStar(require("crypto"));
 const OUTBOUND_TIMEOUT = 5000;
 exports.outboundWebhook = (0, firestore_1.onDocumentCreated)({
     document: "tenants/{tenantId}/pulse/{docId}",
@@ -31,8 +64,8 @@ exports.outboundWebhook = (0, firestore_1.onDocumentCreated)({
         const webhookUrl = settingsSnap.data()?.webhookUrl;
         if (!webhookUrl)
             return;
-        // 2. Load basic tenant info for headers/context
-        const tenant = await (0, tenants_1.loadTenant)(tenantId);
+        // 2. Load basic tenant info for headers/context (skipped as we only need ID)
+        // const tenant = await loadTenant(tenantId);
         // 3. Send Payload
         const payload = {
             event: "pulse.created",
@@ -41,9 +74,17 @@ exports.outboundWebhook = (0, firestore_1.onDocumentCreated)({
             data,
             timestamp: new Date().toISOString(),
         };
+        // Calculate signature
+        const secret = process.env.WEBHOOK_SECRET || "";
+        let signature = "sha256=TODO";
+        if (secret) {
+            const hmac = crypto.createHmac("sha256", secret);
+            hmac.update(JSON.stringify(payload));
+            signature = `sha256=${hmac.digest("hex")}`;
+        }
         await axios_1.default.post(webhookUrl, payload, {
             headers: {
-                "X-Momentum-Signature": "sha256=TODO", // Add signature logic if needed
+                "X-Momentum-Signature": signature,
                 "X-Tenant-ID": tenantId,
                 "User-Agent": "Momentum-Webhook-Bot/1.0"
             },

@@ -100,7 +100,20 @@ exports.tenantsRouter.post('/invite', requireAuth_1.requireAuth, withTenant_1.wi
     try {
         const { email, role } = inviteMemberSchema.parse(req.body);
         const tenantId = req.tenant.info.id;
-        // TODO: limitation check (max users per plan) could go here
+        // Limitation check: Validate max users per plan
+        const plan = await (0, features_1.loadPlan)(req.tenant.info.plan ?? "free");
+        // Count existing members
+        const membersSnap = await firebase_1.db.collection('tenants').doc(tenantId).collection('members').count().get();
+        const currentMembers = membersSnap.data().count;
+        // Count pending invites
+        const invitesSnap = await firebase_1.db.collection('tenants').doc(tenantId).collection('invites').count().get();
+        const currentInvites = invitesSnap.data().count;
+        if (currentMembers + currentInvites >= plan.maxUsers) {
+            return res.status(403).json({
+                status: 'error',
+                message: `Plan limit reached (${plan.maxUsers} users). Upgrade your plan to invite more members.`
+            });
+        }
         const inviteData = {
             email,
             role,

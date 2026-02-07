@@ -80,7 +80,7 @@ export const newsService = {
         Responda no formato JSON: { "summary": "...", "sentiment": "..." }
       `;
 
-            let aiResult = { summary: "Resumo indisponível.", sentiment: "Neutro" as const };
+            const aiResult = { summary: "Resumo indisponível.", sentiment: "Neutro" as const };
 
             try {
                 const aiResponse = await aiClient(prompt, {
