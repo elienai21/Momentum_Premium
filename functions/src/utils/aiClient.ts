@@ -1,6 +1,8 @@
 // functions/src/utils/aiClient.ts
 import { logger } from "./logger";
 import { trackUsage } from "./usageTracker";
+import { fetchWithTimeout } from "./fetchWithTimeout";
+import { retryWithBackoff } from "./retryWithBackoff";
 
 declare const fetch: any; // garante compatibilidade de tipos em ambientes sem lib DOM
 
@@ -67,6 +69,7 @@ async function callOpenAI(prompt: string, meta: Meta): Promise<AiResult> {
 
   const model = resolveModel("openai");
   const system = buildSystemPrompt(meta);
+  const timeoutMs = parseInt(process.env.AI_TIMEOUT_MS || "30000", 10);
 
   const body = {
     model,
@@ -76,7 +79,7 @@ async function callOpenAI(prompt: string, meta: Meta): Promise<AiResult> {
     ],
   };
 
-  const res = await (globalThis as any).fetch(
+  const res = await fetchWithTimeout(
     "https://api.openai.com/v1/chat/completions",
     {
       method: "POST",
@@ -85,14 +88,20 @@ async function callOpenAI(prompt: string, meta: Meta): Promise<AiResult> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+      timeoutMs,
+      errorMessage: "OpenAI API timeout",
     }
   );
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(
-      `OpenAI API error: ${res.status} ${res.statusText} - ${errText}`
-    );
+    const errorDetails = extractProviderError(errText) || errText;
+    const err = new Error(
+      `OpenAI API error: ${res.status} ${res.statusText} - ${errorDetails}`
+    ) as Error & { status?: number; code?: number };
+    err.status = res.status;
+    err.code = res.status;
+    throw err;
   }
 
   const json: any = await res.json();
@@ -121,6 +130,7 @@ async function callGemini(prompt: string, meta: Meta): Promise<AiResult> {
 
   const model = resolveModel("gemini");
   const system = buildSystemPrompt(meta);
+  const timeoutMs = parseInt(process.env.AI_TIMEOUT_MS || "30000", 10);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -137,19 +147,25 @@ async function callGemini(prompt: string, meta: Meta): Promise<AiResult> {
     ],
   };
 
-  const res = await (globalThis as any).fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    timeoutMs,
+    errorMessage: "Gemini API timeout",
   });
 
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(
-      `Gemini API error: ${res.status} ${res.statusText} - ${errText}`
-    );
+    const errorDetails = extractProviderError(errText) || errText;
+    const err = new Error(
+      `Gemini API error: ${res.status} ${res.statusText} - ${errorDetails}`
+    ) as Error & { status?: number; code?: number };
+    err.status = res.status;
+    err.code = res.status;
+    throw err;
   }
 
   const json: any = await res.json();
@@ -189,12 +205,30 @@ export async function aiClient(prompt: string, meta: Meta): Promise<AiResult> {
 
   try {
     let result: AiResult;
-
-    if (provider === "openai") {
-      result = await callOpenAI(prompt, meta);
-    } else {
-      result = await callGemini(prompt, meta);
-    }
+    result = await retryWithBackoff(
+      async () => {
+        if (provider === "openai") {
+          return await callOpenAI(prompt, meta);
+        }
+        return await callGemini(prompt, meta);
+      },
+      {
+        shouldRetry: (error) => {
+          const status = error?.status || error?.statusCode || error?.code;
+          return (
+            status === 429 ||
+            status === 500 ||
+            status === 502 ||
+            status === 503 ||
+            status === 504 ||
+            error?.message?.includes("Internal error encountered") ||
+            error?.message?.includes("timeout") ||
+            error?.message?.includes("ECONNRESET") ||
+            error?.message?.includes("ETIMEDOUT")
+          );
+        },
+      }
+    );
 
     const latency = Date.now() - start;
     const totalTokens = result.usage.totalTokenCount || 0;
@@ -238,3 +272,21 @@ export async function aiClient(prompt: string, meta: Meta): Promise<AiResult> {
 
 // Alias mantendo compatibilidade com código legado (se existir)
 export const runGemini = aiClient;
+
+function extractProviderError(rawText: string): string | null {
+  if (!rawText) return null;
+  try {
+    const parsed = JSON.parse(rawText);
+    const message =
+      parsed?.error?.message ||
+      parsed?.message ||
+      parsed?.error?.status ||
+      parsed?.error?.code;
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message.trim();
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
