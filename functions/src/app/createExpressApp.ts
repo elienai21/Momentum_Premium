@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import compression from "compression";
+import helmet from "helmet";
 import { ensureTraceId } from "../utils/trace";
 import { logError } from "../utils/logger";
 
@@ -114,9 +115,68 @@ export function createExpressApp(opts?: AppOptions): express.Express {
     });
   }
 
-  // Middlewares / rotas
-  const { securityHeaders } = require("../middleware/securityHeaders");
-  app.use(securityHeaders);
+  // Security headers via Helmet
+  app.use(
+    helmet({
+      // HSTS - Force HTTPS for 1 year
+      hsts: {
+        maxAge: 31536000, // 1 year in seconds
+        includeSubDomains: true,
+        preload: true,
+      },
+      // Content Security Policy
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: ["'none'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'",
+            "https://www.googletagmanager.com",
+            "https://cdn.jsdelivr.net",
+            "https://cdnjs.cloudflare.com",
+          ],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com",
+            "https://cdnjs.cloudflare.com",
+          ],
+          imgSrc: ["'self'", "data:", "blob:"],
+          fontSrc: [
+            "'self'",
+            "https://fonts.gstatic.com",
+            "https://cdnjs.cloudflare.com",
+          ],
+          connectSrc: [
+            "'self'",
+            "https://firebasestorage.googleapis.com",
+            "https://southamerica-east1-*.cloudfunctions.net",
+            "https://*.googleapis.com",
+          ],
+          mediaSrc: ["'self'", "blob:"],
+          objectSrc: ["'none'"],
+          workerSrc: ["'self'", "blob:"],
+          frameSrc: ["'self'"],
+          manifestSrc: ["'self'"],
+        },
+      },
+      // Referrer Policy
+      referrerPolicy: { policy: "no-referrer" },
+      // X-Frame-Options
+      frameguard: { action: "deny" },
+      // X-Content-Type-Options
+      noSniff: true,
+      // Additional protections
+      xssFilter: true,
+      hidePoweredBy: true,
+      // Permissions Policy (browser features)
+      permittedCrossDomainPolicies: { permittedPolicies: "none" },
+    })
+  );
 
   const pulseRouter = require("../routes/pulse").default;
   const { cfoRouter } = require("../modules/cfo");
@@ -136,6 +196,7 @@ export function createExpressApp(opts?: AppOptions): express.Express {
   const { alertsRouter } = require("../modules/alerts");
   const { dedupRouter } = require("../routes/dedup");
   const realEstateRouter = require("../routes/realEstate").default;
+  const { uploadsRouter } = require("../modules/uploads");
 
   app.use("/api/pulse", pulseRouter);
   app.use("/api/cfo", cfoRouter);
@@ -165,6 +226,7 @@ export function createExpressApp(opts?: AppOptions): express.Express {
   app.use("/api/alerts", alertsRouter);
   app.use("/api/dedup", dedupRouter);
   app.use("/api/realestate", realEstateRouter);
+  app.use("/api/uploads", uploadsRouter);
 
   // Alias simples para CFO summary (testes)
   app.get("/api/cfo/summary", (_req, res) => {

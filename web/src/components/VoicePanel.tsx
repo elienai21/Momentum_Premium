@@ -1,12 +1,11 @@
 // web/src/components/VoicePanel.tsx
 // Nota: painel de voz só aparece em ambiente DEV
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Mic, MicOff, Play, Loader2, Lock } from "lucide-react";
 import { useFeatures } from "@/context/FeatureGateContext";
 import { resolveVoiceId } from "@/lib/voice";
 import { useTTS } from "@/hooks/useTTS";
 import { useSTT } from "@/hooks/useSTT";
-import { track } from "@/lib/analytics";
 import { useAuthToken } from "../hooks/useAuthToken";
 import authorizedFetch from "@/services/authorizedFetch";
 
@@ -23,7 +22,7 @@ type VoicePanelProps = {
 async function voiceAgentQuery(messages: VoiceMessage[]) {
   const r = await authorizedFetch("/api/voice/session", {
     method: "POST",
-    body: { messages },
+    body: { messages } as any,
   });
 
   if (!r.ok) {
@@ -43,55 +42,24 @@ async function voiceAgentQuery(messages: VoiceMessage[]) {
   return (await r.json()) as { reply: string; actions?: string[] };
 }
 
-export default function VoicePanel({ tenantId, plan }: VoicePanelProps) {
+export default function VoicePanel({ tenantId: _tenantId, plan: _plan }: VoicePanelProps) {
   const isDev = import.meta.env.DEV;
   if (!isDev) return null;
 
   const token = useAuthToken();
-  const { features, voiceProfiles } = useFeatures() as any;
-
-  const effectiveFeatures =
-    features ||
-    ({
-      advisor: true,
-      voiceTTS: false,
-      voiceSTT: false,
-    } as const);
+  const { features, voiceProfiles } = useFeatures();
 
   const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [reply, setReply] = useState<string | null>(null);
-  const [actions, setActions] = useState<string[]>([]);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [sttStatus, setSttStatus] = useState<"idle" | "listening" | "processing">(
-    "idle",
-  );
-  const [sttError, setSttError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [noCredits, setNoCredits] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const transcriptRef = useRef<string>("");
+  const { speak } = useTTS();
+  const { start, stop, recording, transcript, error: sttError } = useSTT();
 
-  const { speak } = useTTS({
-    voiceId: resolveVoiceId(voiceProfiles, "advisor"),
-  });
-
-  const { start, stop } = useSTT({
-    onTranscription: (text) => {
-      transcriptRef.current = text;
-    },
-    onStart: () => {
-      setSttStatus("listening");
-      setSttError(null);
-    },
-    onStop: () => {
-      setSttStatus("processing");
-    },
-    onError: (err) => {
-      setSttStatus("idle");
-      setSttError(err?.message || "Falha na transcrição");
-    },
-  });
+  const voiceId = resolveVoiceId(features.voiceTier, voiceProfiles, "advisor");
 
   useEffect(() => {
     if (!token) return;
@@ -104,14 +72,16 @@ export default function VoicePanel({ tenantId, plan }: VoicePanelProps) {
   }, [token]);
 
   const handlePlay = async () => {
-    if (sending || !transcriptRef.current) return;
+    const textToSubmit = transcript?.trim();
+    if (sending || !textToSubmit) return;
+
     setSending(true);
     setApiError(null);
     setNoCredits(false);
 
-    const history = [
+    const history: VoiceMessage[] = [
       ...messages,
-      { role: "user", content: transcriptRef.current },
+      { role: "user", content: textToSubmit },
     ];
     setMessages(history);
 
@@ -119,11 +89,15 @@ export default function VoicePanel({ tenantId, plan }: VoicePanelProps) {
       const result = await voiceAgentQuery(history);
 
       setReply(result.reply);
-      setActions(result.actions || []);
+      setMessages(prev => [...prev, { role: "assistant", content: result.reply }]);
 
-      if (effectiveFeatures.voiceTTS) {
+      if (features.voiceTTS) {
         setIsSpeaking(true);
-        await speak(result.reply);
+        await speak({
+          text: result.reply,
+          voice: voiceId,
+          profile: "aconselhamento"
+        });
         setIsSpeaking(false);
       }
     } catch (err: any) {
@@ -137,7 +111,6 @@ export default function VoicePanel({ tenantId, plan }: VoicePanelProps) {
       }
     } finally {
       setSending(false);
-      setSttStatus("idle");
     }
   };
 
@@ -157,7 +130,7 @@ export default function VoicePanel({ tenantId, plan }: VoicePanelProps) {
 
       <div className="mt-3 space-y-2 text-sm">
         <div className="rounded-lg bg-black/30 p-3 min-h-[80px]">
-          {transcriptRef.current || "Fale algo..."}
+          {transcript && transcript !== "\u200b" ? transcript : "Fale algo..."}
         </div>
         {reply && (
           <div className="rounded-lg bg-emerald-900/40 p-3">
@@ -170,40 +143,46 @@ export default function VoicePanel({ tenantId, plan }: VoicePanelProps) {
             {apiError}
           </div>
         )}
+        {sttError && (
+          <div className="rounded-lg bg-rose-900/40 p-3 text-rose-200">
+            {sttError.message}
+          </div>
+        )}
         {noCredits && (
           <div className="rounded-lg bg-amber-800/40 p-2 text-xs text-amber-100">
             Créditos de voz esgotados neste plano.
           </div>
         )}
+        {isSpeaking && (
+          <div className="flex items-center gap-2 text-xs text-emerald-400 animate-pulse">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+            Falando...
+          </div>
+        )}
       </div>
 
       <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={() => start()}
-          disabled={sttStatus === "listening" || sending}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold disabled:opacity-50"
-        >
-          {sttStatus === "listening" ? (
-            <>
-              <MicOff className="h-4 w-4" /> Gravando...
-            </>
-          ) : (
-            <>
-              <Mic className="h-4 w-4" /> Gravar
-            </>
-          )}
-        </button>
-        <button
-          onClick={() => stop()}
-          disabled={sttStatus !== "listening"}
-          className="rounded-lg border border-white/20 px-3 py-2 text-sm disabled:opacity-50"
-        >
-          Parar
-        </button>
+        {recording ? (
+          <button
+            onClick={() => stop()}
+            className="flex items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold hover:bg-rose-700 transition"
+          >
+            <MicOff className="h-4 w-4" /> Parar
+          </button>
+        ) : (
+          <button
+            onClick={() => start()}
+            disabled={sending}
+            className="flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition"
+          >
+            <Mic className="h-4 w-4" /> Gravar
+          </button>
+        )}
+
         <button
           onClick={handlePlay}
-          disabled={sending || !transcriptRef.current}
-          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold disabled:opacity-50"
+          disabled={sending || !transcript || transcript === "\u200b" || recording}
+          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 transition"
         >
           {sending ? (
             <Loader2 className="h-4 w-4 animate-spin" />

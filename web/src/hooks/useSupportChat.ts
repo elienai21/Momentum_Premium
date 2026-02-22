@@ -40,7 +40,7 @@ async function askSupport(
 ): Promise<SupportResponse> {
   const res = await authorizedFetch("/api/support/chat", {
     method: "POST",
-    body: { question, locale, sessionId },
+    body: JSON.stringify({ question, locale, sessionId }),
   });
 
   if (!res.ok) {
@@ -54,7 +54,7 @@ async function askSupport(
 
     const err = new Error(
       payload?.message ??
-        "Não foi possível falar com o suporte automatizado agora. Tente novamente em alguns instantes.",
+      "Não foi possível falar com o suporte automatizado agora. Tente novamente em alguns instantes.",
     ) as Error & { code?: string };
 
     if (payload?.code) {

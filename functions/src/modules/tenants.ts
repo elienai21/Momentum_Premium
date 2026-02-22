@@ -7,7 +7,7 @@ import "../types";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import { getTenantByDomain } from "../core/tenants";
-import { loadPlanFlags } from "../config/features";
+import { loadPlanFlags, loadPlan } from "../config/features";
 import { logger } from "../utils/logger";
 import { requireAuth } from "../middleware/requireAuth";
 import { requireAdmin } from "../middleware/requireAdmin";
@@ -123,7 +123,22 @@ tenantsRouter.post('/invite', requireAuth, withTenant, requireAdmin, async (req:
     const { email, role } = inviteMemberSchema.parse(req.body);
     const tenantId = req.tenant!.info.id;
 
-    // TODO: limitation check (max users per plan) could go here
+    // Limitation check: Validate max users per plan
+    const plan = await loadPlan(req.tenant!.info.plan ?? "free");
+    // Count existing members
+    const membersSnap = await db.collection('tenants').doc(tenantId).collection('members').count().get();
+    const currentMembers = membersSnap.data().count;
+
+    // Count pending invites
+    const invitesSnap = await db.collection('tenants').doc(tenantId).collection('invites').count().get();
+    const currentInvites = invitesSnap.data().count;
+
+    if (currentMembers + currentInvites >= plan.maxUsers) {
+      return res.status(403).json({
+        status: 'error',
+        message: `Plan limit reached (${plan.maxUsers} users). Upgrade your plan to invite more members.`
+      });
+    }
 
     const inviteData = {
       email,

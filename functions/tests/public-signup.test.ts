@@ -1,5 +1,5 @@
 import { jest, describe, it, expect } from "@jest/globals";
-import "./setupFirebaseMock";
+import "./setupFirebaseMock"; // Import this BEFORE other imports to ensure mocks are applied
 import request from "supertest";
 import { makeTestApp, debugIfNotOk } from "./helpers/testApp";
 

@@ -46,8 +46,10 @@ export async function authorizedFetch(
   if (token) {
     headers.set("x-id-token", token);
   }
-  if (!headers.has("x-tenant-id")) {
-    headers.set("x-tenant-id", getCurrentTenantId());
+
+  const tenantId = getCurrentTenantId();
+  if (!headers.has("x-tenant-id") && tenantId) {
+    headers.set("x-tenant-id", tenantId as string);
   }
 
   let body = init.body;

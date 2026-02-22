@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "echo 'Use lint:api-headers for API checks'",
     "lint:api-headers": "node tools/check-api-headers.cjs",
     "preview": "vite preview",
     "test": "vitest --pool=forks --maxWorkers=1",

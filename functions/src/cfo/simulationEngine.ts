@@ -72,7 +72,7 @@ export const runFinancialSimulation = (
   projExpense += (scenario.recurringExpensesDelta || 0);
 
   // Considera One-Off no saldo inicial da projeção (impacta o caixa, não o fluxo mensal recorrente)
-  let projStartBalance = currentBalance + (scenario.oneTimeIncome || 0) - (scenario.oneTimeExpense || 0);
+  const projStartBalance = currentBalance + (scenario.oneTimeIncome || 0) - (scenario.oneTimeExpense || 0);
 
   // Novos KPIs projetados
   const projNetCash = projIncome - projExpense;

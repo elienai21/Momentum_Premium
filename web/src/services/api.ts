@@ -62,8 +62,8 @@ api.interceptors.request.use(async (config) => {
     console.warn("[API] Chamada sem usuário autenticado:", config.url);
   }
 
-  headers["x-tenant-id"] = getCurrentTenantId();
-  config.headers = headers;
+  headers["x-tenant-id"] = getCurrentTenantId() || "";
+  (config as any).headers = headers;
 
   return config;
 });

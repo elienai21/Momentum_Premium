@@ -2,7 +2,7 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { db } from "../services/firebase";
 import axios from "axios";
 import { logger } from "../utils/logger";
-import { loadTenant } from "../core/tenants";
+import * as crypto from "crypto";
 
 const OUTBOUND_TIMEOUT = 5000;
 
@@ -31,8 +31,8 @@ export const outboundWebhook = onDocumentCreated(
             const webhookUrl = settingsSnap.data()?.webhookUrl;
             if (!webhookUrl) return;
 
-            // 2. Load basic tenant info for headers/context
-            const tenant = await loadTenant(tenantId);
+            // 2. Load basic tenant info for headers/context (skipped as we only need ID)
+            // const tenant = await loadTenant(tenantId);
 
             // 3. Send Payload
             const payload = {
@@ -43,9 +43,20 @@ export const outboundWebhook = onDocumentCreated(
                 timestamp: new Date().toISOString(),
             };
 
+            // Calculate signature - require WEBHOOK_SECRET to be configured
+            const secret = process.env.WEBHOOK_SECRET;
+            if (!secret) {
+                logger.warn("WEBHOOK_SECRET not configured, skipping webhook", { tenantId, docId });
+                return;
+            }
+
+            const hmac = crypto.createHmac("sha256", secret);
+            hmac.update(JSON.stringify(payload));
+            const signature = `sha256=${hmac.digest("hex")}`;
+
             await axios.post(webhookUrl, payload, {
                 headers: {
-                    "X-Momentum-Signature": "sha256=TODO", // Add signature logic if needed
+                    "X-Momentum-Signature": signature,
                     "X-Tenant-ID": tenantId,
                     "User-Agent": "Momentum-Webhook-Bot/1.0"
                 },

@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
-import { vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { usePulseSummary } from "../usePulseSummary";
 import { getPulseSummary } from "../../services/pulseApi";
 
@@ -7,7 +7,7 @@ vi.mock("../../services/pulseApi", () => ({
   getPulseSummary: vi.fn(),
 }));
 
-const mockGetPulseSummary = getPulseSummary as unknown as vi.Mock;
+const mockGetPulseSummary = getPulseSummary as any;
 
 const baseParams = {
   tenantId: "T1",

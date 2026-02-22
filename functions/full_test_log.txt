@@ -1,0 +1,117 @@
+﻿
+> momentum-functions@1.0.0 test
+> jest --config ./jest.config.js tests/public-signup.test.ts
+
+npm : ts-jest[ts-jest
+-transformer] (WARN) 
+Define `ts-jest` 
+config under 
+`globals` is 
+deprecated. Please do
+No linha:1 
+caractere:1
++ npm test tests/publ
+ic-signup.test.ts 
+2>&1 | Out-File 
+-Encoding utf8 f ...
++ ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+~
+    + CategoryInfo   
+           : NotSpe  
+  cified: (ts-jest   
+ [ts-jest...ated.    
+ Please do:Strin    
+g) [], RemoteExc    
+eption
+    + FullyQualified 
+   ErrorId : Native  
+  CommandError
+ 
+transform: {
+    
+<transform_regex>: 
+['ts-jest', { /* 
+ts-jest config goes 
+here in Jest */ }],
+},
+See more at https://k
+ulshekhar.github.io/t
+s-jest/docs/getting-s
+tarted/presets#advanc
+ed
+  console.log
+    {"level":"info","message":"Public signup created new tenant","tenantId":"mock-id-1","uid":"mock-uid","email":"mock@example.com","mode":"new"}
+
+      at Object.info (src/utils/logger.ts:48:13)
+
+FAIL tests/public-sig
+nup.test.ts (7.373 s)
+  Public signup
+    ├ù cria tenant + 
+member com status 
+active e email (985 
+ms)
+
+  ÔùÅ Public signup 
+ÔÇ║ cria tenant + 
+member com status 
+active e email
+
+    expect(received).
+toBeTruthy()
+
+    Received: 
+undefined
+
+    [0m [90m 18 
+|[39m     
+[36mconst[39m { db 
+} [33m=[39m require
+([32m"firebase-admin
+"[39m) [36mas[39m 
+any[33m;[39m
+     [90m 19 |[39m 
+    [36mconst[39m 
+tx [33m=[39m db[33
+m.[39m__lastTransact
+ion[33m;[39m
+    [31m[1m>[22m[
+39m[90m 20 |[39m   
+  expect(tx)[33m.[3
+9mtoBeTruthy()[33m;
+[39m
+     [90m    |[39m 
+               
+[31m[1m^[22m[39m
+     [90m 21 |[39m 
+    expect(tx[33m.[
+39m[36mset[39m)[33
+m.[39mtoHaveBeenCall
+ed()[33m;[39m
+     [90m 22 |[39m
+     [90m 23 |[39m 
+    [36mconst[39m 
+setCalls [33m=[39m 
+(tx[33m.[39m[36mse
+t[39m [36mas[39m j
+est[33m.[39m[33mMo
+ck[39m)[33m.[39mmo
+ck[33m.[39mcalls[3
+3m;[39m[0m
+
+      at 
+Object.<anonymous> (t
+ests/public-signup.te
+st.ts:20:16)
+
+Test Suites: 1 
+failed, 1 total
+Tests:       1 
+failed, 1 total
+Snapshots:   0 total
+Time:        7.564 
+s, estimated 8 s
+Ran all test suites 
+matching /tests\\publ
+ic-signup.test.ts/i.

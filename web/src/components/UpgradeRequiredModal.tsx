@@ -5,25 +5,34 @@ type UpgradeRequiredModalProps = {
   open: boolean;
   onClose: () => void;
   feature?: string;
+  featureName?: string;
+  featureKey?: string;
   plan?: string;
+  currentPlan?: string;
 };
 
 export function UpgradeRequiredModal({
   open,
   onClose,
   feature,
+  featureName,
+  featureKey,
   plan,
+  currentPlan,
 }: UpgradeRequiredModalProps) {
   if (!open) return null;
 
-  const featureLabel =
-    feature === "cfo_simulation"
+  const effectiveFeature = feature || featureKey;
+  const effectiveFeatureName = featureName || (
+    effectiveFeature === "cfo_simulation"
       ? "Simulações avançadas do CFO"
-      : feature === "cfo_ai_report"
-      ? "Relatórios de IA do CFO"
-      : "Funcionalidade avançada do CFO";
+      : effectiveFeature === "cfo_ai_report"
+        ? "Relatórios de IA do CFO"
+        : "Funcionalidade avançada do CFO"
+  );
 
-  const planLabel = plan ? plan.toUpperCase() : "atual";
+  const effectivePlan = plan || currentPlan;
+  const planLabel = effectivePlan ? effectivePlan.toUpperCase() : "atual";
 
   const handleTalkToSupport = () => {
     // Dispara o evento para abrir o suporte (já existe no layout)
@@ -52,7 +61,7 @@ export function UpgradeRequiredModal({
             <p className="mt-1 text-xs text-slate-200">
               Você tentou acessar:{" "}
               <span className="font-semibold text-amber-200">
-                {featureLabel}
+                {effectiveFeatureName}
               </span>
               .
             </p>

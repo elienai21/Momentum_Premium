@@ -20,13 +20,20 @@
     }
   ],
   "hosting": {
-    "public": "web/dist",
+    "public": "hosting/public",
+    "predeploy": [
+      "npm --prefix web run build"
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/api/**",
+        "function": "apiV2"
+      },
       {
         "source": "**",
         "destination": "/index.html"

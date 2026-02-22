@@ -89,7 +89,7 @@ Usuário: ${message}
       const { redactPII } = await import("../utils/redactPII");
 
       // Calculate expiration date (30 days from now)
-      // TODO: Configure Firestore TTL policy or scheduled cleanup job
+      // Expiration handled by cleanupExpiredLogs scheduler
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 30);
 

@@ -5,6 +5,8 @@ exports.aiClient = aiClient;
 // functions/src/utils/aiClient.ts
 const logger_1 = require("./logger");
 const usageTracker_1 = require("./usageTracker");
+const fetchWithTimeout_1 = require("./fetchWithTimeout");
+const retryWithBackoff_1 = require("./retryWithBackoff");
 function resolveProvider(meta) {
     const fromEnv = (process.env.AI_PROVIDER || "").toLowerCase();
     if (fromEnv === "openai" || fromEnv === "gemini")
@@ -43,6 +45,7 @@ async function callOpenAI(prompt, meta) {
     }
     const model = resolveModel("openai");
     const system = buildSystemPrompt(meta);
+    const timeoutMs = parseInt(process.env.AI_TIMEOUT_MS || "30000", 10);
     const body = {
         model,
         messages: [
@@ -50,17 +53,23 @@ async function callOpenAI(prompt, meta) {
             { role: "user", content: prompt },
         ],
     };
-    const res = await globalThis.fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await (0, fetchWithTimeout_1.fetchWithTimeout)("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        timeoutMs,
+        errorMessage: "OpenAI API timeout",
     });
     if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        throw new Error(`OpenAI API error: ${res.status} ${res.statusText} - ${errText}`);
+        const errorDetails = extractProviderError(errText) || errText;
+        const err = new Error(`OpenAI API error: ${res.status} ${res.statusText} - ${errorDetails}`);
+        err.status = res.status;
+        err.code = res.status;
+        throw err;
     }
     const json = await res.json();
     const text = json.choices?.[0]?.message?.content ??
@@ -82,6 +91,7 @@ async function callGemini(prompt, meta) {
     }
     const model = resolveModel("gemini");
     const system = buildSystemPrompt(meta);
+    const timeoutMs = parseInt(process.env.AI_TIMEOUT_MS || "30000", 10);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const body = {
         contents: [
@@ -95,16 +105,22 @@ async function callGemini(prompt, meta) {
             },
         ],
     };
-    const res = await globalThis.fetch(url, {
+    const res = await (0, fetchWithTimeout_1.fetchWithTimeout)(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        timeoutMs,
+        errorMessage: "Gemini API timeout",
     });
     if (!res.ok) {
         const errText = await res.text().catch(() => "");
-        throw new Error(`Gemini API error: ${res.status} ${res.statusText} - ${errText}`);
+        const errorDetails = extractProviderError(errText) || errText;
+        const err = new Error(`Gemini API error: ${res.status} ${res.statusText} - ${errorDetails}`);
+        err.status = res.status;
+        err.code = res.status;
+        throw err;
     }
     const json = await res.json();
     const candidate = json.candidates?.[0];
@@ -136,12 +152,25 @@ async function aiClient(prompt, meta) {
     const provider = resolveProvider(meta);
     try {
         let result;
-        if (provider === "openai") {
-            result = await callOpenAI(prompt, meta);
-        }
-        else {
-            result = await callGemini(prompt, meta);
-        }
+        result = await (0, retryWithBackoff_1.retryWithBackoff)(async () => {
+            if (provider === "openai") {
+                return await callOpenAI(prompt, meta);
+            }
+            return await callGemini(prompt, meta);
+        }, {
+            shouldRetry: (error) => {
+                const status = error?.status || error?.statusCode || error?.code;
+                return (status === 429 ||
+                    status === 500 ||
+                    status === 502 ||
+                    status === 503 ||
+                    status === 504 ||
+                    error?.message?.includes("Internal error encountered") ||
+                    error?.message?.includes("timeout") ||
+                    error?.message?.includes("ECONNRESET") ||
+                    error?.message?.includes("ETIMEDOUT"));
+            },
+        });
         const latency = Date.now() - start;
         const totalTokens = result.usage.totalTokenCount || 0;
         // Log de sucesso
@@ -182,3 +211,21 @@ async function aiClient(prompt, meta) {
 }
 // Alias mantendo compatibilidade com código legado (se existir)
 exports.runGemini = aiClient;
+function extractProviderError(rawText) {
+    if (!rawText)
+        return null;
+    try {
+        const parsed = JSON.parse(rawText);
+        const message = parsed?.error?.message ||
+            parsed?.message ||
+            parsed?.error?.status ||
+            parsed?.error?.code;
+        if (typeof message === "string" && message.trim().length > 0) {
+            return message.trim();
+        }
+        return null;
+    }
+    catch (error) {
+        return null;
+    }
+}

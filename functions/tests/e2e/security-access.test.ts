@@ -2,10 +2,10 @@
 
 import { describe, beforeAll, afterAll, it, expect } from "@jest/globals";
 import * as admin from "firebase-admin";
-import * as firebaseFunctionsTest from "firebase-functions-test";
+import * as fft from "firebase-functions-test";
 import axios from "axios";
 
-const testEnv = firebaseFunctionsTest({ projectId: "momentum-platform-local" });
+const testEnv = fft({ projectId: "momentum-platform-local" });
 
 describe("E2E: Security and Access Control", () => {
   const functionsBaseUrl = "http://127.0.0.1:5001/momentum-platform-local/us-central1/api";
@@ -24,12 +24,12 @@ describe("E2E: Security and Access Control", () => {
 
     // Create plans and tenants in Firestore
     const starterPlanRef = admin.firestore().collection("plans").doc("starter");
-    await starterPlanRef.set({ features: { support_agent: false } }); 
-    
+    await starterPlanRef.set({ features: { support_agent: false } });
+
     const tenantARef = admin.firestore().collection("tenants").doc("tenant-a");
     await tenantARef.set({ name: "Tenant A", ownerUid: userA.uid, planId: "starter", vertical: 'finance' });
     tenantA_Id = tenantARef.id;
-    
+
     const tenantBRef = admin.firestore().collection("tenants").doc("tenant-b");
     await tenantBRef.set({ name: "Tenant B", ownerUid: userB.uid, planId: "starter", vertical: 'finance' });
     tenantB_Id = tenantBRef.id;
@@ -58,26 +58,26 @@ describe("E2E: Security and Access Control", () => {
     // This test assumes Firestore security rules are deployed to the emulator
     // which prevent cross-tenant reads.
     const addRecordResponse = await axios.post(`${functionsBaseUrl}/portal/records`, {
-        description: "Legit Record", amount: 100, category: "Test", type: "Income"
+      description: "Legit Record", amount: 100, category: "Test", type: "Income"
     }, {
-        headers: { Authorization: `Bearer ${tokenA}`, "x-goog-access-token": "mock-token" }
+      headers: { Authorization: `Bearer ${tokenA}`, "x-goog-access-token": "mock-token" }
     });
     expect(addRecordResponse.status).toBe(201);
-    
+
     const responseA = await axios.get(`${functionsBaseUrl}/portal/records`, {
-        headers: { Authorization: `Bearer ${tokenA}`, "x-goog-access-token": "mock-token" }
+      headers: { Authorization: `Bearer ${tokenA}`, "x-goog-access-token": "mock-token" }
     });
     expect(responseA.data.data.items.length).toBeGreaterThan(0);
 
     const responseB = await axios.get(`${functionsBaseUrl}/portal/records`, {
-        headers: { Authorization: `Bearer ${tokenA}`, "x-tenant-id": tenantB_Id, "x-goog-access-token": "mock-token" }
+      headers: { Authorization: `Bearer ${tokenA}`, "x-tenant-id": tenantB_Id, "x-goog-access-token": "mock-token" }
     });
     expect(responseB.data.data.items).toEqual([]);
   });
 
   it("should deny access to a feature if the tenant's plan does not include it", async () => {
     console.log("TEST: Verifying feature flag enforcement...");
-    
+
     await expect(
       axios.post(`${functionsBaseUrl}/support/message`, { message: "Hello" }, {
         headers: { Authorization: `Bearer ${tokenA}`, "x-goog-access-token": "mock-token" }
