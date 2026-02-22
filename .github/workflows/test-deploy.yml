@@ -5,7 +5,7 @@ on:
       - main
 
 jobs:
-  test-and-deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,6 +14,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            functions/package-lock.json
+            web/package-lock.json
 
       - name: Install Dependencies (functions)
         run: npm ci
@@ -23,26 +27,59 @@ jobs:
         run: npm ci
         working-directory: web
 
-      # --- AQUI ESTA A CORREÇÃO QUE FALTA ---
-      - name: Build and test functions (best effort)
-        run: |
-          cd functions
-          npm run build || true
-          npm test -- --runInBand --detectOpenHandles || true
+      - name: Lint functions
+        run: npx eslint src/ --ext .ts
+        working-directory: functions
+
+      - name: Type check & build functions
+        run: npm run build
+        working-directory: functions
+
+      - name: Test functions
+        run: npm test -- --runInBand --detectOpenHandles
+        working-directory: functions
+
+      - name: Type check web
+        run: npx tsc --noEmit
+        working-directory: web
+
+      - name: Build web
+        run: npm run build
+        working-directory: web
+
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.FIREBASE_TOKEN != ''
-    needs: test-and-deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Firebase Deploy (functions + rules)
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            functions/package-lock.json
+            web/package-lock.json
+
+      - name: Install Dependencies (functions)
+        run: npm ci
+        working-directory: functions
+
+      - name: Install Dependencies (web)
+        run: npm ci
+        working-directory: web
+
+      - name: Build functions
+        run: npm run build
+        working-directory: functions
+
+      - name: Build web
+        run: npm run build
+        working-directory: web
+
+      - name: Deploy to Firebase
+        if: env.FIREBASE_TOKEN != ''
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
-      # --------------------------------------
-      
-      - name: Cleanup
-        if: always()
-        run: rm service-account.json
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: npx firebase-tools deploy --only functions:apiV2,hosting --token "$FIREBASE_TOKEN"
