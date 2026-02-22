@@ -65,10 +65,16 @@ export async function advisorVoice(req: Request, res: Response) {
     logger.info("🎤 Transcrição obtida", { uid, transcript });
 
     // 🧠 2️⃣ Envia texto ao Advisor
+    let capturedData: any = null;
     const mockReq = { ...req, body: { message: transcript } } as Request;
-    const mockRes = { json: (d: any) => d } as unknown as Response;
-    const resultAI = await runAdvisor(mockReq, mockRes);
-    const replyText = (resultAI as any)?.reply?.answer || "Não consegui responder agora.";
+    const mockRes = {
+      json: (d: any) => { capturedData = d; return mockRes; },
+      status: (_code: number) => mockRes,
+      set: () => mockRes,
+      send: () => mockRes,
+    } as unknown as Response;
+    await runAdvisor(mockReq, mockRes);
+    const replyText = capturedData?.reply?.answer || "Não consegui responder agora.";
 
     // 🔊 3️⃣ Converte resposta em áudio (texto → voz neural)
     const tts = await getTTSClient();

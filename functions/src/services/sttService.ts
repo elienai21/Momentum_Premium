@@ -20,7 +20,17 @@ function getOpenAIClient(): OpenAI {
 
 export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
   // Cria arquivo temporário preservando uma extensão compatível
-  const ext = mimeType.includes("mp4") ? "mp4" : "webm";
+  const mimeMap: Record<string, string> = {
+    "audio/mp4": "mp4",
+    "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
+    "audio/wav": "wav",
+    "audio/ogg": "ogg",
+    "audio/flac": "flac",
+    "audio/webm": "webm",
+    "video/mp4": "mp4",
+  };
+  const ext = mimeMap[mimeType] || (mimeType.includes("mp4") ? "mp4" : "webm");
   const tempFilePath = path.join(os.tmpdir(), `audio_${Date.now()}.${ext}`);
 
   try {

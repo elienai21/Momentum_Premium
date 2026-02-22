@@ -75,7 +75,6 @@ Responda estritamente neste formato JSON:
 `;
 
       // Add timeout wrapper (30s default for vision processing)
-      // Add timeout wrapper (30s default for vision processing)
       const timeoutMs = parseInt(process.env.VISION_TIMEOUT_MS || "30000", 10);
       let timeoutHandle: NodeJS.Timeout;
 
@@ -94,7 +93,13 @@ Responda estritamente neste formato JSON:
       if (!text) throw new ApiError(500, "A IA não retornou dados do recibo.");
 
       const jsonText = text.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(jsonText);
+      let parsed: any;
+      try {
+        parsed = JSON.parse(jsonText);
+      } catch {
+        logger.warn("Vision API returned invalid JSON", { raw: jsonText.substring(0, 200) });
+        throw new ApiError(422, "A IA retornou dados em formato inválido. Tente novamente.");
+      }
 
       logger.info("Gemini Vision parsed receipt", {
         file: meta?.fileName,

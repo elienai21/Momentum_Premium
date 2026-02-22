@@ -56,7 +56,8 @@ export async function synthesizeToGcs(params: TtsParams) {
 
   const bucket = ensureBucket();
   const safeTenantId = tenantId || "unknown";
-  const hash = Buffer.from(text).toString("base64url").slice(0, 24);
+  const crypto = await import("crypto");
+  const hash = crypto.createHash("sha256").update(text).digest("hex").slice(0, 24);
   const fileName = `tts/${safeTenantId}/${hash}.mp3`;
   const file = bucket.file(fileName);
 

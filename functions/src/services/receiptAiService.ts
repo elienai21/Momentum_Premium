@@ -98,7 +98,7 @@ export async function processReceiptToExpense(
   return {
     expense,
     aiMetadata: {
-      confidence: Number((aiResponse as any)?.confidence) || 0.6,
+      confidence: Number((aiResponse as any)?.confidence) || 0.6, // NaN coerces to 0 which is falsy, fallback to 0.6
       rawText: (aiResponse as any)?.rawText,
       model: (aiResponse as any)?.model || "gemini-2.5-flash",
     },

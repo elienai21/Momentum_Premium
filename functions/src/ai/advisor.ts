@@ -112,15 +112,21 @@ ESTRATÉGIA DE RESPOSTA:
     };
 
     // 5. Histórico e Auditoria
-    await db.collection("ai_conversations").add({
-      uid: userId,
-      tenantId,
-      message,
-      response: answerText,
-      contextUsed: !!financialContext,
-      timestamp: Date.now(),
-      traceId: req.traceId,
-    });
+    try {
+      await db.collection("ai_conversations").add({
+        uid: userId,
+        tenantId,
+        message,
+        response: answerText,
+        contextUsed: !!financialContext,
+        timestamp: Date.now(),
+        traceId: req.traceId,
+      });
+    } catch (auditErr: any) {
+      logger.warn("Failed to save AI conversation audit log", {
+        tenantId, userId, error: auditErr?.message,
+      });
+    }
 
     return res.json({ ok: true, reply });
 

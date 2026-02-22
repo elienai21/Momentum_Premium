@@ -106,9 +106,7 @@ async function callOpenAI(prompt: string, meta: Meta): Promise<AiResult> {
 
   const json: any = await res.json();
   const text: string =
-    json.choices?.[0]?.message?.content ??
-    json.choices?.[0]?.message?.content?.[0]?.text ??
-    "";
+    json.choices?.[0]?.message?.content ?? "";
 
   const totalTokens: number = json.usage?.total_tokens ?? 0;
 
@@ -171,7 +169,11 @@ async function callGemini(prompt: string, meta: Meta): Promise<AiResult> {
   const json: any = await res.json();
 
   const candidate = json.candidates?.[0];
-  const parts = candidate?.content?.parts || [];
+  if (!candidate) {
+    logger.warn("Gemini returned no candidates", { promptKind: meta.promptKind });
+    return { text: "", usage: { totalTokenCount: 0 } };
+  }
+  const parts = candidate.content?.parts || [];
   const text = parts
     .map((p: any) => (typeof p.text === "string" ? p.text : ""))
     .join("")

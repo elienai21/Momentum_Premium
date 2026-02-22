@@ -2,6 +2,7 @@ import { jest, describe, it, expect } from "@jest/globals";
 import "./setupFirebaseMock"; // Import this BEFORE other imports to ensure mocks are applied
 import request from "supertest";
 import { makeTestApp, debugIfNotOk } from "./helpers/testApp";
+import { db } from "./mocks/firebase";
 
 describe("Public signup", () => {
   it("cria tenant + member com status active e email", async () => {
@@ -15,8 +16,7 @@ describe("Public signup", () => {
     expect(res.status).toBe(201);
     expect(res.body?.data?.tenantId).toBeTruthy();
 
-    const { db } = require("firebase-admin") as any;
-    const tx = db.__lastTransaction;
+    const tx = (db as any).__lastTransaction;
     expect(tx).toBeTruthy();
     expect(tx.set).toHaveBeenCalled();
 

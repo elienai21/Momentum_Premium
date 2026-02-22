@@ -206,7 +206,13 @@ voiceRouter.post(
           idempotencyKey: req.header("x-idempotency-key"),
         },
         async () => {
-          return await runGemini(prompt, { tenantId } as any);
+          return await runGemini(prompt, {
+            tenantId,
+            userId: req.user?.uid,
+            model: "gemini",
+            promptKind: "voice.session",
+            locale: req.tenant?.info?.locale || "pt-BR",
+          });
         }
       );
 
