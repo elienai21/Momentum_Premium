@@ -148,6 +148,20 @@ export interface RealEstatePayoutDoc {
   vivarePayout: number;
 }
 
+export type RealEstatePayoutsResult = RealEstatePayoutDoc[];
+
+export async function getRealEstatePayouts(params: {
+  tenantId: string;
+  month?: string;
+}): Promise<RealEstatePayoutsResult> {
+  const { tenantId, month } = params;
+  const res = await api.get<{ ok: boolean; payouts: RealEstatePayoutsResult }>(
+    "/realestate/payouts",
+    { params: { tenantId, month } }
+  );
+  return res.data.payouts;
+}
+
 export interface RealEstateDocument {
   id: string;
   title: string;

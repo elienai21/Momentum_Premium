@@ -58,5 +58,27 @@ export default defineConfig({
     // 👉 manda o build para a mesma pasta que o Hosting usa
     outDir: "../hosting/public",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Separate large chart library (183KB)
+          charts: ["chart.js", "react-chartjs-2"],
+          // Firebase SDK chunks
+          firebase: [
+            "firebase/app",
+            "firebase/auth",
+            "firebase/firestore",
+            "firebase/storage",
+          ],
+          // React core and routing
+          vendor: ["react", "react-dom", "react-router-dom"],
+          // State management and animations
+          query: ["@tanstack/react-query"],
+          motion: ["framer-motion"],
+          // Icons library
+          icons: ["lucide-react"],
+        },
+      },
+    },
   },
 });

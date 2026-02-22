@@ -22,6 +22,8 @@ export interface CfoHealth {
   updatedAt: string;
 }
 
+export type HealthScore = CfoHealth;
+
 interface CfoHealthApiResponse {
   status: "ok";
   tenantId: string;

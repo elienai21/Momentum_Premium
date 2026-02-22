@@ -2,7 +2,7 @@
 import { PulseSummary } from "../services/pulseApi";
 import KpiCard from "./KpiCard";
 import { KpiSkeleton } from "./skeletons/KpiSkeleton";
-import { EmptyState } from "./EmptyState";
+import { EmptyState } from "./ui/EmptyState";
 import { getFriendlyError } from "../lib/errorMessages";
 
 interface MomentumPulseProps {

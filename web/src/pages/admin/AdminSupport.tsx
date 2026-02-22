@@ -10,7 +10,7 @@ export default function AdminSupport() {
 
   async function save() {
     setSaving(true);
-    try { await adminSaveSupportConfig(tenantId, { collection, temperature }); }
+    try { await adminSaveSupportConfig(tenantId!, { collection, temperature }); }
     finally { setSaving(false); }
   }
 
@@ -21,12 +21,12 @@ export default function AdminSupport() {
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="space-y-1 text-sm">
           <label className="block">Fonte/coleção</label>
-          <input className="w-full border rounded-lg px-2 py-1" value={collection} onChange={e=>setCollection(e.target.value)} />
+          <input className="w-full border rounded-lg px-2 py-1" value={collection} onChange={e => setCollection(e.target.value)} />
         </div>
         <div className="space-y-1 text-sm">
           <label className="block">Temperatura (0–1)</label>
           <input type="number" min={0} max={1} step={0.1} className="w-full border rounded-lg px-2 py-1"
-                 value={temperature} onChange={e=>setTemperature(Number(e.target.value))} />
+            value={temperature} onChange={e => setTemperature(Number(e.target.value))} />
         </div>
       </div>
 

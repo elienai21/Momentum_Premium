@@ -61,7 +61,7 @@ exports.newsService = {
         
         Responda no formato JSON: { "summary": "...", "sentiment": "..." }
       `;
-            let aiResult = { summary: "Resumo indisponível.", sentiment: "Neutro" };
+            const aiResult = { summary: "Resumo indisponível.", sentiment: "Neutro" };
             try {
                 const aiResponse = await (0, aiClient_1.aiClient)(prompt, {
                     tenantId: "system",

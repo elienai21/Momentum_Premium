@@ -2,11 +2,11 @@
 
 import { describe, beforeAll, afterAll, beforeEach, it, expect } from "@jest/globals";
 import * as admin from "firebase-admin";
-import * as firebaseFunctionsTest from "firebase-functions-test";
+import * as fft from "firebase-functions-test";
 import axios from "axios";
 
 // Initialize Firebase test environment
-const testEnv = firebaseFunctionsTest({
+const testEnv = fft({
   projectId: "momentum-platform-local",
 });
 
@@ -61,13 +61,13 @@ describe("E2E: Auth and Tenant Creation", () => {
     const tenantDoc = await admin.firestore().collection("tenants").doc(tenantId).get();
     expect(tenantDoc.exists).toBe(true);
     const tenantData = tenantDoc.data();
-    expect(tenantData.name).toBe("Test Company");
-    expect(tenantData.ownerUid).toBe(user.uid);
-    expect(tenantData.billingStatus).toBe("trial-active");
+    expect(tenantData?.name).toBe("Test Company");
+    expect(tenantData?.ownerUid).toBe(user.uid);
+    expect(tenantData?.billingStatus).toBe("trial-active");
 
     console.log(`TEST: Verifying member in subcollection...`);
     const memberDoc = await admin.firestore().collection("tenants").doc(tenantId).collection("members").doc(user.uid).get();
     expect(memberDoc.exists).toBe(true);
-    expect(memberDoc.data().role).toBe("admin");
+    expect(memberDoc.data()?.role).toBe("admin");
   });
 });

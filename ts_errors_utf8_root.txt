@@ -1,0 +1,14 @@
+﻿tests/e2e/ai-module.test.ts(5,40): error TS2307: Cannot find module 'firebase-functions-test' or its corresponding type declarations.
+tests/e2e/ai-module.test.ts(8,15): error TS2305: Module '"../../src/utils/aiClient"' has no exported member 'GeminiResult'.
+tests/e2e/ai-module.test.ts(58,22): error TS2345: Argument of type 'string' is not assignable to parameter of type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+tests/e2e/ai-module.test.ts(66,12): error TS18048: 'cacheData' is possibly 'undefined'.
+tests/e2e/auth-tenant.test.ts(5,40): error TS2307: Cannot find module 'firebase-functions-test' or its corresponding type declarations.
+tests/e2e/auth-tenant.test.ts(64,12): error TS18048: 'tenantData' is possibly 'undefined'.
+tests/e2e/auth-tenant.test.ts(65,12): error TS18048: 'tenantData' is possibly 'undefined'.
+tests/e2e/auth-tenant.test.ts(66,12): error TS18048: 'tenantData' is possibly 'undefined'.
+tests/e2e/auth-tenant.test.ts(71,12): error TS2532: Object is possibly 'undefined'.
+tests/e2e/billing-webhook.test.ts(4,40): error TS2307: Cannot find module 'firebase-functions-test' or its corresponding type declarations.
+tests/e2e/billing-webhook.test.ts(6,24): error TS2307: Cannot find module 'stripe-mock' or its corresponding type declarations.
+tests/e2e/security-access.test.ts(5,40): error TS2307: Cannot find module 'firebase-functions-test' or its corresponding type declarations.
+tests/mocks/firebase.ts(116,3): error TS2322: Type 'Mock<(field: unknown, op: unknown, val: unknown) => any>' is not assignable to type '{ (fieldPath: string | FieldPath, opStr: WhereFilterOp, value: any): Query<DocumentData, DocumentData>; (filter: Filter): Query<...>; }'.
+  Target signature provides too few arguments. Expected 3 or more, but got 1.

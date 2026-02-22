@@ -18,9 +18,7 @@ if (typeof window !== "undefined") {
   }
 
   // Mock do áudio
-  // @ts-expect-error
   if (!window.Audio) {
-    // @ts-expect-error
     class FakeAudio {
       src = "";
       autoplay = false;

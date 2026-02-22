@@ -7,6 +7,7 @@ exports.createExpressApp = createExpressApp;
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const compression_1 = __importDefault(require("compression"));
+const helmet_1 = __importDefault(require("helmet"));
 const trace_1 = require("../utils/trace");
 const logger_1 = require("../utils/logger");
 function createExpressApp(opts) {
@@ -107,9 +108,66 @@ function createExpressApp(opts) {
             next();
         });
     }
-    // Middlewares / rotas
-    const { securityHeaders } = require("../middleware/securityHeaders");
-    app.use(securityHeaders);
+    // Security headers via Helmet
+    app.use((0, helmet_1.default)({
+        // HSTS - Force HTTPS for 1 year
+        hsts: {
+            maxAge: 31536000, // 1 year in seconds
+            includeSubDomains: true,
+            preload: true,
+        },
+        // Content Security Policy
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                baseUri: ["'self'"],
+                formAction: ["'self'"],
+                frameAncestors: ["'none'"],
+                scriptSrc: [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "'unsafe-eval'",
+                    "https://www.googletagmanager.com",
+                    "https://cdn.jsdelivr.net",
+                    "https://cdnjs.cloudflare.com",
+                ],
+                styleSrc: [
+                    "'self'",
+                    "'unsafe-inline'",
+                    "https://fonts.googleapis.com",
+                    "https://cdnjs.cloudflare.com",
+                ],
+                imgSrc: ["'self'", "data:", "blob:"],
+                fontSrc: [
+                    "'self'",
+                    "https://fonts.gstatic.com",
+                    "https://cdnjs.cloudflare.com",
+                ],
+                connectSrc: [
+                    "'self'",
+                    "https://firebasestorage.googleapis.com",
+                    "https://southamerica-east1-*.cloudfunctions.net",
+                    "https://*.googleapis.com",
+                ],
+                mediaSrc: ["'self'", "blob:"],
+                objectSrc: ["'none'"],
+                workerSrc: ["'self'", "blob:"],
+                frameSrc: ["'self'"],
+                manifestSrc: ["'self'"],
+            },
+        },
+        // Referrer Policy
+        referrerPolicy: { policy: "no-referrer" },
+        // X-Frame-Options
+        frameguard: { action: "deny" },
+        // X-Content-Type-Options
+        noSniff: true,
+        // Additional protections
+        xssFilter: true,
+        hidePoweredBy: true,
+        // Permissions Policy (browser features)
+        permittedCrossDomainPolicies: { permittedPolicies: "none" },
+    }));
     const pulseRouter = require("../routes/pulse").default;
     const { cfoRouter } = require("../modules/cfo");
     const advisorRouter = require("../routes/advisor").default;

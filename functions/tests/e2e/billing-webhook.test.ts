@@ -1,17 +1,17 @@
 
 import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from "@jest/globals";
 import * as admin from "firebase-admin";
-import * as firebaseFunctionsTest from "firebase-functions-test";
+import * as fft from "firebase-functions-test";
 import axios from "axios";
-import stripeMock from "stripe-mock";
+import Stripe from "stripe";
 
-const testEnv = firebaseFunctionsTest({ projectId: "momentum-platform-local" });
+const testEnv = fft({ projectId: "momentum-platform-local" });
 
 describe("E2E: Billing and Webhooks", () => {
   const functionsBaseUrl = "http://127.0.0.1:5001/momentum-platform-local/us-central1";
   let testUser: admin.auth.UserRecord;
   let testTenantId: string;
-  const stripe = stripeMock();
+  const stripe = new Stripe("sk_test_mock", { apiVersion: "2023-10-16" as any });
 
   beforeAll(async () => {
     admin.initializeApp({ projectId: "momentum-platform-local" });
@@ -58,7 +58,7 @@ describe("E2E: Billing and Webhooks", () => {
 
     const signature = stripe.webhooks.generateTestHeaderString({
       payload,
-      secret: webhookSecret,
+      secret: webhookSecret!,
     });
 
     const response = await axios.post(`${functionsBaseUrl}/stripeWebhook`, payload, {
@@ -92,7 +92,7 @@ describe("E2E: Billing and Webhooks", () => {
 
     const signature = stripe.webhooks.generateTestHeaderString({
       payload,
-      secret: webhookSecret,
+      secret: webhookSecret!,
     });
 
     // First request
@@ -123,7 +123,7 @@ describe("E2E: Billing and Webhooks", () => {
 
     const signature = stripe.webhooks.generateTestHeaderString({
       payload,
-      secret: webhookSecret,
+      secret: webhookSecret!,
     });
 
     // Send 3 concurrent requests

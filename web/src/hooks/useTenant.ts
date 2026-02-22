@@ -25,7 +25,7 @@ export function useTenant(tenantId: string | null) {
     }
     async function fetchTenant() {
       try {
-        const docRef = doc(db, "tenants", tenantId);
+        const docRef = doc(db, "tenants", tenantId!);
         const snap = await getDoc(docRef);
         if (snap.exists()) setTenant(snap.data() as TenantData);
       } catch (err) {
