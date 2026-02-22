@@ -10,7 +10,7 @@ export default function AdminVoice() {
 
   const tier: VoiceTier = features.voiceTier;
 
-  function updateVoice(context: "advisor"|"support", patch: Partial<typeof voiceProfiles.advisor>) {
+  function updateVoice(context: "advisor" | "support", patch: Partial<typeof voiceProfiles.advisor>) {
     setVoiceProfiles({
       advisor: context === "advisor" ? { ...voiceProfiles.advisor, ...patch } : voiceProfiles.advisor,
       support: context === "support" ? { ...voiceProfiles.support, ...patch } : voiceProfiles.support,
@@ -19,7 +19,7 @@ export default function AdminVoice() {
 
   async function save() {
     setSaving(true);
-    try { await adminSaveVoice(tenantId, voiceProfiles); } finally { setSaving(false); }
+    try { await adminSaveVoice(tenantId!, voiceProfiles); } finally { setSaving(false); }
   }
 
   const advisorResolved = resolveVoiceId(tier, voiceProfiles, "advisor");
@@ -34,9 +34,9 @@ export default function AdminVoice() {
           <div className="font-medium text-sm">Advisor — perfil de voz</div>
           <label className="block text-xs text-slate-600">Voice ID (override opcional)</label>
           <input className="w-full border rounded-lg px-2 py-1 text-sm"
-                 placeholder="ex.: pt-BR-Neural-Advisor"
-                 value={voiceProfiles.advisor.voiceId}
-                 onChange={(e)=> updateVoice("advisor", { voiceId: e.target.value })}/>
+            placeholder="ex.: pt-BR-Neural-Advisor"
+            value={voiceProfiles.advisor.voiceId}
+            onChange={(e) => updateVoice("advisor", { voiceId: e.target.value })} />
           <div className="text-xs text-slate-500">Voz efetiva: <code>{advisorResolved}</code></div>
         </div>
 
@@ -44,9 +44,9 @@ export default function AdminVoice() {
           <div className="font-medium text-sm">Suporte — perfil de voz</div>
           <label className="block text-xs text-slate-600">Voice ID (override opcional)</label>
           <input className="w-full border rounded-lg px-2 py-1 text-sm"
-                 placeholder="ex.: pt-BR-Neural-Tutorial"
-                 value={voiceProfiles.support.voiceId}
-                 onChange={(e)=> updateVoice("support", { voiceId: e.target.value })}/>
+            placeholder="ex.: pt-BR-Neural-Tutorial"
+            value={voiceProfiles.support.voiceId}
+            onChange={(e) => updateVoice("support", { voiceId: e.target.value })} />
           <div className="text-xs text-slate-500">Voz efetiva: <code>{supportResolved}</code></div>
         </div>
       </div>

@@ -1,0 +1,5 @@
+﻿
+> momentum-web-premium@0.1.0 lint
+> echo 'Use lint:api-headers for API checks'
+
+'Use lint:api-headers for API checks'

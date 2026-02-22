@@ -1,0 +1,1289 @@
+﻿
+> momentum-functions@1.0.0 test
+> jest --config ./jest.config.js
+
+npm : ts-jest[ts-jest-tran
+sformer] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+No linha:1 caractere:1
++ npm test 2>&1 | 
+Out-File -FilePath 
+test_output.txt -Encoding 
+UTF8; Ge ...
++ ~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (t  
+  s-jest[ts-jest...ated   
+ . Please do:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+ts-jest[ts-jest-transforme
+r] (WARN) Define 
+`ts-jest` config under 
+`globals` is deprecated. 
+Please do
+transform: {
+    <transform_regex>: 
+['ts-jest', { /* ts-jest 
+config goes here in Jest 
+*/ }],
+},
+See more at https://kulshe
+khar.github.io/ts-jest/doc
+s/getting-started/presets#
+advanced
+PASS tests/utils.test.ts 
+(112.024 s)
+PASS 
+tests/rateLimit.test.ts 
+(118.669 s)
+  ÔùÅ Console
+
+    console.error
+      {"level":"error","ty
+pe":"rate_limit_error","er
+r":"Error: Firestore 
+unavailable"}
+
+    [0m [90m 151 |[39m 
+      [36mreturn[39m 
+next()[33m;[39m
+     [90m 152 |[39m     
+} [36mcatch[39m (e) {
+    
+[31m[1m>[22m[39m[90m 
+153 |[39m       console[
+33m.[39merror([33mJSON[
+39m[33m.[39mstringify({ 
+level[33m:[39m [32m"err
+or"[39m[33m,[39m 
+type[33m:[39m [32m"rate
+_limit_error"[39m[33m,[
+39m err[33m:[39m 
+[33mString[39m(e) 
+}))[33m;[39m
+     [90m     |[39m     
+          
+[31m[1m^[22m[39m
+     [90m 154 |[39m
+     [90m 155 |[39m     
+  [90m// FALLBACK 
+STRATEGY:[39m
+     [90m 156 |[39m     
+  [90m// Check if this 
+is a critical route that 
+should 
+fail-closed[39m[0m
+
+      at rateLimit (src/mi
+ddleware/rateLimit.ts:153:
+15)
+      at 
+Object.<anonymous> (tests/
+rateLimit.test.ts:72:9)
+
+    console.warn
+      {"level":"warn","typ
+e":"rate_limit_fail_closed
+","path":"/api/billing/cha
+rge","reason":"Firestore 
+unavailable for critical 
+route"}
+
+    [0m [90m 159 |[39m 
+      [36mif[39m 
+(isCritical) {
+     [90m 160 |[39m     
+    [90m// FAIL-CLOSED: 
+Deny request on critical 
+routes when Firestore 
+fails[39m
+    
+[31m[1m>[22m[39m[90m 
+161 |[39m         console
+[33m.[39mwarn([33mJSON
+[39m[33m.[39mstringify({
+     [90m     |[39m     
+            
+[31m[1m^[22m[39m
+     [90m 162 |[39m     
+      level[33m:[39m [3
+2m"warn"[39m[33m,[39m
+     [90m 163 |[39m     
+      type[33m:[39m [32
+m"rate_limit_fail_closed"
+[39m[33m,[39m
+     [90m 164 |[39m     
+      path[33m:[39m req
+[33m.[39mpath[33m,[39m
+[0m
+
+      at rateLimit (src/mi
+ddleware/rateLimit.ts:161:
+17)
+      at 
+Object.<anonymous> (tests/
+rateLimit.test.ts:72:9)
+
+    console.error
+      {"level":"error","ty
+pe":"rate_limit_error","er
+r":"Error: Firestore 
+unavailable"}
+
+    [0m [90m 151 |[39m 
+      [36mreturn[39m 
+next()[33m;[39m
+     [90m 152 |[39m     
+} [36mcatch[39m (e) {
+    
+[31m[1m>[22m[39m[90m 
+153 |[39m       console[
+33m.[39merror([33mJSON[
+39m[33m.[39mstringify({ 
+level[33m:[39m [32m"err
+or"[39m[33m,[39m 
+type[33m:[39m [32m"rate
+_limit_error"[39m[33m,[
+39m err[33m:[39m 
+[33mString[39m(e) 
+}))[33m;[39m
+     [90m     |[39m     
+          
+[31m[1m^[22m[39m
+     [90m 154 |[39m
+     [90m 155 |[39m     
+  [90m// FALLBACK 
+STRATEGY:[39m
+     [90m 156 |[39m     
+  [90m// Check if this 
+is a critical route that 
+should 
+fail-closed[39m[0m
+
+      at rateLimit (src/mi
+ddleware/rateLimit.ts:153:
+15)
+      at 
+Object.<anonymous> (tests/
+rateLimit.test.ts:90:9)
+
+    console.info
+      {"level":"info","typ
+e":"rate_limit_memory_fall
+back_ok","path":"/api/publ
+ic/status"}
+
+      at rateLimit (src/mi
+ddleware/rateLimit.ts:198:
+17)
+
+PASS tests/withTenant-lega
+cy-status.test.ts (119.28 
+s)
+  ÔùÅ Console
+
+    console.warn
+      [TENANT_MEMBER_MISSI
+NG_STATUS] { tenantId: 
+'t1', uid: 'u1', traceId: 
+null }
+
+    [0m [90m 168 |[39m
+     [90m 169 |[39m     
+[36mif[39m 
+([33m![39mmemberStatus) 
+{
+    
+[31m[1m>[22m[39m[90m 
+170 |[39m       console[
+33m.[39mwarn([32m"[TENAN
+T_MEMBER_MISSING_STATUS]"
+[39m[33m,[39m {
+     [90m     |[39m     
+          
+[31m[1m^[22m[39m
+     [90m 171 |[39m     
+    tenantId[33m,[39m
+     [90m 172 |[39m     
+    uid[33m:[39m req[33
+m.[39muser[33m?[39m[33
+m.[39muid [33m||[39m 
+[36mnull[39m[33m,[39m
+     [90m 173 |[39m     
+    traceId[33m:[39m 
+(req [36mas[39m 
+any)[33m.[39mtraceId 
+[33m||[39m [36mnull[39
+m[33m,[39m[0m
+
+      at withTenant (src/m
+iddleware/withTenant.ts:17
+0:15)
+
+FAIL tests/ai.test.ts 
+(146.034 s)
+  ÔùÅ AI Insights ÔÇ║ 
+gera insights v├ílidos
+
+    thrown: "Exceeded 
+timeout of 30000 ms for a 
+test.
+    Add a timeout value 
+to this test to increase 
+the timeout, if this is a 
+long-running test. See htt
+ps://jestjs.io/docs/api#te
+stname-fn-timeout."
+
+    [0m [90m 4 |[39m
+     [90m 5 |[39m 
+describe([32m"AI 
+Insights"[39m[33m,[39m 
+() [33m=>[39m {
+    
+[31m[1m>[22m[39m[90m 
+6 |[39m   it([32m"gera 
+insights 
+v├ílidos"[39m[33m,[39m 
+[36masync[39m () 
+[33m=>[39m {
+     [90m   |[39m   
+[31m[1m^[22m[39m
+     [90m 7 |[39m     
+[36mconst[39m app 
+[33m=[39m 
+makeTestApp()[33m;[39m
+     [90m 8 |[39m     
+[36mconst[39m res 
+[33m=[39m 
+[36mawait[39m request(ap
+p)[33m.[39mpost([32m"/a
+pi/ai/insights"[39m)[33m
+.[39msend({ 
+prompt[33m:[39m 
+[32m"Teste"[39m 
+})[33m;[39m
+     [90m 9 |[39m     
+[36mawait[39m debugIfNot
+Ok(res)[33m;[39m[0m
+
+      at 
+tests/ai.test.ts:6:3
+      at 
+Object.<anonymous> 
+(tests/ai.test.ts:5:1)
+
+FAIL tests/cfo-ai-report.t
+est.ts (146.032 s)
+  ÔùÅ POST 
+/api/cfo/ai-report ÔÇ║ 
+nega acesso quando plano 
+├® free (gating)
+
+    thrown: "Exceeded 
+timeout of 30000 ms for a 
+test.
+    Add a timeout value 
+to this test to increase 
+the timeout, if this is a 
+long-running test. See htt
+ps://jestjs.io/docs/api#te
+stname-fn-timeout."
+
+    [0m [90m 35 |[39m  
+ })[33m;[39m
+     [90m 36 |[39m
+    
+[31m[1m>[22m[39m[90m 
+37 |[39m   it([32m"nega 
+acesso quando plano ├® 
+free 
+(gating)"[39m[33m,[39m 
+[36masync[39m () 
+[33m=>[39m {
+     [90m    |[39m     
+[31m[1m^[22m[39m
+     [90m 38 |[39m     
+[36mconst[39m app 
+[33m=[39m 
+makeTestApp()[33m;[39m
+     [90m 39 |[39m     
+[36mconst[39m res 
+[33m=[39m 
+[36mawait[39m 
+request(app)
+     [90m 40 |[39m      
+ [33m.[39mpost([32m"/ap
+i/cfo/ai-report"[39m)[0m
+
+      at tests/cfo-ai-repo
+rt.test.ts:37:5
+      at 
+Object.<anonymous> (tests/
+cfo-ai-report.test.ts:19:9
+)
+
+FAIL tests/public-signup.t
+est.ts (146.037 s)
+  ÔùÅ Public signup ÔÇ║ 
+cria tenant + member com 
+status active e email
+
+    thrown: "Exceeded 
+timeout of 30000 ms for a 
+test.
+    Add a timeout value 
+to this test to increase 
+the timeout, if this is a 
+long-running test. See htt
+ps://jestjs.io/docs/api#te
+stname-fn-timeout."
+
+    [0m [90m  5 |[39m
+     [90m  6 |[39m 
+describe([32m"Public 
+signup"[39m[33m,[39m 
+() [33m=>[39m {
+    
+[31m[1m>[22m[39m[90m 
+ 7 |[39m   it([32m"cria 
+tenant + member com 
+status active e 
+email"[39m[33m,[39m 
+[36masync[39m () 
+[33m=>[39m {
+     [90m    |[39m     
+[31m[1m^[22m[39m
+     [90m  8 |[39m     
+[36mconst[39m app 
+[33m=[39m 
+makeTestApp()[33m;[39m
+     [90m  9 |[39m     
+[36mconst[39m res 
+[33m=[39m 
+[36mawait[39m 
+request(app)
+     [90m 10 |[39m      
+ [33m.[39mpost([32m"/ap
+i/public/signup"[39m)[0m
+
+      at tests/public-sign
+up.test.ts:7:5
+      at 
+Object.<anonymous> (tests/
+public-signup.test.ts:6:9)
+
+FAIL 
+tests/cfo-summary.test.ts 
+(146.038 s)
+  ÔùÅ GET 
+/api/cfo/summary ÔÇ║ 
+retorna KPIs e DRE com 
+sucesso
+
+    thrown: "Exceeded 
+timeout of 30000 ms for a 
+test.
+    Add a timeout value 
+to this test to increase 
+the timeout, if this is a 
+long-running test. See htt
+ps://jestjs.io/docs/api#te
+stname-fn-timeout."
+
+    [0m [90m 24 |[39m  
+ })[33m;[39m
+     [90m 25 |[39m
+    
+[31m[1m>[22m[39m[90m 
+26 |[39m   
+it([32m"retorna KPIs e 
+DRE com 
+sucesso"[39m[33m,[39m 
+[36masync[39m () 
+[33m=>[39m {
+     [90m    |[39m   
+[31m[1m^[22m[39m
+     [90m 27 |[39m     m
+ockGet[33m.[39mmockResol
+vedValueOnce({
+     [90m 28 |[39m      
+ docs[33m:[39m [
+     [90m 29 |[39m      
+   {[0m
+
+      at tests/cfo-summary
+.test.ts:26:3
+      at 
+Object.<anonymous> (tests/
+cfo-summary.test.ts:21:1)
+
+
+ReferenceError: You are 
+trying to `import` a file 
+after the Jest 
+environment has been torn 
+down. From tests/cfo-ai-re
+port.test.ts.
+
+    [0m [90m 83 |[39m  
+         code[33m:[39m 
+[32m"PAYLOAD_TOO_LARGE"[3
+9m[33m,[39m
+     [90m 84 |[39m      
+     traceId[33m:[39m 
+(req [36mas[39m any)[33
+m.[39mtraceId[33m,[39m
+    
+[31m[1m>[22m[39m[90m 
+85 |[39m         
+})[33m;[39m
+     [90m    |[39m      
+   [31m[1m^[22m[39m
+     [90m 86 |[39m      
+ }
+     [90m 87 |[39m     }
+     [90m 88 |[39m     
+next()[33m;[39m[0m
+
+      at Object.getCodec (
+node_modules/iconv-lite/li
+b/index.js:65:27)
+      at 
+Object.getDecoder (node_mo
+dules/iconv-lite/lib/index
+.js:127:23)
+      at getDecoder (node_
+modules/raw-body/index.js:
+46:18)
+      at readStream (node_
+modules/raw-body/index.js:
+194:15)
+      at getRawBody (node_
+modules/raw-body/index.js:
+116:12)
+      at read (node_module
+s/body-parser/lib/read.js:
+79:3)
+      at jsonParser (node_
+modules/body-parser/lib/ty
+pes/json.js:138:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:85:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:70:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:35:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at expressInit (node
+_modules/express/lib/middl
+eware/init.js:40:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at query (node_modul
+es/express/lib/middleware/
+query.js:45:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at Function.handle (
+node_modules/express/lib/r
+outer/index.js:175:3)
+      at Function.handle (
+node_modules/express/lib/a
+pplication.js:181:10)
+      at Server.app (node_
+modules/express/lib/expres
+s.js:39:9)
+
+ReferenceError: You are 
+trying to `import` a file 
+after the Jest 
+environment has been torn 
+down. From 
+tests/ai.test.ts.
+
+    [0m [90m 83 |[39m  
+         code[33m:[39m 
+[32m"PAYLOAD_TOO_LARGE"[3
+9m[33m,[39m
+     [90m 84 |[39m      
+     traceId[33m:[39m 
+(req [36mas[39m any)[33
+m.[39mtraceId[33m,[39m
+    
+[31m[1m>[22m[39m[90m 
+85 |[39m         
+})[33m;[39m
+     [90m    |[39m      
+   [31m[1m^[22m[39m
+     [90m 86 |[39m      
+ }
+     [90m 87 |[39m     }
+     [90m 88 |[39m     
+next()[33m;[39m[0m
+
+      at Object.getCodec (
+node_modules/iconv-lite/li
+b/index.js:65:27)
+      at 
+Object.getDecoder (node_mo
+dules/iconv-lite/lib/index
+.js:127:23)
+      at getDecoder (node_
+modules/raw-body/index.js:
+46:18)
+      at readStream (node_
+modules/raw-body/index.js:
+194:15)
+      at getRawBody (node_
+modules/raw-body/index.js:
+116:12)
+      at read (node_module
+s/body-parser/lib/read.js:
+79:3)
+      at jsonParser (node_
+modules/body-parser/lib/ty
+pes/json.js:138:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:85:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:70:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:35:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at expressInit (node
+_modules/express/lib/middl
+eware/init.js:40:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at query (node_modul
+es/express/lib/middleware/
+query.js:45:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at Function.handle (
+node_modules/express/lib/r
+outer/index.js:175:3)
+      at Function.handle (
+node_modules/express/lib/a
+pplication.js:181:10)
+      at Server.app (node_
+modules/express/lib/expres
+s.js:39:9)
+
+ReferenceError: You are 
+trying to `import` a file 
+after the Jest 
+environment has been torn 
+down. From tests/public-si
+gnup.test.ts.
+
+    [0m [90m 83 |[39m  
+         code[33m:[39m 
+[32m"PAYLOAD_TOO_LARGE"[3
+9m[33m,[39m
+     [90m 84 |[39m      
+     traceId[33m:[39m 
+(req [36mas[39m any)[33
+m.[39mtraceId[33m,[39m
+    
+[31m[1m>[22m[39m[90m 
+85 |[39m         
+})[33m;[39m
+     [90m    |[39m      
+   [31m[1m^[22m[39m
+     [90m 86 |[39m      
+ }
+     [90m 87 |[39m     }
+     [90m 88 |[39m     
+next()[33m;[39m[0m
+
+      at Object.getCodec (
+node_modules/iconv-lite/li
+b/index.js:65:27)
+      at 
+Object.getDecoder (node_mo
+dules/iconv-lite/lib/index
+.js:127:23)
+      at getDecoder (node_
+modules/raw-body/index.js:
+46:18)
+      at readStream (node_
+modules/raw-body/index.js:
+194:15)
+      at getRawBody (node_
+modules/raw-body/index.js:
+116:12)
+      at read (node_module
+s/body-parser/lib/read.js:
+79:3)
+      at jsonParser (node_
+modules/body-parser/lib/ty
+pes/json.js:138:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:85:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:70:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at src/app/createExp
+ressApp.ts:35:9
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at expressInit (node
+_modules/express/lib/middl
+eware/init.js:40:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at query (node_modul
+es/express/lib/middleware/
+query.js:45:5)
+      at Layer.handle [as 
+handle_request] (node_modu
+les/express/lib/router/lay
+er.js:95:5)
+      at trim_prefix (node
+_modules/express/lib/route
+r/index.js:328:13)
+      at node_modules/expr
+ess/lib/router/index.js:28
+6:9
+      at 
+Function.process_params (n
+ode_modules/express/lib/ro
+uter/index.js:346:12)
+      at next (node_module
+s/express/lib/router/index
+.js:280:10)
+      at Function.handle (
+node_modules/express/lib/r
+outer/index.js:175:3)
+      at Function.handle (
+node_modules/express/lib/a
+pplication.js:181:10)
+      at Server.app (node_
+modules/express/lib/expres
+s.js:39:9)
+
+  ÔùÅ  Cannot log after 
+tests are done. Did you 
+forget to wait for 
+something async in your 
+test?
+    Attempted to log 
+"[TEST_DEBUG] status/body 
+415 {
+      error: 'unsupported 
+charset "UTF-8"',
+      traceId: '966014e6-4
+0de-4c9c-b4be-7a0041462528
+'
+    }".
+
+    [0m [90m 11 |[39m }
+     [90m 12 |[39m
+    
+[31m[1m>[22m[39m[90m 
+13 |[39m 
+[36mexport[39m 
+[36masync[39m 
+[36mfunction[39m debugIf
+NotOk(res[33m:[39m any) 
+{
+     [90m    |[39m      
+           
+[31m[1m^[22m[39m
+     [90m 14 |[39m   
+[36mif[39m 
+(res[33m.[39mstatus 
+[33m>=[39m 
+[35m400[39m) {
+     [90m 15 |[39m     
+[90m// 
+eslint-disable-next-line 
+no-console[39m
+     [90m 16 |[39m     c
+onsole[33m.[39mlog([32m
+"[TEST_DEBUG] status/body"
+[39m[33m,[39m res[33m.
+[39mstatus[33m,[39m res
+[33m.[39mbody)[33m;[39
+m[0m
+
+      at console.log (node
+_modules/@jest/console/bui
+ld/BufferedConsole.js:156:
+10)
+      at debugIfNotOk (tes
+ts/helpers/testApp.ts:13:1
+7)
+      at 
+Object.<anonymous> (tests/
+public-signup.test.ts:17:4
+2)
+
+
+  ÔùÅ  Cannot log after 
+tests are done. Did you 
+forget to wait for 
+something async in your 
+test?
+    Attempted to log 
+"[TEST_DEBUG] status/body 
+415 {
+      error: 'unsupported 
+charset "UTF-8"',
+      traceId: '6003ba9e-3
+bf5-44e8-8fce-ae2f217761b1
+'
+    }".
+
+    [0m [90m 11 |[39m }
+     [90m 12 |[39m
+    
+[31m[1m>[22m[39m[90m 
+13 |[39m 
+[36mexport[39m 
+[36masync[39m 
+[36mfunction[39m debugIf
+NotOk(res[33m:[39m any) 
+{
+     [90m    |[39m      
+           
+[31m[1m^[22m[39m
+     [90m 14 |[39m   
+[36mif[39m 
+(res[33m.[39mstatus 
+[33m>=[39m 
+[35m400[39m) {
+     [90m 15 |[39m     
+[90m// 
+eslint-disable-next-line 
+no-console[39m
+     [90m 16 |[39m     c
+onsole[33m.[39mlog([32m
+"[TEST_DEBUG] status/body"
+[39m[33m,[39m res[33m.
+[39mstatus[33m,[39m res
+[33m.[39mbody)[33m;[39
+m[0m
+
+      at console.log (node
+_modules/@jest/console/bui
+ld/BufferedConsole.js:156:
+10)
+      at debugIfNotOk (tes
+ts/helpers/testApp.ts:13:1
+7)
+      at 
+Object.<anonymous> 
+(tests/ai.test.ts:13:42)
+
+
+  ÔùÅ  Cannot log after 
+tests are done. Did you 
+forget to wait for 
+something async in your 
+test?
+    Attempted to log 
+"[TEST_DEBUG] status/body 
+415 {
+      error: 'unsupported 
+charset "UTF-8"',
+      traceId: '237343f4-8
+e2e-44b9-b728-c1e0009b3775
+'
+    }".
+
+    [0m [90m 11 |[39m }
+     [90m 12 |[39m
+    
+[31m[1m>[22m[39m[90m 
+13 |[39m 
+[36mexport[39m 
+[36masync[39m 
+[36mfunction[39m debugIf
+NotOk(res[33m:[39m any) 
+{
+     [90m    |[39m      
+           
+[31m[1m^[22m[39m
+     [90m 14 |[39m   
+[36mif[39m 
+(res[33m.[39mstatus 
+[33m>=[39m 
+[35m400[39m) {
+     [90m 15 |[39m     
+[90m// 
+eslint-disable-next-line 
+no-console[39m
+     [90m 16 |[39m     c
+onsole[33m.[39mlog([32m
+"[TEST_DEBUG] status/body"
+[39m[33m,[39m res[33m.
+[39mstatus[33m,[39m res
+[33m.[39mbody)[33m;[39
+m[0m
+
+      at console.log (node
+_modules/@jest/console/bui
+ld/BufferedConsole.js:156:
+10)
+      at debugIfNotOk (tes
+ts/helpers/testApp.ts:13:1
+7)
+      at 
+Object.<anonymous> (tests/
+cfo-ai-report.test.ts:42:4
+2)
+
+PASS tests/billing-usage.t
+est.ts (146.315 s)
+PASS 
+tests/billing.test.ts 
+(146.319 s)
+PASS 
+tests/compliance.test.ts 
+(146.398 s)
+  ÔùÅ Console
+
+    console.log
+      {"level":"info","mes
+sage":"Consent accepted 
+by test-uid","traceId":"a6
+3a6839-85cd-42a0-8c83-358b
+95205739"}
+
+      at Object.info (src/
+utils/logger.ts:48:13)
+
+A worker process has 
+failed to exit gracefully 
+and has been force 
+exited. This is likely 
+caused by tests leaking 
+due to improper teardown. 
+Try running with 
+--detectOpenHandles to 
+find leaks. Active timers 
+can also cause this, 
+ensure that .unref() was 
+called on them.
+
+Test Suites: 4 failed, 6 
+passed, 10 total
+Tests:       4 failed, 2 
+skipped, 8 passed, 14 
+total
+Snapshots:   0 total
+Time:        151.629 s
+Ran all test suites.

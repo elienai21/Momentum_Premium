@@ -28,11 +28,13 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-console.log("🔥 Firebase config carregado:", firebaseConfig);
-console.log("🔍 Variáveis do ambiente Vite:");
-console.log("API_KEY:", import.meta.env.VITE_FIREBASE_API_KEY);
-console.log("API_URL:", API_URL);
-console.log("ENVIRONMENT:", import.meta.env.VITE_ENV);
+if (import.meta.env.DEV) {
+  console.log("🔥 Firebase config carregado:", firebaseConfig);
+  console.log("🔍 Variáveis do ambiente Vite:");
+  console.log("API_KEY:", import.meta.env.VITE_FIREBASE_API_KEY);
+  console.log("API_URL:", API_URL);
+  console.log("ENVIRONMENT:", import.meta.env.VITE_ENV);
+}
 
 // ============================================================
 // 🚀 Inicialização segura (previne 'duplicate-app')
@@ -41,10 +43,14 @@ console.log("ENVIRONMENT:", import.meta.env.VITE_ENV);
 let app;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
-  console.log("✅ Firebase inicializado com sucesso");
+  if (import.meta.env.DEV) {
+    console.log("✅ Firebase inicializado com sucesso");
+  }
 } else {
   app = getApp();
-  console.log("⚙️ Firebase App reutilizado (já inicializado)");
+  if (import.meta.env.DEV) {
+    console.log("⚙️ Firebase App reutilizado (já inicializado)");
+  }
 }
 
 // ============================================================
@@ -70,8 +76,10 @@ if (import.meta.env.DEV) {
   });
 }
 
-// Expor o auth globalmente só para debug no navegador
+// Expor o auth globalmente só para debug no navegador (apenas dev)
 // NÃO tem impacto na segurança do backend, é só para facilitar testes
-// @ts-ignore
-;(window as any).momentumAuth = auth;
+if (import.meta.env.DEV) {
+  // @ts-ignore
+  ;(window as any).momentumAuth = auth;
+}
 

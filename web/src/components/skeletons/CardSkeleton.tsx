@@ -2,14 +2,14 @@
 interface CardSkeletonProps {
   lines?: number;
   compact?: boolean;
+  className?: string;
 }
 
-export function CardSkeleton({ lines = 3, compact }: CardSkeletonProps) {
+export function CardSkeleton({ lines = 3, compact, className = "" }: CardSkeletonProps) {
   return (
     <div
-      className={`bg-white rounded-xl border animate-pulse ${
-        compact ? "p-3" : "p-6"
-      }`}
+      className={`bg-white rounded-xl border animate-pulse ${compact ? "p-3" : "p-6"
+        } ${className}`}
     >
       <div className="h-4 w-28 bg-slate-200 rounded mb-4" />
       <div className="space-y-2">

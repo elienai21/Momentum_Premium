@@ -86,7 +86,7 @@ export function DuplicateTransactionsPanel({
   };
 
   const handleCleanup = async () => {
-    if (!anySelected || cleanup.isLoading) return;
+    if (!anySelected || cleanup.isPending) return;
 
     try {
       const { deleted } = await cleanup.mutateAsync(selectedIds);
@@ -290,11 +290,11 @@ export function DuplicateTransactionsPanel({
               <button
                 type="button"
                 onClick={handleCleanup}
-                disabled={!anySelected || cleanup.isLoading}
+                disabled={!anySelected || cleanup.isPending}
                 className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-rose-300"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {cleanup.isLoading
+                {cleanup.isPending
                   ? "Removendo..."
                   : `Remover ${selectedIds.length} duplicada(s)`}
               </button>

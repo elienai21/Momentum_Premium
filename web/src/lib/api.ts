@@ -14,7 +14,7 @@ export async function api(
     url: path,
     method,
     data,
-    headers,
+    headers: headers as any,
   });
 
   return response.data;

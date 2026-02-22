@@ -1,0 +1,38 @@
+﻿src/components/__tests__/AdvisorChat.smoke.test.tsx(43,4): error TS2304: Cannot find name 'global'.
+src/components/__tests__/AdvisorChat.smoke.test.tsx(100,13): error TS2304: Cannot find name 'global'.
+src/components/__tests__/AdvisorChat.smoke.test.tsx(101,13): error TS2304: Cannot find name 'global'.
+src/components/__tests__/SupportDock.smoke.test.tsx(8,4): error TS2304: Cannot find name 'global'.
+src/components/__tests__/SupportDock.smoke.test.tsx(33,25): error TS2322: Type '{ open: true; onClose: () => void; }' is not assignable to type 'IntrinsicAttributes & SupportDockProps'.
+  Property 'open' does not exist on type 'IntrinsicAttributes & SupportDockProps'.
+src/components/__tests__/SupportDock.test.tsx(6,1): error TS2304: Cannot find name 'global'.
+src/components/__tests__/SupportDock.test.tsx(15,25): error TS2322: Type '{ open: true; onClose: () => void; }' is not assignable to type 'IntrinsicAttributes & SupportDockProps'.
+  Property 'open' does not exist on type 'IntrinsicAttributes & SupportDockProps'.
+src/components/AdvisorChat.tsx(220,11): error TS2322: Type 'Element' is not assignable to type 'ElementType<any, keyof IntrinsicElements> | undefined'.
+src/components/CfoInsightsCard.tsx(53,11): error TS2322: Type '"warning"' is not assignable to type 'ToastType | undefined'.
+src/components/MomentumPulse.tsx(57,11): error TS2322: Type '{ title: string; description: string; actionLabel: string | undefined; onActionClick: (() => string) | undefined; icon: string; variant: string; }' is not assignable to type 'IntrinsicAttributes & EmptyStateProps'.
+  Property 'variant' does not exist on type 'IntrinsicAttributes & EmptyStateProps'.
+src/components/SimulateScenarioModal.tsx(92,36): error TS2345: Argument of type 'SimpleSimulationInput' is not assignable to parameter of type 'Record<string, unknown>'.
+  Index signature for type 'string' is missing in type 'SimpleSimulationInput'.
+src/components/SimulateScenarioModal.tsx(118,11): error TS2322: Type '"warning"' is not assignable to type 'ToastType | undefined'.
+src/hooks/__tests__/usePulseSummary.test.ts(10,59): error TS2503: Cannot find namespace 'vi'.
+src/hooks/useSupportChat.ts(43,13): error TS2353: Object literal may only specify known properties, and 'question' does not exist in type 'ArrayBuffer | Blob | FormData | URLSearchParams | ReadableStream<any> | ArrayBufferView<ArrayBuffer>'.
+src/pages/_DesignSystem.tsx(175,33): error TS2322: Type 'Element' is not assignable to type 'ElementType<any, keyof IntrinsicElements> | undefined'.
+src/pages/admin/AdminEmergency.tsx(15,36): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/pages/admin/AdminPlans.tsx(13,31): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/pages/admin/AdminSupport.tsx(13,40): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/pages/admin/AdminVoice.tsx(22,32): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/pages/AlertsCenter.tsx(141,25): error TS2322: Type 'Element' is not assignable to type 'ElementType<any, keyof IntrinsicElements> | undefined'.
+src/pages/AlertsCenter.tsx(148,25): error TS2322: Type 'Element' is not assignable to type 'ElementType<any, keyof IntrinsicElements> | undefined'.
+src/pages/CfoSimulationPage.tsx(317,15): error TS2322: Type 'Element' is not assignable to type 'ElementType<any, keyof IntrinsicElements> | undefined'.
+src/pages/Dashboard/PulseSection.tsx(12,36): error TS2554: Expected 1 arguments, but got 0.
+src/pages/DataCleaning.tsx(88,9): error TS2322: Type '"warning"' is not assignable to type 'ToastType | undefined'.
+src/pages/MarketNews.tsx(145,26): error TS2741: Property 'children' is missing in type '{ key: number; className: string; }' but required in type 'GlassPanelProps'.
+src/pages/Settings.tsx(193,107): error TS2339: Property 'name' does not exist on type '{ tenant: TenantData | null; role: string; }'.
+src/services/authorizedFetch.ts(50,32): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/test/setup.ts(21,3): error TS2578: Unused '@ts-expect-error' directive.
+src/test/setup.ts(23,5): error TS2578: Unused '@ts-expect-error' directive.

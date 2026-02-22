@@ -12,10 +12,16 @@ interface AsyncPanelProps {
     onRetry?: () => void;
     emptyTitle?: string;
     emptyDescription?: string;
-    emptyIcon?: ReactNode;
+    emptyIcon?: React.ElementType | ReactNode;
     children: ReactNode;
     loadingVariant?: 'spinner' | 'skeleton';
     className?: string;
+    emptyConfig?: {
+        title: string;
+        description: string;
+        icon?: React.ElementType | ReactNode;
+        action?: ReactNode;
+    };
 }
 
 export function AsyncPanel({
@@ -28,8 +34,13 @@ export function AsyncPanel({
     emptyIcon,
     children,
     loadingVariant = 'skeleton',
-    className
+    className,
+    emptyConfig
 }: AsyncPanelProps) {
+    const effectiveEmptyTitle = emptyTitle || emptyConfig?.title;
+    const effectiveEmptyDescription = emptyDescription || emptyConfig?.description;
+    const effectiveEmptyIcon = emptyIcon || emptyConfig?.icon;
+    const effectiveEmptyAction = emptyConfig?.action;
     if (isLoading) {
         return (
             <GlassPanel className={className}>
@@ -62,9 +73,10 @@ export function AsyncPanel({
         return (
             <GlassPanel className={className}>
                 <EmptyState
-                    icon={emptyIcon}
-                    title={emptyTitle || "Nenhum dado encontrado"}
-                    description={emptyDescription || "Não há itens para exibir no momento."}
+                    icon={effectiveEmptyIcon}
+                    title={effectiveEmptyTitle || "Nenhum dado encontrado"}
+                    description={effectiveEmptyDescription || "Não há itens para exibir no momento."}
+                    action={effectiveEmptyAction}
                 />
             </GlassPanel>
         );

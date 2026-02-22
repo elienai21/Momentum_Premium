@@ -1,0 +1,7 @@
+﻿tests/e2e/ai-module.test.ts(35,58): error TS2345: Argument of type 'AiResult' is not assignable to parameter of type 'never'.
+tests/e2e/billing-webhook.test.ts(61,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+tests/e2e/billing-webhook.test.ts(95,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+tests/e2e/billing-webhook.test.ts(126,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.

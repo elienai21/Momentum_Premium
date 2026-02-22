@@ -6,7 +6,7 @@ import React, {
   useCallback,
 } from "react";
 
-type ToastType = "success" | "error" | "info";
+type ToastType = "success" | "error" | "info" | "warning";
 
 type Toast = {
   id: number;
@@ -53,6 +53,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
             classes += " border-emerald-300 bg-emerald-50 text-emerald-900";
           } else if (item.type === "error") {
             classes += " border-rose-300 bg-rose-50 text-rose-900";
+          } else if (item.type === "warning") {
+            classes += " border-amber-300 bg-amber-50 text-amber-900";
           } else {
             classes += " border-slate-200 bg-white text-slate-900";
           }

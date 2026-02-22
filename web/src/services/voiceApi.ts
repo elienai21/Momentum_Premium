@@ -9,7 +9,7 @@ export type TTSRequest = {
 export async function tts({ text, voice, profile }: TTSRequest): Promise<Blob> {
   const r = await authorizedFetch("/api/voice/tts", {
     method: "POST",
-    body: { text, voice, profile },
+    body: { text, voice, profile } as any,
   });
   if (!r.ok) throw new Error(`/api/voice/tts -> ${r.status}`);
   return r.blob(); // ex.: audio/mpeg

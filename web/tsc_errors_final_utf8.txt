@@ -1,0 +1,4 @@
+﻿src/pages/Dashboard.tsx(20,46): error TS2307: Cannot find module '../components/EmptyState' or its corresponding type declarations.
+src/pages/Dashboard/CfoSection.tsx(14,28): error TS2307: Cannot find module '../../components/EmptyState' or its corresponding type declarations.
+src/test/setup.ts(21,3): error TS2578: Unused '@ts-expect-error' directive.
+src/test/setup.ts(23,5): error TS2578: Unused '@ts-expect-error' directive.

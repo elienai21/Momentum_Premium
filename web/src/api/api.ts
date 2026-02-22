@@ -41,7 +41,7 @@ api.interceptors.request.use((config) => {
   }
 
   headers["x-tenant-id"] = tenantId;
-  config.headers = headers;
+  (config as any).headers = headers;
 
   return config;
 });

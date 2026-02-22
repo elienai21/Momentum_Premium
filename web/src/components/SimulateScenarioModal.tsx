@@ -69,13 +69,13 @@ const SimulateScenarioModal: React.FC<SimulateScenarioModalProps> = ({
 
   const handleChange =
     (field: keyof SimpleSimulationInput) =>
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setForm((prev) => ({
-        ...prev,
-        [field]: value === "" ? undefined : Number(value),
-      }));
-    };
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setForm((prev) => ({
+          ...prev,
+          [field]: value === "" ? undefined : Number(value),
+        }));
+      };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,9 +89,9 @@ const SimulateScenarioModal: React.FC<SimulateScenarioModalProps> = ({
         oneOffExpense: form.oneOffExpense ?? 0,
       };
 
-      track("cfo_simulate_submit", payload);
+      track("cfo_simulate_submit", payload as any);
 
-      const response = await CfoApi.simulate(payload);
+      const response = await CfoApi.simulate(payload as any);
       setResult(response);
 
       onConfirm?.(payload);
@@ -305,11 +305,10 @@ const SimulateScenarioModal: React.FC<SimulateScenarioModalProps> = ({
                 <div>
                   <p className="text-slate-400 text-[10px]">Fluxo líquido</p>
                   <p
-                    className={`font-semibold ${
-                      result.result.net >= 0
-                        ? "text-emerald-400"
-                        : "text-red-400"
-                    }`}
+                    className={`font-semibold ${result.result.net >= 0
+                      ? "text-emerald-400"
+                      : "text-red-400"
+                      }`}
                   >
                     R{" "}
                     {result.result.net.toLocaleString("pt-BR", {
