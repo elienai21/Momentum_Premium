@@ -112,9 +112,9 @@ const makeCollection = (path: string): Partial<Firestore.CollectionReference> =>
     return makeDocRef(docPath) as any;
   }) as any,
   // Query interface methods
-  where: jest.fn((...args: any[]) => makeQuery(path).where(...args)),
-  orderBy: jest.fn((...args: any[]) => makeQuery(path).orderBy(...args)),
-  limit: jest.fn((val) => makeQuery(path).limit(val)),
+  where: jest.fn((...args: any[]) => makeQuery(path).where(...args)) as any,
+  orderBy: jest.fn((...args: any[]) => makeQuery(path).orderBy(...args)) as any,
+  limit: jest.fn((val) => makeQuery(path).limit(val)) as any,
   get: jest.fn(() => makeQuery(path).get()),
 });
 

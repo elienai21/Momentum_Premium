@@ -3,11 +3,11 @@ import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect, jest 
 // Switch to default import for firebase-admin compatibility
 import admin from "firebase-admin";
 import type { UserRecord } from "firebase-admin/auth";
-import * as firebaseFunctionsTest from "firebase-functions-test";
+import * as fft from "firebase-functions-test";
 import { runAdvisor } from "../../src/ai/advisor";
 import type { AiResult } from "../../src/utils/aiClient";
 
-const testEnv = firebaseFunctionsTest({ projectId: "momentum-platform-local" }, "key.json");
+const testEnv = fft({ projectId: "momentum-platform-local" });
 
 jest.mock("../../src/utils/aiClient", () => ({
   aiClient: jest.fn(), // Mock the exported function name 'aiClient' directly if runGemini is alias
@@ -32,7 +32,7 @@ describe("E2E: AI Module", () => {
   });
 
   beforeEach(async () => {
-    (aiClient as unknown as jest.Mock).mockResolvedValue({
+    (aiClient as any).mockResolvedValue({
       text: "Recommendation 1\nRecommendation 2",
       usage: { totalTokenCount: 10 },
     } as AiResult);
@@ -57,7 +57,7 @@ describe("E2E: AI Module", () => {
 
     const req = {
       user: { uid: testUser.uid },
-      tenant: { info: { id: testTenantId, plan: "premium" } },
+      tenant: { info: { id: testTenantId!, plan: "premium" } },
       body: { message: "Analyze my finances" },
       traceId: "test-trace",
       header: jest.fn().mockReturnValue("req-idempotency-key"),

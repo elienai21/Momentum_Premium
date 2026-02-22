@@ -198,7 +198,7 @@ export default function Imports() {
 
                     {/* Bloco B: Status */}
                     <AsyncPanel
-                        loading={loading && tab === "sheets"}
+                        isLoading={loading && tab === "sheets"}
                         error={error}
                         isEmpty={!loading && !resultMessage}
                         emptyConfig={{
@@ -242,7 +242,7 @@ export default function Imports() {
                 {/* Bloco C: Histórico */}
                 <div className="h-full">
                     <AsyncPanel
-                        loading={false}
+                        isLoading={false}
                         isEmpty={true}
                         emptyConfig={{
                             title: "Nenhum histórico encontrado",

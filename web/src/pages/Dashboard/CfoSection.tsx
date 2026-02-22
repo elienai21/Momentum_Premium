@@ -11,7 +11,7 @@ import ScenarioPreview from "../../components/ScenarioPreview";
 import VoicePanel from "../../components/VoicePanel";
 import { CfoInsightsCard } from "../../components/CfoInsightsCard";
 import { CardSkeleton } from "../../components/skeletons/CardSkeleton";
-import { EmptyState } from "../../components/EmptyState";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { getFriendlyError } from "../../lib/errorMessages";
 import { useCfoSummary } from "../../hooks/useCfoSummary";
 import { useMarketAdvice } from "../../hooks/useMarketAdvice";
@@ -38,7 +38,7 @@ export default function CfoSection({
 
   const hasAnyData =
     !!data &&
-    (!!data.healthScore || (data.actionPlan && data.actionPlan.length > 0));
+    (!!data.health || (data.actions && data.actions.length > 0));
 
   const [question, setQuestion] = useState("");
   const inputId = useId();
@@ -56,7 +56,7 @@ export default function CfoSection({
   });
 
   const kpis = data?.kpis || [];
-  const actionPlan = data?.actionPlan || [];
+  const actionPlan = data?.actions || [];
 
   const marketMeta = [
     sector ? { label: "Setor", value: sector } : null,
@@ -100,16 +100,16 @@ export default function CfoSection({
     );
   }
 
-  
-if (error) {
+
+  if (error) {
     const friendly = getFriendlyError(error);
     return (
       <section className="mt-8" aria-live="polite">
         <EmptyState
           title="N?o foi poss?vel carregar o painel do CFO"
           description={friendly.message}
-          primaryActionLabel="Tentar novamente"
-          onPrimaryAction={onImportClick}
+          actionLabel="Tentar novamente"
+          onActionClick={onImportClick}
         />
       </section>
     );
@@ -121,8 +121,8 @@ if (error) {
         <EmptyState
           title="Seu painel do CFO ainda está vazio"
           description="Importe seus dados financeiros para ver saúde da empresa, plano de ação e simulações inteligentes."
-          primaryActionLabel="Importar dados agora"
-          onPrimaryAction={onImportClick}
+          actionLabel="Importar dados agora"
+          onActionClick={onImportClick}
         />
 
         {/* Mesmo sem dados, já mostramos o painel de voz como teaser de valor */}
@@ -152,10 +152,19 @@ if (error) {
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="md:col-span-1">
-              <HealthScoreCard healthScore={data?.healthScore} />
+              <HealthScoreCard
+                loading={isLoading}
+                error={error}
+                data={data?.health as any}
+              />
             </div>
             <div className="md:col-span-2">
-              <ActionPlanList actionPlan={actionPlan} />
+              <ActionPlanList
+                loading={isLoading}
+                error={error ? String(error) : null}
+                empty={isEmpty}
+                actions={actionPlan}
+              />
             </div>
           </div>
 
@@ -171,7 +180,13 @@ if (error) {
               Veja como o plano recomendado pelo CFO virtual afeta caixa, lucro e
               margem num cenário base.
             </p>
-            <ScenarioPreview kpis={kpis} />
+            <ScenarioPreview
+              loading={isLoading}
+              error={error ? String(error) : null}
+              empty={isEmpty}
+              kpis={kpis}
+              scenarios={data?.scenarios}
+            />
           </div>
 
           {/* Novo card: relatório textual do CFO IA */}

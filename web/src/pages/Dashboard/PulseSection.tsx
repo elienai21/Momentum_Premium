@@ -1,15 +1,24 @@
 import { usePulseSummary } from "../../hooks/usePulseSummary";
 import KpiCard from "../../components/KpiCard";
 import { KpiSkeleton } from "../../components/skeletons/KpiSkeleton";
-import { EmptyState } from "../../components/EmptyState";
+import { EmptyState } from "../../components/ui/EmptyState";
 import { getFriendlyError } from "../../lib/errorMessages";
 
 interface PulseSectionProps {
   onImportClick: () => void;
+  tenantId?: string | null;
 }
 
-export default function PulseSection({ onImportClick }: PulseSectionProps) {
-  const { data, loading, error } = usePulseSummary(/* seus params */);
+export default function PulseSection({ onImportClick, tenantId }: PulseSectionProps) {
+  // Simplificamos para o mês atual para evitar erros de tipo
+  const now = new Date();
+  const month = now.toISOString().slice(0, 7); // yyyy-MM
+
+  const { data, loading, error } = usePulseSummary({
+    tenantId: tenantId || "",
+    periodStart: `${month}-01`,
+    periodEnd: `${month}-31`
+  });
 
   // LOADING -> skeleton consistente
   if (loading) {

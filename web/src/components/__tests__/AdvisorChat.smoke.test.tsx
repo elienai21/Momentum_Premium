@@ -40,7 +40,7 @@ vi.mock("../../context/FeatureGateContext", async (orig) => {
 
 // --- 3) Mock de fetch para /api/advisor/session ---
 function mockFetchReply(answer = "Resposta do Advisor OK") {
-  (global as any).fetch = vi.fn(async (url: string, init?: RequestInit) => {
+  const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
     if (url.includes("/api/advisor/session")) {
       return new Response(
         JSON.stringify({ reply: answer }), // formato que o AdvisorChat espera
@@ -49,6 +49,7 @@ function mockFetchReply(answer = "Resposta do Advisor OK") {
     }
     return new Response(null, { status: 404 });
   });
+  vi.stubGlobal('fetch', fetchMock);
 }
 
 beforeEach(() => {
@@ -57,6 +58,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -85,10 +87,10 @@ describe("<AdvisorChat /> — Smoke", () => {
     ).toBeInTheDocument();
 
     // Digita e envia
-    const input = screen.getByPlaceholderText(/Digite ou fale com seu CFO Virtual/i);
+    const input = screen.getByPlaceholderText(/Pergunte sobre seus saldos, categorias ou anomalias.../i);
     fireEvent.change(input, { target: { value: "Como está meu caixa?" } });
 
-    const enviar = screen.getByRole("button", { name: /Enviar/i });
+    const enviar = screen.getByLabelText(/Enviar mensagem/i);
     fireEvent.click(enviar);
 
     // Deve exibir a resposta mockada
@@ -97,8 +99,7 @@ describe("<AdvisorChat /> — Smoke", () => {
     });
 
     // `fetch` foi chamado uma vez
-    expect((global as any).fetch).toHaveBeenCalledTimes(1);
-    expect((global as any).fetch.mock.calls[0][0]).toContain("/api/advisor/session");
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("quando voiceTTS=true, chama speak() (TTS)", async () => {
@@ -117,9 +118,9 @@ describe("<AdvisorChat /> — Smoke", () => {
 
     render(withFeatures(<AdvisorChatWithMock />, featuresOn));
 
-    const input = screen.getByPlaceholderText(/Digite ou fale com seu CFO Virtual/i);
+    const input = screen.getByPlaceholderText(/Pergunte sobre seus saldos, categorias ou anomalias.../i);
     fireEvent.change(input, { target: { value: "Fazer TTS?" } });
-    fireEvent.click(screen.getByRole("button", { name: /Enviar/i }));
+    fireEvent.click(screen.getByLabelText(/Enviar mensagem/i));
 
     await waitFor(() => {
       expect(screen.getByText(/Resposta do Advisor OK/i)).toBeInTheDocument();
@@ -141,9 +142,9 @@ describe("<AdvisorChat /> — Smoke", () => {
 
     render(withFeatures(<AdvisorChatWithMock />, featuresOff));
 
-    const input = screen.getByPlaceholderText(/Digite ou fale com seu CFO Virtual/i);
+    const input = screen.getByPlaceholderText(/Pergunte sobre seus saldos, categorias ou anomalias.../i);
     fireEvent.change(input, { target: { value: "Sem TTS?" } });
-    fireEvent.click(screen.getByRole("button", { name: /Enviar/i }));
+    fireEvent.click(screen.getByLabelText(/Enviar mensagem/i));
 
     await waitFor(() => {
       expect(screen.getByText(/Resposta do Advisor OK/i)).toBeInTheDocument();

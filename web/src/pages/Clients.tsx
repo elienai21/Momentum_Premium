@@ -30,11 +30,11 @@ const Clients: React.FC = () => {
       setLoading(false);
       return;
     }
-    async function loadClients() {
+    async function loadClients(): Promise<void> {
       setLoading(true);
       try {
         // "coleção tenants/tenantId/clients"
-        const ref = collection(db, "tenants", tenantId, "clients");
+        const ref = collection(db, "tenants", tenantId!, "clients");
         const q = query(ref);
         const snap = await getDocs(q);
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Client));

@@ -142,7 +142,7 @@ export const MarketNews: React.FC = () => {
             <div className="grid gap-4 md:grid-cols-2">
                 {loading ? (
                     Array(4).fill(0).map((_, i) => (
-                        <GlassPanel key={i} className="h-24 animate-pulse bg-slate-100/50" />
+                        <GlassPanel key={i} className="h-24 animate-pulse bg-slate-100/50"><div /></GlassPanel>
                     ))
                 ) : (
                     dailyNews?.news?.map((item, i) => (
@@ -172,3 +172,5 @@ export const MarketNews: React.FC = () => {
         </div>
     );
 };
+
+export default MarketNews;

@@ -34,7 +34,7 @@ const Settings: React.FC = () => {
   const { credits, isLoading: loadingCredits, refetch } = useCredits();
   const { logs, isLoading: loadingLogs } = useUsageLogs(10);
   const { tenantId } = useTenantCtx();
-  const tenant = useTenantData(tenantId);
+  const { tenant, role } = useTenantData(tenantId);
 
   // Profile form state
   const [profileName, setProfileName] = useState("");

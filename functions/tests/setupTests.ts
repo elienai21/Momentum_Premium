@@ -4,13 +4,8 @@ import "./setupFirebaseMock";
 // Em CI/Windows, inicialização do app + mocks pode levar mais de 5s.
 jest.setTimeout(30_000);
 // Mock aiClient para evitar dependência de chaves externas
-jest.mock("src/utils/aiClient", () => ({
-  aiClient: jest.fn(async (_prompt: string, _opts?: any) => ({
-    text: "mock-ai-response",
-    tokens: 10,
-    provider: "mock",
-  })),
-}));
+// Production configuration: using real aiClient (ensure keys are in environment)
+// jest.mock("src/utils/aiClient", ...);
 
 const REAL_AUTH = process.env.TEST_REAL_AUTH === "true";
 process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || "test-key";

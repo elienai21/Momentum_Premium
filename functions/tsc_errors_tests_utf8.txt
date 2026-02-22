@@ -1,0 +1,14 @@
+﻿tests/e2e/ai-module.test.ts(10,17): error TS2349: This expression is not callable.
+  Type '{ default: (firebaseConfig?: AppOptions | undefined, pathToServiceAccountKey?: string | undefined) => FeaturesList; }' has no call signatures.
+tests/e2e/ai-module.test.ts(35,58): error TS2345: Argument of type 'AiResult' is not assignable to parameter of type 'never'.
+tests/e2e/auth-tenant.test.ts(9,17): error TS2349: This expression is not callable.
+  Type '{ default: (firebaseConfig?: AppOptions | undefined, pathToServiceAccountKey?: string | undefined) => FeaturesList; }' has no call signatures.
+tests/e2e/auth-tenant.test.ts(64,12): error TS18048: 'tenantData' is possibly 'undefined'.
+tests/e2e/auth-tenant.test.ts(65,12): error TS18048: 'tenantData' is possibly 'undefined'.
+tests/e2e/auth-tenant.test.ts(66,12): error TS18048: 'tenantData' is possibly 'undefined'.
+tests/e2e/auth-tenant.test.ts(71,12): error TS2532: Object is possibly 'undefined'.
+tests/e2e/billing-webhook.test.ts(6,24): error TS2307: Cannot find module 'stripe-mock' or its corresponding type declarations.
+tests/e2e/billing-webhook.test.ts(8,17): error TS2349: This expression is not callable.
+  Type '{ default: (firebaseConfig?: AppOptions | undefined, pathToServiceAccountKey?: string | undefined) => FeaturesList; }' has no call signatures.
+tests/e2e/security-access.test.ts(8,17): error TS2349: This expression is not callable.
+  Type '{ default: (firebaseConfig?: AppOptions | undefined, pathToServiceAccountKey?: string | undefined) => FeaturesList; }' has no call signatures.

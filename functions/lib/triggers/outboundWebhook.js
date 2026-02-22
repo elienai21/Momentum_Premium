@@ -74,14 +74,15 @@ exports.outboundWebhook = (0, firestore_1.onDocumentCreated)({
             data,
             timestamp: new Date().toISOString(),
         };
-        // Calculate signature
-        const secret = process.env.WEBHOOK_SECRET || "";
-        let signature = "sha256=TODO";
-        if (secret) {
-            const hmac = crypto.createHmac("sha256", secret);
-            hmac.update(JSON.stringify(payload));
-            signature = `sha256=${hmac.digest("hex")}`;
+        // Calculate signature - require WEBHOOK_SECRET to be configured
+        const secret = process.env.WEBHOOK_SECRET;
+        if (!secret) {
+            logger_1.logger.warn("WEBHOOK_SECRET not configured, skipping webhook", { tenantId, docId });
+            return;
         }
+        const hmac = crypto.createHmac("sha256", secret);
+        hmac.update(JSON.stringify(payload));
+        const signature = `sha256=${hmac.digest("hex")}`;
         await axios_1.default.post(webhookUrl, payload, {
             headers: {
                 "X-Momentum-Signature": signature,

@@ -17,7 +17,7 @@ import { computeHealthFromKpis } from "../services/pulseApi";
 import AdvisorDock from "../components/AdvisorDock";
 import SimulateScenarioModal from "../components/SimulateScenarioModal";
 import { ImportModal } from "../components/ImportModal";
-import { EmptyState as EmptyStateCard } from "../components/EmptyState";
+import { EmptyState as EmptyStateCard } from "../components/ui/EmptyState";
 import { CreditsBar } from "../components/CreditsBar";
 
 // CFO Components

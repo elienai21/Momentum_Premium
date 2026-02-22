@@ -8,7 +8,8 @@
     "insights": "Insights Rápidos",
     "trend": "Tendência (6M)",
     "byCategory": "Despesas por Categoria",
-    "transactions": "Transações"
+    "transactions": "Transações",
+    "consent": "Este site usa cookies para melhorar sua experiência."
   },
   "en-US": {
     "greeting": "Welcome to Momentum",
@@ -19,6 +20,7 @@
     "insights": "Quick Insights",
     "trend": "Trend (6M)",
     "byCategory": "Expenses by Category",
-    "transactions": "Transactions"
+    "transactions": "Transactions",
+    "consent": "This site uses cookies to improve your experience."
   }
 }
