@@ -11,6 +11,7 @@ import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import { InstallPwaModal } from "./components/InstallPwaModal";
 import { RequireRole } from "./components/RequireRole";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Insights = lazy(() => import("./pages/Insights"));
@@ -76,6 +77,7 @@ export default function App() {
   );
 
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <FeatureGateProvider>
@@ -148,5 +150,6 @@ export default function App() {
         </FeatureGateProvider>
       </ToastProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

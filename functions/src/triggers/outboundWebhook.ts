@@ -5,6 +5,26 @@ import { logger } from "../utils/logger";
 import * as crypto from "crypto";
 
 const OUTBOUND_TIMEOUT = 5000;
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1000;
+
+/**
+ * Computes HMAC-SHA256 signature for webhook payload verification.
+ * Recipients should recompute the signature using the shared secret
+ * and compare it to the X-Momentum-Signature header.
+ */
+function computeSignature(payload: string, secret: string): string {
+    const hmac = crypto.createHmac("sha256", secret);
+    hmac.update(payload);
+    return `sha256=${hmac.digest("hex")}`;
+}
+
+/**
+ * Simple delay helper for retry backoff.
+ */
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export const outboundWebhook = onDocumentCreated(
     {
@@ -22,8 +42,6 @@ export const outboundWebhook = onDocumentCreated(
 
         try {
             // 1. Check if tenant has webhook configured
-            // We read settings/integrations doc.
-            // Assuming structure tenants/{tenantId}/settings/integrations
             const settingsSnap = await db.doc(`tenants/${tenantId}/settings/integrations`).get();
 
             if (!settingsSnap.exists) return;
@@ -31,10 +49,7 @@ export const outboundWebhook = onDocumentCreated(
             const webhookUrl = settingsSnap.data()?.webhookUrl;
             if (!webhookUrl) return;
 
-            // 2. Load basic tenant info for headers/context (skipped as we only need ID)
-            // const tenant = await loadTenant(tenantId);
-
-            // 3. Send Payload
+            // 2. Build payload
             const payload = {
                 event: "pulse.created",
                 tenantId,
@@ -43,35 +58,66 @@ export const outboundWebhook = onDocumentCreated(
                 timestamp: new Date().toISOString(),
             };
 
-            // Calculate signature - require WEBHOOK_SECRET to be configured
-            const secret = process.env.WEBHOOK_SECRET;
+            // 3. Compute HMAC signature
+            const secret = process.env.WEBHOOK_SECRET || "";
+            const payloadJson = JSON.stringify(payload);
+
             if (!secret) {
-                logger.warn("WEBHOOK_SECRET not configured, skipping webhook", { tenantId, docId });
+                logger.warn("WEBHOOK_SECRET not configured, skipping webhook delivery", { tenantId, docId });
                 return;
             }
 
-            const hmac = crypto.createHmac("sha256", secret);
-            hmac.update(JSON.stringify(payload));
-            const signature = `sha256=${hmac.digest("hex")}`;
+            const signature = computeSignature(payloadJson, secret);
 
-            await axios.post(webhookUrl, payload, {
-                headers: {
-                    "X-Momentum-Signature": signature,
-                    "X-Tenant-ID": tenantId,
-                    "User-Agent": "Momentum-Webhook-Bot/1.0"
-                },
-                timeout: OUTBOUND_TIMEOUT
-            });
+            // 4. Send with retry logic
+            let lastError: Error | null = null;
+            for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        await delay(RETRY_DELAY_MS * attempt);
+                        logger.info(`Webhook retry attempt ${attempt}/${MAX_RETRIES}`, { tenantId, docId });
+                    }
 
-            logger.info(`Webhook sent successfully to ${webhookUrl}`, { tenantId, docId });
+                    await axios.post(webhookUrl, payload, {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-Momentum-Signature": signature,
+                            "X-Momentum-Event": "pulse.created",
+                            "X-Tenant-ID": tenantId,
+                            "User-Agent": "Momentum-Webhook-Bot/1.0",
+                        },
+                        timeout: OUTBOUND_TIMEOUT,
+                    });
 
-        } catch (err: any) {
-            logger.error("Failed to send outbound webhook", {
+                    logger.info("Webhook delivered successfully", {
+                        tenantId,
+                        docId,
+                        url: webhookUrl,
+                        attempts: attempt + 1,
+                    });
+                    return; // Success — exit early
+
+                } catch (retryErr) {
+                    lastError = retryErr instanceof Error ? retryErr : new Error(String(retryErr));
+                }
+            }
+
+            // All retries exhausted
+            logger.error("Webhook delivery failed after all retries", {
                 tenantId,
                 docId,
-                error: err.message
+                url: webhookUrl,
+                error: lastError?.message ?? "Unknown error",
+                maxRetries: MAX_RETRIES,
             });
-            // We don't throw to avoid infinite retries on external failures unless we want that
+
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            logger.error("Unexpected error in outbound webhook trigger", {
+                tenantId,
+                docId,
+                error: message,
+            });
         }
     }
 );
