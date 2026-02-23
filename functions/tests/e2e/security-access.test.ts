@@ -2,7 +2,7 @@
 
 import { describe, beforeAll, afterAll, it, expect } from "@jest/globals";
 import * as admin from "firebase-admin";
-import * as fft from "firebase-functions-test";
+import fft = require("firebase-functions-test");
 import axios from "axios";
 
 const testEnv = fft({ projectId: "momentum-platform-local" });

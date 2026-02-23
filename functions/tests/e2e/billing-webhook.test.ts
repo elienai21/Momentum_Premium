@@ -1,7 +1,7 @@
 
 import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect } from "@jest/globals";
 import * as admin from "firebase-admin";
-import * as fft from "firebase-functions-test";
+import fft = require("firebase-functions-test");
 import axios from "axios";
 import Stripe from "stripe";
 
@@ -41,7 +41,7 @@ describe("E2E: Billing and Webhooks", () => {
   it("should handle the 'invoice.payment_succeeded' webhook and activate a subscription", async () => {
     console.log("TEST: Simulating Stripe webhook for successful payment...");
 
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
     const mockInvoice = {
       id: 'in_12345',
       object: 'invoice',
@@ -58,7 +58,7 @@ describe("E2E: Billing and Webhooks", () => {
 
     const signature = stripe.webhooks.generateTestHeaderString({
       payload,
-      secret: webhookSecret!,
+      secret: webhookSecret,
     });
 
     const response = await axios.post(`${functionsBaseUrl}/stripeWebhook`, payload, {
@@ -82,7 +82,7 @@ describe("E2E: Billing and Webhooks", () => {
   it("should return idempotent response for sequential duplicate events", async () => {
     console.log("TEST: Testing sequential duplicate idempotency...");
 
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
     const payload = JSON.stringify({
       id: 'evt_duplicate_seq',
       object: 'event',
@@ -92,7 +92,7 @@ describe("E2E: Billing and Webhooks", () => {
 
     const signature = stripe.webhooks.generateTestHeaderString({
       payload,
-      secret: webhookSecret!,
+      secret: webhookSecret,
     });
 
     // First request
@@ -113,7 +113,7 @@ describe("E2E: Billing and Webhooks", () => {
   it("should handle concurrent duplicate events without race condition", async () => {
     console.log("TEST: Testing concurrent duplicate idempotency...");
 
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
     const payload = JSON.stringify({
       id: 'evt_duplicate_concurrent',
       object: 'event',
@@ -123,7 +123,7 @@ describe("E2E: Billing and Webhooks", () => {
 
     const signature = stripe.webhooks.generateTestHeaderString({
       payload,
-      secret: webhookSecret!,
+      secret: webhookSecret,
     });
 
     // Send 3 concurrent requests

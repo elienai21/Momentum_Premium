@@ -3,7 +3,7 @@ import { describe, beforeAll, afterAll, beforeEach, afterEach, it, expect, jest 
 // Switch to default import for firebase-admin compatibility
 import admin from "firebase-admin";
 import type { UserRecord } from "firebase-admin/auth";
-import * as fft from "firebase-functions-test";
+import fft = require("firebase-functions-test");
 import { runAdvisor } from "../../src/ai/advisor";
 import type { AiResult } from "../../src/utils/aiClient";
 
