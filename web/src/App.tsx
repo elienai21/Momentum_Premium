@@ -11,6 +11,7 @@ import { useAuth, AuthProvider } from "./context/AuthContext";
 import AuthPage from "./pages/AuthPage";
 import { InstallPwaModal } from "./components/InstallPwaModal";
 import { RequireRole } from "./components/RequireRole";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Insights = lazy(() => import("./pages/Insights"));
@@ -39,6 +40,7 @@ const Imports = lazy(() => import("./pages/Imports"));
 const CfoSimulationPage = lazy(() => import("./pages/CfoSimulationPage"));
 const CfoSimulation = lazy(() => import("./pages/CfoSimulation"));
 const MarketNews = lazy(() => import("./pages/MarketNews").then((m) => ({ default: m.MarketNews })));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -76,6 +78,7 @@ export default function App() {
   );
 
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <FeatureGateProvider>
@@ -126,6 +129,7 @@ export default function App() {
                     <Route path="simulation" element={<CfoSimulation />} />
                     <Route path="alerts" element={<AlertsCenter />} />
                     <Route path="imports" element={<Imports />} />
+                    <Route path="onboarding" element={<Onboarding />} />
 
                     <Route path="admin" element={
                       <RequireRole>
@@ -148,5 +152,6 @@ export default function App() {
         </FeatureGateProvider>
       </ToastProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

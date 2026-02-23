@@ -5,19 +5,23 @@
  */
 
 import { onRequest } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import fetch from "node-fetch";
 
 const db = admin.firestore();
 
-// 🔒 Secrets do Google Cloud Secret Manager
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+// 🔒 Secrets via Firebase Secret Manager (injetados em runtime)
+const GEMINI_SECRET = defineSecret("GEMINI_API_KEY");
+const OPENAI_SECRET = defineSecret("OPENAI_API_KEY");
 
-// Escolhe provedor disponível
-const ACTIVE_PROVIDER = GEMINI_API_KEY ? "gemini" : "openai";
-
-export const advisorChat = onRequest(async (req, res) => {
+export const advisorChat = onRequest(
+  {
+    secrets: [GEMINI_SECRET, OPENAI_SECRET],
+    region: "southamerica-east1",
+    memory: "512MiB",
+  },
+  async (req, res) => {
   try {
     if (req.method !== "POST") {
       res.status(405).send({ error: "Método não permitido" });
@@ -59,8 +63,12 @@ Usuário: ${message}
 
     let reply = "";
 
-    if (ACTIVE_PROVIDER === "gemini") {
-      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + GEMINI_API_KEY, {
+    const geminiKey = GEMINI_SECRET.value();
+    const openaiKey = OPENAI_SECRET.value();
+    const activeProvider = geminiKey ? "gemini" : "openai";
+
+    if (activeProvider === "gemini") {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=" + geminiKey, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] })
@@ -72,7 +80,7 @@ Usuário: ${message}
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${openaiKey}`,
         },
         body: JSON.stringify({
           model: "gpt-4o-mini",

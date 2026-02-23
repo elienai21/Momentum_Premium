@@ -23,6 +23,7 @@ export { analyticsAggregator } from "./triggers/analyticsAggregator";
 export { dailyAging } from "./triggers/dailyAging";
 export { marketUpdater } from "./scheduler/marketUpdater";
 export { outboundWebhook } from "./triggers/outboundWebhook";
+export { handleTrialExpirations } from "./cron/handleTrialExpirations";
 
 // Firebase Admin init
 try {
@@ -39,7 +40,10 @@ export const apiV2 = onRequest(
   {
     timeoutSeconds: 300,
     memory: "1GiB",
-    cors: true,
+    cors: [
+      "https://momentum-premium.web.app",
+      "https://momentum-premium.firebaseapp.com",
+    ],
     region: "southamerica-east1",
   },
   expressApp

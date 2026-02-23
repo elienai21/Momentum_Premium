@@ -1,22 +1,14 @@
 // web/src/pages/Onboarding.tsx
 // Onboarding simples para configurar o perfil de mercado do tenant.
 // Usa o hook useMarketConfig(tenantId) para GET/PUT em /api/admin/tenant/:tenantId/market-config
-// Rotas: adicione <Route path="/onboarding" element={<Onboarding />} /> em App.tsx
+// Rota registrada em App.tsx: <Route path="/onboarding" element={<Onboarding />} />
 //
 // UI/UX: foco em clareza, acessibilidade e compatibilidade com a Topbar fixa (pt-16).
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMarketConfig, type MarketConfig, type Horizon } from "../hooks/useMarketConfig";
-
-function resolveTenantId(): string {
-  // Ajuste esta função para a sua realidade de autenticação/contexto.
-  // Tentativas em ordem: global/window, localStorage, fallback "T1".
-  // Em produção, substitua por um TenantContext/AuthContext.
-  const fromWindow = (window as any)?.TENANT_ID as string | undefined;
-  const fromStorage = localStorage.getItem("tenantId") || undefined;
-  return fromWindow || fromStorage || "T1";
-}
+import { useTenant } from "../context/TenantContext";
 
 type FormState = {
   enabled: boolean;
@@ -36,7 +28,17 @@ const defaultState: FormState = {
 
 export default function Onboarding() {
   const navigate = useNavigate();
-  const tenantId = resolveTenantId();
+  const { tenantId } = useTenant();
+
+  if (!tenantId) {
+    return (
+      <main className="pt-16 mx-auto max-w-3xl p-6">
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          Ambiente n&atilde;o configurado. Fa&ccedil;a login novamente para continuar.
+        </div>
+      </main>
+    );
+  }
 
   const { data, isLoading, error, save, isSaving } = useMarketConfig(tenantId);
 
